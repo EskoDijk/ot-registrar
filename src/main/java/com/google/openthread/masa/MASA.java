@@ -85,6 +85,8 @@ public class MASA extends CoapServer {
       int contentFormat = exchange.getRequestOptions().getContentFormat();
       if (contentFormat != ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_CBOR) {
         // TODO(wgtdkp): support more formats
+        // TODO(EskoDijk): support long URI resource names in case other formats (CMS-over-HTTP)
+        // supported
         exchange.respond(ResponseCode.UNSUPPORTED_CONTENT_FORMAT);
         return;
       }
@@ -185,12 +187,12 @@ public class MASA extends CoapServer {
   }
 
   private void initResources() {
-    CoapResource wellknown = new CoapResource(".well-known");
-    CoapResource est = new CoapResource("est");
+    CoapResource wellknown = new CoapResource(Constants.WELL_KNOWN);
+    CoapResource brski = new CoapResource(Constants.BRSKI);
     VoucherRequestResource rv = new VoucherRequestResource();
 
-    est.add(rv);
-    wellknown.add(est);
+    brski.add(rv);
+    wellknown.add(brski);
     this.add(wellknown);
   }
 

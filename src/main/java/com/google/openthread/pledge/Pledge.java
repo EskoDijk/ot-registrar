@@ -438,7 +438,7 @@ public class Pledge extends CoapClient {
   }
 
   private CoapResponse sendRequestVoucher(VoucherRequest voucherRequest) {
-    setURI(getESTPath() + "/" + Constants.REQUEST_VOUCHER);
+    setURI(getBRSKIPath() + "/" + Constants.REQUEST_VOUCHER);
     byte[] payload = new CBORSerializer().serialize(voucherRequest);
     return post(payload, ExtendedMediaTypeRegistry.APPLICATION_CBOR);
   }
@@ -533,7 +533,7 @@ public class Pledge extends CoapClient {
   // is no 'connect' API to build this session ahead. We
   // here send a GET to registrar to have this session built.
   private void connect() {
-    setURI(getESTPath());
+    setURI(getBRSKIPath());
     ping();
   }
 
@@ -564,6 +564,10 @@ public class Pledge extends CoapClient {
 
   private String getESTPath() {
     return hostURI + Constants.EST_PATH;
+  }
+
+  private String getBRSKIPath() {
+    return hostURI + Constants.BRSKI_PATH;
   }
 
   private static final String SUBJECT_NAME = "C=CN,L=SH,O=GG,OU=OpenThread,CN=pledge_op";

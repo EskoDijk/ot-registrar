@@ -69,20 +69,20 @@ import org.slf4j.LoggerFactory;
  */
 public class Registrar extends CoapServer {
   // EST resources
-  //      EST                 EST-CoAP
-  //      /cacerts            /cacerts
+  //      EST                 EST-CoAPS
+  //      /cacerts            /crts
   //      /simpleenroll       /sen
   //      /simplereenroll     /sren
-  //      /fullcmc
+  //      /fullcmc            (N/A)
   //      /serverkeygen       /skg
   //      /csrattrs           /att
 
   // Voucher related
-  //      BRSKI               EST-coaps       resource type
-  //      /requestvoucher     /rv             ace.rt.rv
-  //      /voucher-status     /vs             ace.rt.vs
-  //      /enrollstatus       /es             ace.rt.es
-  //      /requestauditlog    /ra             ace.rt.ra
+  //      BRSKI               BRSKI-EST-coaps
+  //      /requestvoucher     /rv
+  //      /voucher-status     /vs
+  //      /enrollstatus       /es
+  //      /requestauditlog    (N/A)    TODO: not to be supported on Registrar, MASA only.
 
   static {
     BouncyCastleInitializer.init();
@@ -374,14 +374,15 @@ public class Registrar extends CoapServer {
     }
 
     /**
-     * Forwarding voucher to masa
+     * Send new Voucher Request to MASA. Note that the present format used is not standardized, but
+     * custom to OT-Registrar and OT-Masa.
      *
-     * @param payload
-     * @param masaURI
+     * @param payload the Voucher Request in application/voucher-cms+cbor format
+     * @param masaURI the MASA URI (without URI path) to send it to
      * @return null if any error happens
      */
     public CoapResponse requestVoucher(byte[] payload, String masaURI) {
-      setURI(masaURI + Constants.EST_PATH + "/" + Constants.REQUEST_VOUCHER);
+      setURI(masaURI + Constants.BRSKI_PATH + "/" + Constants.REQUEST_VOUCHER);
       return post(payload, ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_CBOR);
     }
 
@@ -538,8 +539,10 @@ public class Registrar extends CoapServer {
   }
 
   private void initResources() {
-    CoapResource wellKnown = new CoapResource(".well-known");
-    CoapResource est = new CoapResource("est");
+    CoapResource wellKnown = new CoapResource(Constants.WELL_KNOWN);
+    CoapResource est = new CoapResource(Constants.EST);
+    CoapResource brski = new CoapResource(Constants.BRSKI);
+
     VoucherRequestResource rv = new VoucherRequestResource();
     VoucherStatusResource vs = new VoucherStatusResource();
     EnrollStatusResource es = new EnrollStatusResource();
@@ -547,16 +550,18 @@ public class Registrar extends CoapServer {
     EnrollResource enroll = new EnrollResource();
     ReenrollResource reenroll = new ReenrollResource();
 
-    // EST resources
+    // EST and BRSKI well-known resources
     est.add(enroll);
     est.add(reenroll);
-    est.add(rv);
-    est.add(vs);
-    est.add(es);
     est.add(att);
+    brski.add(rv);
+    brski.add(vs);
+    brski.add(es);
     wellKnown.add(est);
+    wellKnown.add(brski);
     this.add(wellKnown);
 
+    // 'hello' test resource
     est.add(
         new CoapResource(Constants.HELLO) {
           @Override

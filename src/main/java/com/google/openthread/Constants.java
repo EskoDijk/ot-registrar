@@ -35,7 +35,11 @@ public class Constants {
 
   public static final String EST = "est";
 
+  public static final String BRSKI = "brski";
+
   public static final String EST_PATH = "/" + String.join("/", WELL_KNOWN, EST);
+
+  public static final String BRSKI_PATH = "/" + String.join("/", WELL_KNOWN, BRSKI);
 
   public static final String REQUEST_VOUCHER = "rv";
 
@@ -52,7 +56,7 @@ public class Constants {
   public static final String HELLO = "hello";
 
   // COM_TOK
-  // This is not defined and we currently use "/.well-known/ccm".
+  // This is not defined in specs and we currently use "/.well-known/ccm".
   public static final String COM_TOK = "ccm";
 
   public static final String CCM_PATH = "/" + String.join("/", WELL_KNOWN, COM_TOK);
@@ -60,7 +64,7 @@ public class Constants {
   // Commissioner token validity in days
   public static final int COM_TOK_VALIDITY = 365;
 
-  // Temporary
+  // Temporary/early allocation in draft-ietf-anima-bootstrapping-keyinfra-44
   public static final String MASA_URI_OID = "1.3.6.1.5.5.7.1.32";
 
   // In case the MASA URI is not specified, this value will be used.
@@ -72,7 +76,7 @@ public class Constants {
 
   public static final String KEY_STORE_FORMAT = "PKCS12";
 
-  public static final long CERT_VALIDITY = 5 * 365; // In Days.
+  public static final long CERT_VALIDITY = 5 * 365; // LDevID validity in Days.
 
   public static final int DEFAULT_REGISTRAR_COAPS_PORT = 5684;
 
