@@ -465,6 +465,27 @@ public class Registrar extends CoapServer {
     }
   }
 
+  public final class CrtsResource extends CoapResource {
+    public CrtsResource() {
+      super(Constants.CA_CERTIFICATES);
+    }
+
+    @Override
+    public void handleGET(CoapExchange exchange) {
+      try {
+        RequestDumper.dump(logger, getURI(), exchange.getRequestPayload());
+
+        exchange.respond(
+            ResponseCode.CONTENT,
+            domainCA.getCertificate().getEncoded(),
+            ExtendedMediaTypeRegistry.APPLICATION_PKIX_CERT);
+      } catch (Exception e) {
+        logger.warn("CA Certificates request failed: " + e.getMessage());
+        exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
+      }
+    }
+  }
+
   public final class CommissionerTokenResource extends CoapResource {
     public CommissionerTokenResource() {
       super(Constants.COM_TOK);
@@ -546,6 +567,7 @@ public class Registrar extends CoapServer {
     VoucherStatusResource vs = new VoucherStatusResource();
     EnrollStatusResource es = new EnrollStatusResource();
     CsrAttrsResource att = new CsrAttrsResource();
+    CrtsResource crts = new CrtsResource();
     EnrollResource enroll = new EnrollResource();
     ReenrollResource reenroll = new ReenrollResource();
 
@@ -553,6 +575,7 @@ public class Registrar extends CoapServer {
     est.add(enroll);
     est.add(reenroll);
     est.add(att);
+    est.add(crts);
     brski.add(rv);
     brski.add(vs);
     brski.add(es);

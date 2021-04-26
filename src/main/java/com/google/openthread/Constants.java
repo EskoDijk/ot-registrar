@@ -49,6 +49,8 @@ public class Constants {
 
   public static final String CSR_ATTRIBUTES = "att";
 
+  public static final String CA_CERTIFICATES = "crts";
+
   public static final String SIMPLE_ENROLL = "sen";
 
   public static final String SIMPLE_REENROLL = "sren";
