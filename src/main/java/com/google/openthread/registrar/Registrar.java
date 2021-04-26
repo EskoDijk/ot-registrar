@@ -82,7 +82,6 @@ public class Registrar extends CoapServer {
   //      /requestvoucher     /rv
   //      /voucher-status     /vs
   //      /enrollstatus       /es
-  //      /requestauditlog    (N/A)    TODO: not to be supported on Registrar, MASA only.
 
   static {
     BouncyCastleInitializer.init();
