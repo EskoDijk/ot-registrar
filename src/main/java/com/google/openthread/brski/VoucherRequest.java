@@ -29,8 +29,9 @@
 package com.google.openthread.brski;
 
 public class VoucherRequest extends Voucher {
+
   public VoucherRequest() {
-    sidMap = null;
+    //
   }
 
   @Override

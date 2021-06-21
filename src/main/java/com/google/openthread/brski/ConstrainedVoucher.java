@@ -28,9 +28,51 @@
 
 package com.google.openthread.brski;
 
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Constrained Voucher that uses SID integer values to compress key names. See IETF
+ * draft-ietf-anima-constrained-voucher.
+ */
 public class ConstrainedVoucher extends Voucher {
+
+  public static final int VOUCHER_SID = 2451;
+
+  @SuppressWarnings("serial")
+  protected static final Map<String, Integer> voucherSIDMap =
+      new HashMap<String, Integer>() {
+        {
+          put(VOUCHER, VOUCHER_SID);
+          put(ASSERTION, VOUCHER_SID + 1);
+          put(CREATED_ON, VOUCHER_SID + 2);
+          put(DOMAIN_CERT_REVOCATION_CHECKS, VOUCHER_SID + 3);
+          put(EXPIRES_ON, VOUCHER_SID + 4);
+          put(IDEVID_ISSUER, VOUCHER_SID + 5);
+          put(LAST_RENEWAL_DATE, VOUCHER_SID + 6);
+          put(NONCE, VOUCHER_SID + 7);
+          put(PINNED_DOMAIN_CERT, VOUCHER_SID + 8);
+          put(PINNED_DOMAIN_SPKI, VOUCHER_SID + 9);
+          put(PINNED_SHA256_DOMAIN_SPKI, VOUCHER_SID + 10);
+          put(SERIAL_NUMBER, VOUCHER_SID + 11);
+        }
+      };
+
+  protected Map<String, Integer> sidMap;
+  protected int baseSid;
+
   public ConstrainedVoucher() {
     sidMap = voucherSIDMap;
+    baseSid = VOUCHER_SID;
+  }
+
+  @Override
+  public Object getKey(String item) {
+    Integer sid = sidMap.get(item);
+    // if no SID found return the item key in full.
+    if (sid == null) 
+    	return item;
+    return sid;
   }
 
   @Override

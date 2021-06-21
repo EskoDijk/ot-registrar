@@ -29,8 +29,11 @@
 package com.google.openthread;
 
 import com.google.openthread.brski.*;
+
+import java.text.ParseException;
 import java.util.Arrays;
 import java.util.Date;
+import org.bouncycastle.util.encoders.Base64;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -62,18 +65,25 @@ public class VoucherTest {
     Assert.assertTrue(v1.validate());
 
     byte[] data = new CBORSerializer().serialize(v1);
-
     Voucher v2 = new CBORSerializer().deserialize(data);
     Assert.assertTrue(v2.validate());
 
     Assert.assertTrue(v1.assertion.equals(v2.assertion));
     Assert.assertTrue(v1.serialNumber.equals(v2.serialNumber));
     Assert.assertTrue(Arrays.equals(v1.pinnedDomainCert, v2.pinnedDomainCert));
+
+    data = new JSONSerializer().serialize(v1);
+    Voucher v3 = new JSONSerializer().deserialize(data);
+    Assert.assertTrue(v3.validate());
+
+    Assert.assertTrue(v1.assertion.equals(v3.assertion));
+    Assert.assertTrue(v1.serialNumber.equals(v3.serialNumber));
+    Assert.assertTrue(Arrays.equals(v1.pinnedDomainCert, v3.pinnedDomainCert));
   }
 
   @Test
   public void testSimpleRequest() {
-    VoucherRequest vr1 = new VoucherRequest();
+    Voucher vr1 = new VoucherRequest();
     vr1.assertion = Voucher.Assertion.PROXIMITY;
     vr1.serialNumber = "12345";
     vr1.proximityRegistrarCert = new byte[] {0x01, 0x02, 0x03};
@@ -81,30 +91,35 @@ public class VoucherTest {
     Assert.assertTrue(vr1.validate());
 
     byte[] data = new CBORSerializer().serialize(vr1);
-
-    VoucherRequest vr2 = (VoucherRequest) new CBORSerializer().deserialize(data);
+    Voucher vr2 = new CBORSerializer().deserialize(data);
     Assert.assertTrue(vr2.validate());
 
     Assert.assertTrue(vr1.assertion.equals(vr2.assertion));
     Assert.assertTrue(vr1.serialNumber.equals(vr2.serialNumber));
     Assert.assertTrue(Arrays.equals(vr1.proximityRegistrarCert, vr2.proximityRegistrarCert));
+
+    data = new JSONSerializer().serialize(vr1);
+    Voucher vr3 = new JSONSerializer().deserialize(data);
+    Assert.assertTrue(vr3.validate());
+
+    Assert.assertTrue(vr1.assertion.equals(vr3.assertion));
+    Assert.assertTrue(vr1.serialNumber.equals(vr3.serialNumber));
+    Assert.assertTrue(Arrays.equals(vr1.proximityRegistrarCert, vr3.proximityRegistrarCert));
   }
 
   @Test
   public void testSimpleConstrained() {
-    ConstrainedVoucher cv1 = new ConstrainedVoucher();
-    cv1.assertion = Voucher.Assertion.PROXIMITY;
+    Voucher cv1 = new ConstrainedVoucher();
+    cv1.assertion = Voucher.Assertion.LOGGED;
     cv1.serialNumber = "12345";
     cv1.createdOn = new Date();
     cv1.expiresOn = new Date();
-
     cv1.pinnedDomainSPKI = new byte[] {0x01, 0x02, 0x03};
 
     Assert.assertTrue(cv1.validate());
 
     byte[] data = new CBORSerializer().serialize(cv1);
-
-    ConstrainedVoucher cv2 = (ConstrainedVoucher) new CBORSerializer().deserialize(data);
+    Voucher cv2 = new CBORSerializer().deserialize(data);
     Assert.assertTrue(cv2.validate());
 
     Assert.assertTrue(cv1.assertion.equals(cv2.assertion));
@@ -114,7 +129,7 @@ public class VoucherTest {
 
   @Test
   public void testSimpleConstrainedRequest() {
-    ConstrainedVoucherRequest cvr1 = new ConstrainedVoucherRequest();
+    Voucher cvr1 = new ConstrainedVoucherRequest();
     cvr1.assertion = Voucher.Assertion.PROXIMITY;
     cvr1.serialNumber = "123";
 
@@ -123,13 +138,27 @@ public class VoucherTest {
     Assert.assertTrue(cvr1.validate());
 
     byte[] data = new CBORSerializer().serialize(cvr1);
-
-    ConstrainedVoucherRequest cvr2 =
-        (ConstrainedVoucherRequest) new CBORSerializer().deserialize(data);
+    Voucher cvr2 = new CBORSerializer().deserialize(data);
     Assert.assertTrue(cvr2.validate());
 
     Assert.assertTrue(cvr1.assertion.equals(cvr2.assertion));
     Assert.assertTrue(cvr1.serialNumber.equals(cvr2.serialNumber));
     Assert.assertTrue(Arrays.equals(cvr1.proximityRegistrarSPKI, cvr2.proximityRegistrarSPKI));
   }
+  
+  @Test
+  public void testConstrainedRequestMixedDeltaEncoding() throws ParseException {
+	  // an example constrained Voucher Request. It uses mixed delta/Tag-47 encoding in SID values.
+	  // to view on site CBOR.me, use following hex input: a11909c5a9d82f1909c774323031362d31302d30375431393a33313a34325ad82f1909c974323031362d31302d32315431393a33313a34325a01020d6d4a414441313233343536373839054401020d0f0a4401020d0fd82f1909c8f50674323031372d31302d30375431393a33313a34325a0c590279308202753082021ca00302010202147056eaaa3066d8826a555b9088d462bf9cf28cfd300a06082a8648ce3d0403023073310b3009060355040613024e4c310b300906035504080c024e423110300e06035504070c0748656c6d6f6e6431133011060355040a0c0a76616e64657273746f6b31143012060355040b0c0b636f6e73756c74616e6379311a301806035504030c117265676973747261722e73746f6b2e6e6c301e170d3230313230393130303233365a170d3231313230393130303233365a3073310b3009060355040613024e4c310b300906035504080c024e423110300e06035504070c0748656c6d6f6e6431133011060355040a0c0a76616e64657273746f6b31143012060355040b0c0b636f6e73756c74616e6379311a301806035504030c117265676973747261722e73746f6b2e6e6c3059301306072a8648ce3d020106082a8648ce3d03010703420004507ac8491a8c69c7b5c31d0309ed35ba13f5884ce62b88cf3018154fa059b020ec6bebb94e02b8934021898da789c711cea71339f50e348edf0d923ed02dc7b7a3818d30818a301d0603551d0e0416041408c2bf36887f79412185872f16a7aca6efb3d2b3301f0603551d2304183016801408c2bf36887f79412185872f16a7aca6efb3d2b3300f0603551d130101ff040530030101ff30270603551d250420301e06082b0601050507031c06082b0601050507030106082b06010505070302300e0603551d0f0101ff0404030201f6300a06082a8648ce3d04030203470030440220744c99008513b2f1bcfdf9021a46fb174cf883a27ca1d93faeacf31e4edd12c60220114714dbf51a5e78f581b9421c6e4702ab537270c5bafb2d16c3de9aa182c35f 
+	    byte[] data = Base64.decode("oRkJxanYLxkJx3QyMDE2LTEwLTA3VDE5OjMxOjQyWtgvGQnJdDIwMTYtMTAtMjFUMTk6MzE6NDJaAQINbUpBREExMjM0NTY3ODkFRAECDQ8KRAECDQ/YLxkJyPUGdDIwMTctMTAtMDdUMTk6MzE6NDJaDFkCeTCCAnUwggIcoAMCAQICFHBW6qowZtiCalVbkIjUYr+c8oz9MAoGCCqGSM49BAMCMHMxCzAJBgNVBAYTAk5MMQswCQYDVQQIDAJOQjEQMA4GA1UEBwwHSGVsbW9uZDETMBEGA1UECgwKdmFuZGVyc3RvazEUMBIGA1UECwwLY29uc3VsdGFuY3kxGjAYBgNVBAMMEXJlZ2lzdHJhci5zdG9rLm5sMB4XDTIwMTIwOTEwMDIzNloXDTIxMTIwOTEwMDIzNlowczELMAkGA1UEBhMCTkwxCzAJBgNVBAgMAk5CMRAwDgYDVQQHDAdIZWxtb25kMRMwEQYDVQQKDAp2YW5kZXJzdG9rMRQwEgYDVQQLDAtjb25zdWx0YW5jeTEaMBgGA1UEAwwRcmVnaXN0cmFyLnN0b2submwwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARQeshJGoxpx7XDHQMJ7TW6E/WITOYriM8wGBVPoFmwIOxr67lOAriTQCGJjaeJxxHOpxM59Q40jt8Nkj7QLce3o4GNMIGKMB0GA1UdDgQWBBQIwr82iH95QSGFhy8Wp6ym77PSszAfBgNVHSMEGDAWgBQIwr82iH95QSGFhy8Wp6ym77PSszAPBgNVHRMBAf8EBTADAQH/MCcGA1UdJQQgMB4GCCsGAQUFBwMcBggrBgEFBQcDAQYIKwYBBQUHAwIwDgYDVR0PAQH/BAQDAgH2MAoGCCqGSM49BAMCA0cAMEQCIHRMmQCFE7LxvP35AhpG+xdM+IOifKHZP66s8x5O3RLGAiARRxTb9RpeePWBuUIcbkcCq1NycMW6+y0Ww96aoYLDXw==");
+	    Voucher cvr = new CBORSerializer().deserialize(data);
+	    Assert.assertTrue(cvr.validate());
+
+	    Assert.assertTrue(cvr.assertion.equals(Voucher.Assertion.PROXIMITY));
+	    Assert.assertTrue(cvr.serialNumber.equals("JADA123456789"));
+	    Assert.assertTrue(cvr.proximityRegistrarSPKI.length == 633);
+	    Assert.assertTrue(cvr.createdOn.equals(Voucher.dateFromYoungFormat("2016-10-07T19:31:42Z")));
+  }
+
+
 }

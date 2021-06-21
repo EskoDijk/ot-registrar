@@ -32,15 +32,16 @@ import com.strategicgains.util.date.DateAdapter;
 import com.strategicgains.util.date.TimestampAdapter;
 import java.text.ParseException;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 
 public class Voucher {
 
   public static final class Assertion {
+
     public static Assertion VERIFIED = new Assertion(0);
     public static Assertion LOGGED = new Assertion(1);
     public static Assertion PROXIMITY = new Assertion(2);
+
+    private final int value;
 
     private Assertion(final int val) {
       value = val;
@@ -59,6 +60,19 @@ public class Voucher {
       }
     }
 
+    public static Assertion newAssertion(String val) {
+      switch (val) {
+        case "verified":
+          return VERIFIED;
+        case "logged":
+          return LOGGED;
+        case "proximity":
+          return PROXIMITY;
+        default:
+          throw new IllegalArgumentException("unexpect assertion value: " + val);
+      }
+    }
+
     public boolean equals(Assertion other) {
       return value == other.value;
     }
@@ -67,7 +81,18 @@ public class Voucher {
       return value;
     }
 
-    private final int value;
+    public String toString() {
+      switch (value) {
+        case 0:
+          return "verified";
+        case 1:
+          return "logged";
+        case 2:
+          return "proximity";
+        default:
+          return null;
+      }
+    }
   }
 
   public Assertion assertion;
@@ -199,10 +224,11 @@ public class Voucher {
 
   public static final String SERIAL_NUMBER = "serial-number";
 
-  public static final int VOUCHER_SID = 2451; // 1001104;
-
-  public static final int VOUCHER_REQUEST_SID = 2501; // 1001154;
-
+  /**
+   * Validates this Voucher, if the right fields are present/absent.
+   *
+   * @return true if successfully validated.
+   */
   public boolean validate() {
     if (assertion == null
         || createdOn == null
@@ -223,19 +249,16 @@ public class Voucher {
     return VOUCHER;
   }
 
+  /**
+   * Get the key-object from the specific named field, that is valid for the current voucher
+   * (request) type. Subclasses of Voucher may implement compression on key names.
+   *
+   * @param item
+   * @return corresponding key-object for 'item' ; or null if 'item' is not valid/existing in
+   *     context of current voucher type.
+   */
   public Object getKey(String item) {
-    if (sidMap == null) {
-      return getKeyName(item);
-    }
-    Integer sid = getKeySID(item);
-    if (sid == null) {
-      return null;
-    }
-    // FIXME(wgtdkp): how to determine if using sid diff ?
-    if (sid.equals(VOUCHER_SID) || sid.equals(VOUCHER_REQUEST_SID)) {
-      return sid;
-    }
-    return sid - (sidMap == voucherSIDMap ? VOUCHER_SID : VOUCHER_REQUEST_SID);
+    return item;
   }
 
   /** The Internet Date/Time Format (ref: ISO8601, section 5.6 RFC 3339) */
@@ -248,52 +271,4 @@ public class Voucher {
     DateAdapter adapter = new TimestampAdapter();
     return adapter.parse(young);
   }
-
-  protected Integer getKeySID(String item) {
-    return sidMap.get(item);
-  }
-
-  protected String getKeyName(String item) {
-    return item;
-  }
-
-  protected static final Map<String, Integer> voucherRequestSIDMap =
-      new HashMap<String, Integer>() {
-        {
-          put(VOUCHER_REQUEST, VOUCHER_REQUEST_SID);
-          put(ASSERTION, get(VOUCHER_REQUEST) + 1);
-          put(CREATED_ON, get(VOUCHER_REQUEST) + 2);
-          put(DOMAIN_CERT_REVOCATION_CHECKS, get(VOUCHER_REQUEST) + 3);
-          put(EXPIRES_ON, get(VOUCHER_REQUEST) + 4);
-          put(IDEVID_ISSUER, get(VOUCHER_REQUEST) + 5);
-          put(LAST_RENEWAL_DATE, get(VOUCHER_REQUEST) + 6);
-          put(NONCE, get(VOUCHER_REQUEST) + 7);
-          put(PINNED_DOMAIN_CERT, get(VOUCHER_REQUEST) + 8);
-          put(PRIOR_SIGNED_VOUCHER_REQUEST, get(VOUCHER_REQUEST) + 9);
-          put(PROXIMITY_REGISTRAR_CERT, get(VOUCHER_REQUEST) + 10);
-          put(SHA256_REGISTRAR_SPKI, get(VOUCHER_REQUEST) + 11);
-          put(PROXIMITY_REGISTRAR_SPKI, get(VOUCHER_REQUEST) + 12);
-          put(SERIAL_NUMBER, get(VOUCHER_REQUEST) + 13);
-        }
-      };
-
-  protected static final Map<String, Integer> voucherSIDMap =
-      new HashMap<String, Integer>() {
-        {
-          put(VOUCHER, VOUCHER_SID);
-          put(ASSERTION, get(VOUCHER) + 1);
-          put(CREATED_ON, get(VOUCHER) + 2);
-          put(DOMAIN_CERT_REVOCATION_CHECKS, get(VOUCHER) + 3);
-          put(EXPIRES_ON, get(VOUCHER) + 4);
-          put(IDEVID_ISSUER, get(VOUCHER) + 5);
-          put(LAST_RENEWAL_DATE, get(VOUCHER) + 6);
-          put(NONCE, get(VOUCHER) + 7);
-          put(PINNED_DOMAIN_CERT, get(VOUCHER) + 8);
-          put(PINNED_DOMAIN_SPKI, get(VOUCHER) + 9);
-          put(PINNED_SHA256_DOMAIN_SPKI, get(VOUCHER) + 10);
-          put(SERIAL_NUMBER, get(VOUCHER) + 11);
-        }
-      };
-
-  protected Map<String, Integer> sidMap = null;
 }

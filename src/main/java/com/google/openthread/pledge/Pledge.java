@@ -170,7 +170,7 @@ public class Pledge extends CoapClient {
       throw new PledgeException("validate voucher request failed");
     }
 
-    return requestVoucher(voucherRequest);
+    return requestConstrainedVoucher(voucherRequest);
   }
 
   /**
@@ -181,9 +181,10 @@ public class Pledge extends CoapClient {
    * @throws IllegalStateException
    * @throws PledgeException
    */
-  public ConstrainedVoucher requestVoucher(VoucherRequest req) throws PledgeException {
+  public ConstrainedVoucher requestConstrainedVoucher(ConstrainedVoucherRequest req)
+      throws PledgeException {
     // 0. Send to registrar
-    CoapResponse response = sendRequestVoucher(req);
+    CoapResponse response = sendRequestConstrainedVoucher(req);
 
     // 1. Verify response
     if (response == null) {
@@ -437,7 +438,7 @@ public class Pledge extends CoapClient {
     initEndpoint(this.privateKey, this.certificateChain, this.certVerifier);
   }
 
-  private CoapResponse sendRequestVoucher(VoucherRequest voucherRequest) {
+  private CoapResponse sendRequestConstrainedVoucher(ConstrainedVoucherRequest voucherRequest) {
     setURI(getBRSKIPath() + "/" + Constants.REQUEST_VOUCHER);
     byte[] payload = new CBORSerializer().serialize(voucherRequest);
     return post(payload, ExtendedMediaTypeRegistry.APPLICATION_CBOR);
