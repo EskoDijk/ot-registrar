@@ -32,13 +32,11 @@ import com.upokecenter.cbor.CBORObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Create new instance for each serialization/deserialization job.
- */
+/** Create new instance for each serialization/deserialization job. */
 public class CBORSerializer implements VoucherSerializer {
 
-  protected CBORObject container ;
-  protected int parentSid;
+  protected CBORObject container;
+  protected int parentSid = 0;
   private static Logger logger = LoggerFactory.getLogger(CBORSerializer.class);
   Voucher voucher;
 
@@ -53,18 +51,22 @@ public class CBORSerializer implements VoucherSerializer {
   }
 
   public CBORObject toCBOR(Voucher voucher) {
-	  this.voucher = voucher;
+    this.voucher = voucher;
+    Object keyObj = voucher.getKey(voucher.getName());
+    if (keyObj instanceof Integer) {
+    	parentSid = (Integer) keyObj;
+    }
     CBORObject cbor = CBORObject.NewMap();
     container = CBORObject.NewMap();
 
     add((Voucher.ASSERTION), voucher.assertion.getValue());
 
-    if (voucher.createdOn != null) 
+    if (voucher.createdOn != null)
       add((Voucher.CREATED_ON), Voucher.dateToYoungFormat(voucher.createdOn));
 
     add((Voucher.DOMAIN_CERT_REVOCATION_CHECKS), voucher.domainCertRevocationChecks);
 
-    if (voucher.expiresOn != null) 
+    if (voucher.expiresOn != null)
       add((Voucher.EXPIRES_ON), Voucher.dateToYoungFormat(voucher.expiresOn));
 
     add((Voucher.IDEVID_ISSUER), voucher.idevidIssuer);
@@ -86,7 +88,7 @@ public class CBORSerializer implements VoucherSerializer {
 
     add((Voucher.SERIAL_NUMBER), voucher.serialNumber);
 
-    cbor.Add((voucher.getName()), container);
+    cbor.Add(keyObj, container);
 
     return cbor;
   }
@@ -94,32 +96,31 @@ public class CBORSerializer implements VoucherSerializer {
   public Voucher fromCBOR(CBORObject cbor) {
     try {
       for (CBORObject key : cbor.getKeys()) {
-        if (key.isIntegral()) {
-          if (key.AsInt32() == ConstrainedVoucher.VOUCHER_SID) {
+    	  CBORObject ku = key.Untag();
+        if (ku.isNumber()) {
+          if (ku.AsInt32() == ConstrainedVoucher.VOUCHER_SID) {
             voucher = new ConstrainedVoucher();
             parentSid = ConstrainedVoucher.VOUCHER_SID;
-          } else if (key.AsInt32() == ConstrainedVoucherRequest.VOUCHER_REQUEST_SID) {
+          } else if (ku.AsInt32() == ConstrainedVoucherRequest.VOUCHER_REQUEST_SID) {
             voucher = new ConstrainedVoucherRequest();
             parentSid = ConstrainedVoucherRequest.VOUCHER_REQUEST_SID;
           } else {
-            String msg =
-                String.format(
-                    "wrong voucher sid: %d, expecting %d for voucher and %d for voucher request",
-                    key.AsInt32(),
+            String msg = String.format(
+                    "wrong voucher sid: %d, expecting %d for voucher or %d for voucher request",
+                    ku.AsInt32(),
                     ConstrainedVoucher.VOUCHER_SID,
                     ConstrainedVoucherRequest.VOUCHER_REQUEST_SID);
-            throw new Exception(msg);
+            throw new IllegalArgumentException(msg);
           }
         } else if (key.AsString().equals(Voucher.VOUCHER)) {
           voucher = new Voucher();
         } else if (key.AsString().equals(Voucher.VOUCHER_REQUEST)) {
           voucher = new VoucherRequest();
         } else {
-          String msg =
-              String.format(
-                  "wrong voucher : %s, expecting %s for voucher and %s for voucher request",
+          String msg = String.format(
+                  "wrong voucher : %s, expecting %s for voucher or %s for voucher request",
                   key.AsString(), Voucher.VOUCHER, Voucher.VOUCHER_REQUEST);
-          throw new Exception(msg);
+          throw new IllegalArgumentException(msg);
         }
 
         container = cbor.get(key);
@@ -133,8 +134,7 @@ public class CBORSerializer implements VoucherSerializer {
           voucher.createdOn = Voucher.dateFromYoungFormat(leaf.AsString());
         }
 
-        if ((leaf = get((Voucher.DOMAIN_CERT_REVOCATION_CHECKS)))
-            != null) {
+        if ((leaf = get((Voucher.DOMAIN_CERT_REVOCATION_CHECKS))) != null) {
           voucher.domainCertRevocationChecks = leaf.AsBoolean();
         }
 
@@ -190,38 +190,44 @@ public class CBORSerializer implements VoucherSerializer {
   }
 
   protected void add(String keyName, Object val) {
-	Object key = voucher.getKey(keyName);
+    Object key = voucher.getKey(keyName);
     if (val != null) {
-      container.Add(key, val);
+        if(parentSid > 0 && key instanceof Integer) {	// if SID number key
+        	key = ((Integer) key - parentSid);
+        }
+    	container.Add(key, val);
     }
   }
 
   protected CBORObject get(String keyName) {
-	Object key = voucher.getKey(keyName);
+    Object key = voucher.getKey(keyName);
     CBORObject keyObj = CBORObject.FromObject(key);
-	if (key instanceof Integer) {
-		// it's a SID
-	    int keyInt = (Integer) key;
-		// delta compression MAY be used now. Tag 47 indicates 'not delta' and absence of Tag 47 indicates 'delta'
-		// https://datatracker.ietf.org/doc/html/draft-ietf-core-yang-cbor-15#section-3.2
-		int deltaKey = keyInt - parentSid;
-		// look for either the uncompressed full number Tagged 47, or the delta number. 
-		for(CBORObject k : container.getKeys()) {
-			if(k.isIntegral() && 
-				( (k.AsInt32() == keyInt && k.HasTag(47)) || (k.AsInt32() == deltaKey && !k.HasTag(47)) )
-			  ){
-				return container.get(k);						
-			}
-		}
-	}
-	
-	// if SID numbers not found for this item, try if full name is there.
-	CBORObject keyNameObj = CBORObject.FromObject(keyName);
-	if (container.ContainsKey(keyNameObj)) {
-		return container.get(keyNameObj);
-	}
-	
-	// fall back case
+    if (key instanceof Integer) {
+      // it's a SID
+      int keyInt = (Integer) key;
+      // delta compression MAY be used now. Tag 47 indicates 'not delta' and absence of Tag 47
+      // indicates 'delta' value
+      // https://datatracker.ietf.org/doc/html/draft-ietf-core-yang-cbor-15#section-3.2
+      int deltaKey = keyInt - parentSid;
+      // look for either the uncompressed full number Tagged 47, or the delta number.
+      for (CBORObject k : container.getKeys()) {
+    	CBORObject ku = k.Untag();
+        if (ku.isNumber()		// Untag needed due to particularity in isNumber()
+            && ((ku.AsInt32() == keyInt && k.HasTag(47))
+                || (ku.AsInt32() == deltaKey && !k.HasTag(47)))) {
+          return container.get(k);
+        }
+      }
+    }
+
+    // if SID numbers not found for this item, try if full name is there. SIDs allowed to be 
+    // mixed with full names.
+    CBORObject keyNameObj = CBORObject.FromObject(keyName);
+    if (container.ContainsKey(keyNameObj)) {
+      return container.get(keyNameObj);
+    }
+
+    // fallback case
     return container.get(keyObj);
   }
 }

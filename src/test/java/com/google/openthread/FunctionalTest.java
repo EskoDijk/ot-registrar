@@ -256,6 +256,7 @@ public class FunctionalTest {
   @Test
   public void testSimpleCommissioning() throws Exception {
     CWT comTok = commissioner.requestToken("TestDomainTCE", REGISTRAR_URI);
+    // TODO check result
   }
 
   @Test

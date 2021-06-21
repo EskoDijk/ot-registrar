@@ -70,8 +70,7 @@ public class ConstrainedVoucher extends Voucher {
   public Object getKey(String item) {
     Integer sid = sidMap.get(item);
     // if no SID found return the item key in full.
-    if (sid == null) 
-    	return item;
+    if (sid == null) return item;
     return sid;
   }
 
