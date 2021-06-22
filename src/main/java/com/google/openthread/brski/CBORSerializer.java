@@ -54,7 +54,7 @@ public class CBORSerializer implements VoucherSerializer {
     this.voucher = voucher;
     Object keyObj = voucher.getKey(voucher.getName());
     if (keyObj instanceof Integer) {
-    	parentSid = (Integer) keyObj;
+      parentSid = (Integer) keyObj;
     }
     CBORObject cbor = CBORObject.NewMap();
     container = CBORObject.NewMap();
@@ -96,7 +96,7 @@ public class CBORSerializer implements VoucherSerializer {
   public Voucher fromCBOR(CBORObject cbor) {
     try {
       for (CBORObject key : cbor.getKeys()) {
-    	  CBORObject ku = key.Untag();
+        CBORObject ku = key.Untag();
         if (ku.isNumber()) {
           if (ku.AsInt32() == ConstrainedVoucher.VOUCHER_SID) {
             voucher = new ConstrainedVoucher();
@@ -105,7 +105,8 @@ public class CBORSerializer implements VoucherSerializer {
             voucher = new ConstrainedVoucherRequest();
             parentSid = ConstrainedVoucherRequest.VOUCHER_REQUEST_SID;
           } else {
-            String msg = String.format(
+            String msg =
+                String.format(
                     "wrong voucher sid: %d, expecting %d for voucher or %d for voucher request",
                     ku.AsInt32(),
                     ConstrainedVoucher.VOUCHER_SID,
@@ -117,7 +118,8 @@ public class CBORSerializer implements VoucherSerializer {
         } else if (key.AsString().equals(Voucher.VOUCHER_REQUEST)) {
           voucher = new VoucherRequest();
         } else {
-          String msg = String.format(
+          String msg =
+              String.format(
                   "wrong voucher : %s, expecting %s for voucher or %s for voucher request",
                   key.AsString(), Voucher.VOUCHER, Voucher.VOUCHER_REQUEST);
           throw new IllegalArgumentException(msg);
@@ -192,10 +194,10 @@ public class CBORSerializer implements VoucherSerializer {
   protected void add(String keyName, Object val) {
     Object key = voucher.getKey(keyName);
     if (val != null) {
-        if(parentSid > 0 && key instanceof Integer) {	// if SID number key
-        	key = ((Integer) key - parentSid);
-        }
-    	container.Add(key, val);
+      if (parentSid > 0 && key instanceof Integer) { // if SID number key
+        key = ((Integer) key - parentSid);
+      }
+      container.Add(key, val);
     }
   }
 
@@ -211,8 +213,8 @@ public class CBORSerializer implements VoucherSerializer {
       int deltaKey = keyInt - parentSid;
       // look for either the uncompressed full number Tagged 47, or the delta number.
       for (CBORObject k : container.getKeys()) {
-    	CBORObject ku = k.Untag();
-        if (ku.isNumber()		// Untag needed due to particularity in isNumber()
+        CBORObject ku = k.Untag();
+        if (ku.isNumber() // Untag needed due to particularity in isNumber()
             && ((ku.AsInt32() == keyInt && k.HasTag(47))
                 || (ku.AsInt32() == deltaKey && !k.HasTag(47)))) {
           return container.get(k);
@@ -220,7 +222,7 @@ public class CBORSerializer implements VoucherSerializer {
       }
     }
 
-    // if SID numbers not found for this item, try if full name is there. SIDs allowed to be 
+    // if SID numbers not found for this item, try if full name is there. SIDs allowed to be
     // mixed with full names.
     CBORObject keyNameObj = CBORObject.FromObject(keyName);
     if (container.ContainsKey(keyNameObj)) {

@@ -115,9 +115,11 @@ public class DomainCA {
     X509ExtensionUtils extUtils = new BcX509ExtensionUtils();
     builder.addExtension(Extension.basicConstraints, false, new BasicConstraints(false));
 
-    SubjectKeyIdentifier subjectKeyId =
-        extUtils.createSubjectKeyIdentifier(csr.getSubjectPublicKeyInfo());
-    builder.addExtension(Extension.subjectKeyIdentifier, false, subjectKeyId);
+    // per 802.1AR-2018 section 8.10.2, don't include subject key identifier. This is tested in
+    // FunctionalTest.
+    // SubjectKeyIdentifier subjectKeyId =
+    //  extUtils.createSubjectKeyIdentifier(csr.getSubjectPublicKeyInfo());
+    //  builder.addExtension(Extension.subjectKeyIdentifier, false, subjectKeyId);
 
     // Or we should directly copy this from subject-key-identifier of domain CA ?
     AuthorityKeyIdentifier authorityKeyId =

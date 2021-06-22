@@ -158,6 +158,11 @@ public class FunctionalTest {
 
     String domainName = SecurityUtils.getDNSName(cert);
     Assert.assertTrue(domainName.equals(registrar.getDomainName()));
+
+    // we expect the LDevID to NOT contain subject key id, per 802.1AR-2018 spec section 8.10.2 for
+    // LDevID.
+    byte[] subjKeyId = cert.getExtensionValue("2.5.29.14");
+    Assert.assertNull(subjKeyId);
   }
 
   @Test
