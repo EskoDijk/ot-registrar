@@ -173,7 +173,7 @@ public class Voucher {
 
   /*
    * The proximity-registrar-subject-public-key-info replaces
-   * the proximit-registrar-cert in constrained uses of
+   * the proximity-registrar-cert in constrained uses of
    * the voucher-request.
    * The proximity-registrar-subject-public-key-info is the
    * Raw Public Key of the Registrar. This field is encoded

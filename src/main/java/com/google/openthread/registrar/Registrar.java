@@ -69,19 +69,19 @@ import org.slf4j.LoggerFactory;
  */
 public class Registrar extends CoapServer {
   // EST resources
-  //      EST                 EST-CoAPS
-  //      /cacerts            /crts
-  //      /simpleenroll       /sen
-  //      /simplereenroll     /sren
-  //      /fullcmc            (N/A)
-  //      /serverkeygen       /skg
-  //      /csrattrs           /att
-
+  // EST             EST-CoAPS
+  // /cacerts        /crts
+  // /simpleenroll   /sen
+  // /simplereenroll /sren
+  // /fullcmc        (N/A)
+  // /serverkeygen   /skg
+  // /csrattrs       /att
+  //
   // Voucher related
-  //      BRSKI               BRSKI-EST-coaps
-  //      /requestvoucher     /rv
-  //      /voucher-status     /vs
-  //      /enrollstatus       /es
+  // BRSKI           BRSKI-EST-coaps
+  // /requestvoucher /rv
+  // /voucher-status /vs
+  // /enrollstatus   /es
 
   static {
     BouncyCastleInitializer.init();
@@ -91,17 +91,13 @@ public class Registrar extends CoapServer {
    * Constructing registrar with credentials and listening port.
    *
    * @param masaTrustAnchors pre-installed MASA trust anchors
-   * @param privateKey the private key used for DTLS connection
-   * @param certificateChain the certificate chain leading up to domain CA and including domain CA
-   *     certificate
-   * @param port the port to listen on
+   * @param privateKey       the private key used for DTLS connection
+   * @param certificateChain the certificate chain leading up to domain CA and
+   *                         including domain CA certificate
+   * @param port             the port to listen on
    * @throws RegistrarException
    */
-  Registrar(
-      PrivateKey privateKey,
-      X509Certificate[] certificateChain,
-      X509Certificate[] masaTrustAnchors,
-      int port)
+  Registrar(PrivateKey privateKey, X509Certificate[] certificateChain, X509Certificate[] masaTrustAnchors, int port)
       throws RegistrarException {
     if (certificateChain.length < 2) {
       throw new RegistrarException("bad certificate chain");
@@ -147,9 +143,7 @@ public class Registrar extends CoapServer {
         RequestDumper.dump(logger, getURI(), exchange.getRequestPayload());
 
         if (contentFormat != ExtendedMediaTypeRegistry.APPLICATION_CBOR) {
-          throw new Exception(
-              "unexpected content format for voucher status report: content-format="
-                  + contentFormat);
+          throw new Exception("unexpected content format for voucher status report: content-format=" + contentFormat);
         }
 
         CBORObject voucherStatus = CBORObject.DecodeFromBytes(exchange.getRequestPayload());
@@ -159,8 +153,7 @@ public class Registrar extends CoapServer {
 
         logger.info("received voucher status report: " + voucherStatus.toString());
       } catch (Exception e) {
-        logger.warn("handle voucher status report failed: " + e.getMessage());
-        e.printStackTrace();
+        logger.warn("handle voucher status report failed: " + e.getMessage(), e);
       } finally {
         exchange.respond(ResponseCode.CHANGED);
       }
@@ -179,9 +172,7 @@ public class Registrar extends CoapServer {
         RequestDumper.dump(logger, getURI(), exchange.getRequestPayload());
 
         if (contentFormat != ExtendedMediaTypeRegistry.APPLICATION_CBOR) {
-          throw new Exception(
-              "unexpected content format for enroll status report: content-format="
-                  + contentFormat);
+          throw new Exception("unexpected content format for enroll status report: content-format=" + contentFormat);
         }
 
         CBORObject enrollStatus = CBORObject.DecodeFromBytes(exchange.getRequestPayload());
@@ -191,8 +182,7 @@ public class Registrar extends CoapServer {
 
         logger.info("received enroll status report: " + enrollStatus.toString());
       } catch (Exception e) {
-        logger.warn("handle enroll status report failed: " + e.getMessage());
-        e.printStackTrace();
+        logger.warn("handle enroll status report failed: " + e.getMessage(), e);
       } finally {
         exchange.respond(ResponseCode.CHANGED);
       }
@@ -224,20 +214,16 @@ public class Registrar extends CoapServer {
 
         if (contentFormat == ExtendedMediaTypeRegistry.APPLICATION_COSE_SIGN1) {
           // Verify signature
-          Sign1Message sign1Msg =
-              (Sign1Message)
-                  Message.DecodeFromBytes(exchange.getRequestPayload(), MessageTag.Sign1);
+          Sign1Message sign1Msg = (Sign1Message) Message.DecodeFromBytes(exchange.getRequestPayload(),
+              MessageTag.Sign1);
           if (!sign1Msg.validate(new OneKey(idevid.getPublicKey(), null))) {
             throw new CoseException("COSE-sign1 voucher validation failed");
           }
 
           // 2.1 verify the voucher
-          pledgeReq =
-              (ConstrainedVoucherRequest) new CBORSerializer().deserialize(sign1Msg.GetContent());
+          pledgeReq = (ConstrainedVoucherRequest) new CBORSerializer().deserialize(sign1Msg.GetContent());
         } else if (contentFormat == ExtendedMediaTypeRegistry.APPLICATION_CBOR) {
-          pledgeReq =
-              (ConstrainedVoucherRequest)
-                  new CBORSerializer().deserialize(exchange.getRequestPayload());
+          pledgeReq = (ConstrainedVoucherRequest) new CBORSerializer().deserialize(exchange.getRequestPayload());
         } else {
           logger.error("unsupported voucher request format: " + contentFormat);
           exchange.respond(ResponseCode.UNSUPPORTED_CONTENT_FORMAT);
@@ -251,79 +237,77 @@ public class Registrar extends CoapServer {
         }
 
         // Constructing new voucher request for MASA
-        // ref: section 5.5 BRSKI
+        // ref: section 5.5 BRSKI RFC8995
         ConstrainedVoucherRequest req = new ConstrainedVoucherRequest();
-        req.assertion = pledgeReq.assertion;
+        // req.assertion = pledgeReq.assertion; // no assertion is made; only Pledge
+        // makes
+        // assertion.
 
-        // Optional, but mandatory for Thread 1.2
+        // OPTIONAL (RFC 8995), but mandatory for Thread 1.2
         req.nonce = pledgeReq.nonce;
 
-        // Optional, could be null.
+        // Optionally present in Pledge's Voucher Request.
         if (pledgeReq.proximityRegistrarSPKI != null) {
-          if (!Arrays.equals(
-              pledgeReq.proximityRegistrarSPKI, getCertificate().getPublicKey().getEncoded())) {
-            logger.error("unmatched proximity registrar SPKI");
+          if (!Arrays.equals(pledgeReq.proximityRegistrarSPKI, getCertificate().getPublicKey().getEncoded())) {
+            logger.error("unmatched proximity registrar SPKI in Pledge's Voucher Request");
             exchange.respond(ResponseCode.BAD_REQUEST);
             return;
           }
         }
 
-        req.proximityRegistrarSPKI = pledgeReq.proximityRegistrarSPKI;
+        // MUST NOT include (RFC 8995)
+        req.proximityRegistrarSPKI = null;
 
-        // Optional
+        // SHOULD include (RFC 8995)
         req.createdOn = new Date();
 
-        // serialNumber provided by pledge's voucher request must match the one
+        // serialNumber provided by pledge's voucher request MUST match (RFC 8995) the
+        // one
         // extracted from pledge's idevid.
         req.serialNumber = Pledge.getSerialNumber(idevid);
         if (req.serialNumber == null || !req.serialNumber.equals(pledgeReq.serialNumber)) {
-          logger.error(
-              String.format(
-                  "bad serial number in voucher request: [%s] != [%s]",
-                  pledgeReq.serialNumber, req.serialNumber));
+          logger.error(String.format("bad serial number in voucher request: [%s] != [%s]", pledgeReq.serialNumber,
+              req.serialNumber));
           exchange.respond(ResponseCode.UNPROCESSABLE_ENTITY);
           return;
         }
 
-        // Optional, could be null. Settting idevid-issuer as
-        // authority key identifier of pledge certificate.
-        // But not optional for OpenThread.
+        // Optional, could be null, but MUST be included for nonceful Voucher Request
+        // (RFC 8995).
+        // Settting idevid-issuer as authority key identifier of pledge certificate.
+        // Mandatory for Thread 1.2.
         req.idevidIssuer = SecurityUtils.getAuthorityKeyId(idevid);
         if (req.idevidIssuer != null) {
-          logger.info(
-              String.format(
-                  "idevid-issuer in voucher request [len=%d, %s]",
-                  req.idevidIssuer.length, Hex.toHexString(req.idevidIssuer)));
+          logger.info(String.format("idevid-issuer in voucher request [len=%d, %s]", req.idevidIssuer.length,
+              Hex.toHexString(req.idevidIssuer)));
         } else {
           logger.error("missing idevid-issuer in voucher request");
         }
 
-        // prior-signed-voucher-request for COSE-signed voucher request
+        // SHOULD include prior-signed-voucher-request (RFC 8995) with Pledge's
+        // COSE-signed voucher
+        // request
+        // Mandatory for Thread 1.2.
+        req.priorSignedVoucherRequest = exchange.getRequestPayload();
 
         // Create CMS-cbor voucher request
         byte[] content = new CBORSerializer().serialize(req);
         byte[] payload;
         try {
-          payload =
-              SecurityUtils.genCMSSignedMessage(
-                  privateKey,
-                  getCertificate(),
-                  SecurityUtils.SIGNATURE_ALGORITHM,
-                  certificateChain,
-                  content);
+          payload = SecurityUtils.genCMSSignedMessage(privateKey, getCertificate(), SecurityUtils.SIGNATURE_ALGORITHM,
+              certificateChain, content);
         } catch (Exception e) {
-          logger.warn("CMS signing voucher request failed: " + e.getMessage());
-          e.printStackTrace();
+          logger.warn("CMS signing voucher request failed: " + e.getMessage(), e);
           exchange.respond(ResponseCode.SERVICE_UNAVAILABLE);
           return;
         }
 
-        // Request voucher from MASA server
+        // Request voucher from MASA server indicated in IDevID cert, or else the
+        // default one.
         String uri = SecurityUtils.getMasaUri(idevid);
         if (uri == null) {
           logger.warn(
-              "pledge certificate does not include MASA uri, using default masa uri: "
-                  + Constants.DEFAULT_MASA_URI);
+              "pledge certificate does not include MASA uri, using default masa uri: " + Constants.DEFAULT_MASA_URI);
           uri = Constants.DEFAULT_MASA_URI;
         }
 
@@ -332,16 +316,8 @@ public class Registrar extends CoapServer {
         MASAConnector masaClient = new MASAConnector(masaTrustAnchors);
         CoapResponse response = masaClient.requestVoucher(payload, uri);
 
-        if (response == null || response.getCode() != ResponseCode.CHANGED) {
-          logger.warn("request voucher from MASA failed");
-          exchange.respond(ResponseCode.SERVICE_UNAVAILABLE);
-          return;
-        }
-
-        if (response.getOptions().getContentFormat()
-            != ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR) {
-          // TODO(wgtdkp): we can support more formats
-          logger.error("Not supported content format: " + response.getOptions().getContentFormat());
+        if (response == null) {
+          logger.warn("request voucher from MASA failed with response null");
           exchange.respond(ResponseCode.SERVICE_UNAVAILABLE);
           return;
         }
@@ -352,14 +328,28 @@ public class Registrar extends CoapServer {
           return;
         }
 
-        // Registrar forwards MASA's response without modification
-        exchange.respond(
-            response.getCode(),
-            response.getPayload(),
+        if (response.getCode() != ResponseCode.CHANGED) {
+          logger.warn("request voucher from MASA failed with response code " + response.getCode());
+          // mirror the MASA's response code, so the Pledge can distinguish errors from
+          // MASA.
+          exchange.respond(response.getCode());
+          return;
+        }
+
+        if (response.getOptions().getContentFormat() != ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR) {
+          // TODO(wgtdkp): we can support more formats
+          logger.error("Not-supported content format from MASA: " + response.getOptions().getContentFormat());
+          exchange.respond(ResponseCode.SERVICE_UNAVAILABLE);
+          return;
+        }
+
+        // Registrar forwards MASA's success response without modification
+        exchange.respond(response.getCode(), response.getPayload(),
             ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
-      } catch (Exception e) {
-        logger.warn("handle voucher request failed: " + e.getMessage());
-        e.printStackTrace();
+      } catch (
+
+      Exception e) {
+        logger.warn("handle voucher request failed: " + e.getMessage(), e);
         exchange.respond(ResponseCode.SERVICE_UNAVAILABLE);
         return;
       }
@@ -373,8 +363,8 @@ public class Registrar extends CoapServer {
     }
 
     /**
-     * Send new Voucher Request to MASA. Note that the present format used is not standardized, but
-     * custom to OT-Registrar and OT-Masa.
+     * Send new Voucher Request to MASA. Note that the present format used is not
+     * standardized, but custom to OT-Registrar and OT-Masa.
      *
      * @param payload the Voucher Request in application/voucher-cms+cbor format
      * @param masaURI the MASA URI (without URI path) to send it to
@@ -382,12 +372,13 @@ public class Registrar extends CoapServer {
      */
     public CoapResponse requestVoucher(byte[] payload, String masaURI) {
       setURI(masaURI + Constants.BRSKI_PATH + "/" + Constants.REQUEST_VOUCHER);
-      return post(payload, ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_CBOR);
+      // send request as CMS signed CBOR, accept only COSE-signed CBOR back.
+      return post(payload, ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_CBOR,
+          ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
     }
 
     private void initEndPoint(X509Certificate[] trustAnchors) {
-      CoapEndpoint endpoint =
-          SecurityUtils.genCoapClientEndPoint(trustAnchors, privateKey, certificateChain);
+      CoapEndpoint endpoint = SecurityUtils.genCoapClientEndPoint(trustAnchors, privateKey, certificateChain);
       setEndpoint(endpoint);
     }
   }
@@ -417,13 +408,9 @@ public class Registrar extends CoapServer {
         PKCS10CertificationRequest csr = new PKCS10CertificationRequest(payload);
         X509Certificate cert = domainCA.signCertificate(csr);
 
-        exchange.respond(
-            ResponseCode.CHANGED,
-            cert.getEncoded(),
-            ExtendedMediaTypeRegistry.APPLICATION_PKIX_CERT);
+        exchange.respond(ResponseCode.CHANGED, cert.getEncoded(), ExtendedMediaTypeRegistry.APPLICATION_PKIX_CERT);
       } catch (Exception e) {
-        logger.warn("sign certificate failed: " + e.getMessage());
-        e.printStackTrace();
+        logger.warn("sign certificate failed: " + e.getMessage(), e);
         // TODO(wgtdkp):
         exchange.respond(ResponseCode.SERVICE_UNAVAILABLE);
         return;
@@ -450,10 +437,7 @@ public class Registrar extends CoapServer {
         CsrAttrs csrAttrs = getCsrAttrs();
 
         // No base64 encoding
-        exchange.respond(
-            ResponseCode.CONTENT,
-            csrAttrs.getEncoded(),
-            ExtendedMediaTypeRegistry.APPLICATION_CSRATTRS);
+        exchange.respond(ResponseCode.CONTENT, csrAttrs.getEncoded(), ExtendedMediaTypeRegistry.APPLICATION_CSRATTRS);
       } catch (IOException e) {
         logger.warn("CSR attribute request failed: " + e.getMessage());
         exchange.respond(ResponseCode.BAD_REQUEST);
@@ -475,9 +459,7 @@ public class Registrar extends CoapServer {
       try {
         RequestDumper.dump(logger, getURI(), exchange.getRequestPayload());
 
-        exchange.respond(
-            ResponseCode.CONTENT,
-            domainCA.getCertificate().getEncoded(),
+        exchange.respond(ResponseCode.CONTENT, domainCA.getCertificate().getEncoded(),
             ExtendedMediaTypeRegistry.APPLICATION_PKIX_CERT);
       } catch (Exception e) {
         logger.warn("CA Certificates request failed: " + e.getMessage());
@@ -508,17 +490,15 @@ public class Registrar extends CoapServer {
 
         CBORObject signedToken = domainCA.signCommissionerToken(req);
         byte[] encodedToken = signedToken.EncodeToBytes();
-        logger.info(
-            "response token[len={}] : {}", encodedToken.length, Hex.toHexString(encodedToken));
+        logger.info("response token[len={}] : {}", encodedToken.length, Hex.toHexString(encodedToken));
 
-        exchange.respond(
-            ResponseCode.CHANGED, encodedToken, ExtendedMediaTypeRegistry.APPLICATION_COSE_SIGN1);
+        exchange.respond(ResponseCode.CHANGED, encodedToken, ExtendedMediaTypeRegistry.APPLICATION_COSE_SIGN1);
       } catch (Exception e) {
-        logger.warn("commissioner token request failed: " + e.getMessage());
-        e.printStackTrace();
+        logger.warn("commissioner token request failed: " + e.getMessage(), e);
         exchange.respond(ResponseCode.BAD_REQUEST, e.getMessage());
       }
     }
+
   }
 
   public static void validateComTokenReq(CBORObject req) throws RegistrarException {
@@ -584,13 +564,12 @@ public class Registrar extends CoapServer {
     this.add(wellKnown);
 
     // 'hello' test resource
-    est.add(
-        new CoapResource(Constants.HELLO) {
-          @Override
-          public void handleGET(CoapExchange exchange) {
-            exchange.respond(ResponseCode.CONTENT, "hello CoAP");
-          }
-        });
+    est.add(new CoapResource(Constants.HELLO) {
+      @Override
+      public void handleGET(CoapExchange exchange) {
+        exchange.respond(ResponseCode.CONTENT, "hello CoAP");
+      }
+    });
 
     // Commissioning
     wellKnown.add(new CommissionerTokenResource());
@@ -600,14 +579,9 @@ public class Registrar extends CoapServer {
     List<X509Certificate> trustAnchors = new ArrayList<>(Arrays.asList(masaTrustAnchors));
     trustAnchors.add(getDomainCertificate());
 
-    CoapEndpoint endpoint =
-        SecurityUtils.genCoapServerEndPoint(
-            listenPort,
-            trustAnchors.toArray(new X509Certificate[trustAnchors.size()]),
-            privateKey,
-            certificateChain,
-            new RegistrarCertificateVerifier(
-                trustAnchors.toArray(new X509Certificate[trustAnchors.size()])));
+    CoapEndpoint endpoint = SecurityUtils.genCoapServerEndPoint(listenPort,
+        trustAnchors.toArray(new X509Certificate[trustAnchors.size()]), privateKey, certificateChain,
+        new RegistrarCertificateVerifier(trustAnchors.toArray(new X509Certificate[trustAnchors.size()])));
     addEndpoint(endpoint);
   }
 

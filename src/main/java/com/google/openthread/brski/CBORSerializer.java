@@ -59,7 +59,8 @@ public class CBORSerializer implements VoucherSerializer {
     CBORObject cbor = CBORObject.NewMap();
     container = CBORObject.NewMap();
 
-    add((Voucher.ASSERTION), voucher.assertion.getValue());
+    if (voucher.assertion != null)
+      add((Voucher.ASSERTION), voucher.assertion.getValue());
 
     if (voucher.createdOn != null)
       add((Voucher.CREATED_ON), Voucher.dateToYoungFormat(voucher.createdOn));
@@ -105,12 +106,8 @@ public class CBORSerializer implements VoucherSerializer {
             voucher = new ConstrainedVoucherRequest();
             parentSid = ConstrainedVoucherRequest.VOUCHER_REQUEST_SID;
           } else {
-            String msg =
-                String.format(
-                    "wrong voucher sid: %d, expecting %d for voucher or %d for voucher request",
-                    ku.AsInt32(),
-                    ConstrainedVoucher.VOUCHER_SID,
-                    ConstrainedVoucherRequest.VOUCHER_REQUEST_SID);
+            String msg = String.format("wrong voucher sid: %d, expecting %d for voucher or %d for voucher request",
+                ku.AsInt32(), ConstrainedVoucher.VOUCHER_SID, ConstrainedVoucherRequest.VOUCHER_REQUEST_SID);
             throw new IllegalArgumentException(msg);
           }
         } else if (key.AsString().equals(Voucher.VOUCHER)) {
@@ -118,10 +115,8 @@ public class CBORSerializer implements VoucherSerializer {
         } else if (key.AsString().equals(Voucher.VOUCHER_REQUEST)) {
           voucher = new VoucherRequest();
         } else {
-          String msg =
-              String.format(
-                  "wrong voucher : %s, expecting %s for voucher or %s for voucher request",
-                  key.AsString(), Voucher.VOUCHER, Voucher.VOUCHER_REQUEST);
+          String msg = String.format("wrong voucher : %s, expecting %s for voucher or %s for voucher request",
+              key.AsString(), Voucher.VOUCHER, Voucher.VOUCHER_REQUEST);
           throw new IllegalArgumentException(msg);
         }
 
@@ -207,7 +202,8 @@ public class CBORSerializer implements VoucherSerializer {
     if (key instanceof Integer) {
       // it's a SID
       int keyInt = (Integer) key;
-      // delta compression MAY be used now. Tag 47 indicates 'not delta' and absence of Tag 47
+      // delta compression MAY be used now. Tag 47 indicates 'not delta' and absence
+      // of Tag 47
       // indicates 'delta' value
       // https://datatracker.ietf.org/doc/html/draft-ietf-core-yang-cbor-15#section-3.2
       int deltaKey = keyInt - parentSid;
@@ -215,14 +211,14 @@ public class CBORSerializer implements VoucherSerializer {
       for (CBORObject k : container.getKeys()) {
         CBORObject ku = k.Untag();
         if (ku.isNumber() // Untag needed due to particularity in isNumber()
-            && ((ku.AsInt32() == keyInt && k.HasTag(47))
-                || (ku.AsInt32() == deltaKey && !k.HasTag(47)))) {
+            && ((ku.AsInt32() == keyInt && k.HasTag(47)) || (ku.AsInt32() == deltaKey && !k.HasTag(47)))) {
           return container.get(k);
         }
       }
     }
 
-    // if SID numbers not found for this item, try if full name is there. SIDs allowed to be
+    // if SID numbers not found for this item, try if full name is there. SIDs
+    // allowed to be
     // mixed with full names.
     CBORObject keyNameObj = CBORObject.FromObject(keyName);
     if (container.ContainsKey(keyNameObj)) {

@@ -37,6 +37,8 @@ import com.google.openthread.SecurityUtils;
 import com.google.openthread.brski.CBORSerializer;
 import com.google.openthread.brski.ConstrainedVoucher;
 import com.google.openthread.brski.ConstrainedVoucherRequest;
+import com.google.openthread.brski.Voucher;
+
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -85,7 +87,8 @@ public class MASA extends CoapServer {
       int contentFormat = exchange.getRequestOptions().getContentFormat();
       if (contentFormat != ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_CBOR) {
         // TODO(wgtdkp): support more formats
-        // TODO(EskoDijk): support long URI resource names in case other formats (CMS-over-HTTP)
+        // TODO(EskoDijk): support long URI resource names in case other formats
+        // (CMS-over-HTTP)
         // supported
         exchange.respond(ResponseCode.UNSUPPORTED_CONTENT_FORMAT);
         return;
@@ -104,8 +107,7 @@ public class MASA extends CoapServer {
         return;
       }
 
-      ConstrainedVoucherRequest req =
-          (ConstrainedVoucherRequest) new CBORSerializer().deserialize(reqContent);
+      ConstrainedVoucherRequest req = (ConstrainedVoucherRequest) new CBORSerializer().deserialize(reqContent);
       if (!req.validate() || reqCerts.isEmpty()) {
         logger.error("invalid voucher request");
         exchange.respond(ResponseCode.BAD_REQUEST);
@@ -116,7 +118,8 @@ public class MASA extends CoapServer {
       // Section 5.5.1 BRSKI: MASA renewal of expired vouchers
 
       // TODO(wgtdkp):
-      // Section 5.5.2 BRSKI: MASA verification of voucher-request signature consistency
+      // Section 5.5.2 BRSKI: MASA verification of voucher-request signature
+      // consistency
 
       // TODO(wgtdkp):
       // Section 5.5.3 BRSKI: MASA authentication of registrar (certificate)
@@ -126,6 +129,11 @@ public class MASA extends CoapServer {
 
       // TODO(wgtdkp):
       // Section 5.5.5 BRSKI: MASA verification of pledge prior-signed-voucher-request
+      // Note: RFC 8995 suggests HTTP 415 for this case.
+      if (req.priorSignedVoucherRequest == null) {
+        logger.error("missing priorSignedVoucherRequest");
+        exchange.respond(ResponseCode.BAD_REQUEST);
+      }
 
       // TODO(wgtdkp):
       // Section 5.5.6 BRSKI: MASA pinning of registrar
@@ -141,8 +149,12 @@ public class MASA extends CoapServer {
 
       voucher.nonce = req.nonce;
 
-      // FIXME(wgtdkp): not standard
-      voucher.assertion = req.assertion;
+      // TODO(wgtdkp): MASA should check the priorSignedVoucherRequest, see if the
+      // assertion there
+      // is PROXIMITY, and if the proximity relation is deemed correct only then issue
+      // a Voucher
+      // with below 'PROXIMITY' assertion.
+      voucher.assertion = Voucher.Assertion.PROXIMITY;
 
       voucher.idevidIssuer = req.idevidIssuer;
       voucher.serialNumber = req.serialNumber;
@@ -157,7 +169,8 @@ public class MASA extends CoapServer {
         // According to BHC-405: use Domain CA Certificate in voucher response
         voucher.pinnedDomainCert = domainCert.getEncoded();
       } catch (Exception e) {
-        // logger.error("get encoded subject-public-key-info failed: " + e.getMessage());
+        // logger.error("get encoded subject-public-key-info failed: " +
+        // e.getMessage());
         logger.error("get encoded domain-ca-cert failed: " + e.getMessage());
         e.printStackTrace();
         exchange.respond(ResponseCode.SERVICE_UNAVAILABLE, e.getMessage());
@@ -174,11 +187,8 @@ public class MASA extends CoapServer {
       // Generate and send response
       try {
         byte[] content = new CBORSerializer().serialize(voucher);
-        byte[] payload =
-            SecurityUtils.genCoseSign1Message(
-                privateKey, SecurityUtils.COSE_SIGNATURE_ALGORITHM, content);
-        exchange.respond(
-            ResponseCode.CHANGED, payload, ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
+        byte[] payload = SecurityUtils.genCoseSign1Message(privateKey, SecurityUtils.COSE_SIGNATURE_ALGORITHM, content);
+        exchange.respond(ResponseCode.CHANGED, payload, ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
       } catch (CoseException e) {
         logger.error("COSE signing voucher request failed: " + e.getMessage());
         exchange.respond(ResponseCode.NOT_ACCEPTABLE);
@@ -197,17 +207,12 @@ public class MASA extends CoapServer {
   }
 
   private void initEndPoint() {
-    X509Certificate[] certificateChain = new X509Certificate[] {certificate};
+    X509Certificate[] certificateChain = new X509Certificate[] { certificate };
 
     // We currently don't authenticate a client
     CertificateVerifier verifier = new SecurityUtils.DoNothingVerifier(certificateChain);
-    CoapEndpoint endpoint =
-        SecurityUtils.genCoapServerEndPoint(
-            listenPort,
-            new X509Certificate[] {certificate},
-            privateKey,
-            certificateChain,
-            verifier);
+    CoapEndpoint endpoint = SecurityUtils.genCoapServerEndPoint(listenPort, new X509Certificate[] { certificate },
+        privateKey, certificateChain, verifier);
     addEndpoint(endpoint);
   }
 

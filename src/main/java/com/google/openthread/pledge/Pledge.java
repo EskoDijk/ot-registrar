@@ -85,22 +85,19 @@ public class Pledge extends CoapClient {
   }
 
   public enum CertState {
-    NO_CONTACT,
-    PROVISIONALLY_ACCEPT,
-    ACCEPT
+    NO_CONTACT, PROVISIONALLY_ACCEPT, ACCEPT
   }
 
   /**
    * Constructing pledge with credentials and uri of the registrar
    *
-   * @param privateKey the manufacturer private key
-   * @param certificateChain the manufacturer certificate chain leading to the masa and including
-   *     masa certificate
-   * @param hostURI uri of host (registrar)
+   * @param privateKey       the manufacturer private key
+   * @param certificateChain the manufacturer certificate chain leading to the
+   *                         masa and including masa certificate
+   * @param hostURI          uri of host (registrar)
    * @throws PledgeException
    */
-  public Pledge(PrivateKey privateKey, X509Certificate[] certificateChain, String hostURI)
-      throws PledgeException {
+  public Pledge(PrivateKey privateKey, X509Certificate[] certificateChain, String hostURI) throws PledgeException {
     super(hostURI);
     init(privateKey, certificateChain, hostURI);
   }
@@ -124,8 +121,7 @@ public class Pledge extends CoapClient {
       logger.info("extracting Serial-Number from certificate failed, trying HW-Serial-Number");
 
       // Base64 encoded to convert it to printable string
-      return Base64.toBase64String(
-          SecurityUtils.getHWModuleName(idevid).getSerialNumber().getOctets());
+      return Base64.toBase64String(SecurityUtils.getHWModuleName(idevid).getSerialNumber().getOctets());
     } catch (CertificateEncodingException e) {
       logger.error("bad certificate: " + e.getMessage());
       e.printStackTrace();
@@ -181,8 +177,7 @@ public class Pledge extends CoapClient {
    * @throws IllegalStateException
    * @throws PledgeException
    */
-  public ConstrainedVoucher requestConstrainedVoucher(ConstrainedVoucherRequest req)
-      throws PledgeException {
+  public ConstrainedVoucher requestConstrainedVoucher(ConstrainedVoucherRequest req) throws PledgeException {
     // 0. Send to registrar
     CoapResponse response = sendRequestConstrainedVoucher(req);
 
@@ -194,13 +189,9 @@ public class Pledge extends CoapClient {
       throw new PledgeException("voucher request failed: " + response.getCode().toString());
     }
 
-    if (response.getOptions().getContentFormat()
-        != ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR) {
-      throw new PledgeException(
-          String.format(
-              "expect voucher in format[%d], but got [%d]",
-              ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR,
-              response.getOptions().getContentFormat()));
+    if (response.getOptions().getContentFormat() != ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR) {
+      throw new PledgeException(String.format("expect voucher in format[%d], but got [%d]",
+          ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR, response.getOptions().getContentFormat()));
     }
 
     byte[] payload = response.getPayload();
@@ -217,33 +208,29 @@ public class Pledge extends CoapClient {
       }
 
       // 2.1 verify the voucher
-      ConstrainedVoucher voucher =
-          (ConstrainedVoucher) new CBORSerializer().deserialize(msg.GetContent());
+      ConstrainedVoucher voucher = (ConstrainedVoucher) new CBORSerializer().deserialize(msg.GetContent());
       if (!voucher.validate()) {
         throw new PledgeException("voucher validation failed");
       }
 
       if (!voucher.serialNumber.equals(req.serialNumber)
-          || !Arrays.equals(
-              voucher.idevidIssuer, SecurityUtils.getAuthorityKeyId(getCertificate()))) {
+          || !Arrays.equals(voucher.idevidIssuer, SecurityUtils.getAuthorityKeyId(getCertificate()))) {
         throw new PledgeException("serial number or idevid-issuer not matched");
       }
-      if (req.nonce != null
-          && (voucher.nonce == null || !Arrays.equals(req.nonce, voucher.nonce))) {
+      if (req.nonce != null && (voucher.nonce == null || !Arrays.equals(req.nonce, voucher.nonce))) {
         throw new PledgeException("nonce not matched");
       }
-      // TODO(wgtdkp): if nonce is not presented, make sure that the voucher is not expired
+      // TODO(wgtdkp): if nonce is not presented, make sure that the voucher is not
+      // expired
 
       if (voucher.pinnedDomainSPKI != null) {
         SubjectPublicKeyInfo spki = SubjectPublicKeyInfo.getInstance(voucher.pinnedDomainSPKI);
         X509EncodedKeySpec xspec = new X509EncodedKeySpec(spki.getEncoded());
         AlgorithmIdentifier keyAlg = spki.getAlgorithm();
-        domainPublicKey =
-            KeyFactory.getInstance(keyAlg.getAlgorithm().getId()).generatePublic(xspec);
+        domainPublicKey = KeyFactory.getInstance(keyAlg.getAlgorithm().getId()).generatePublic(xspec);
       } else {
         CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
-        Certificate domainCert =
-            certFactory.generateCertificate(new ByteArrayInputStream(voucher.pinnedDomainCert));
+        Certificate domainCert = certFactory.generateCertificate(new ByteArrayInputStream(voucher.pinnedDomainCert));
         domainPublicKey = domainCert.getPublicKey();
       }
       if (!validateRegistrar(domainPublicKey)) {
@@ -286,11 +273,9 @@ public class Pledge extends CoapClient {
       return;
     }
 
-    if (response.getOptions().getContentFormat()
-        != ExtendedMediaTypeRegistry.APPLICATION_CSRATTRS) {
-      logger.warn(
-          "expect CSR attributes in format[%d], but got [%d]",
-          ExtendedMediaTypeRegistry.APPLICATION_CSRATTRS, response.getOptions().getContentFormat());
+    if (response.getOptions().getContentFormat() != ExtendedMediaTypeRegistry.APPLICATION_CSRATTRS) {
+      logger.warn("expect CSR attributes in format[%d], but got [%d]", ExtendedMediaTypeRegistry.APPLICATION_CSRATTRS,
+          response.getOptions().getContentFormat());
       return;
     }
 
@@ -328,15 +313,10 @@ public class Pledge extends CoapClient {
     // TODO(wgtdkp): we should enable the certificate verifier now
 
     // 0. Generate operational keypair
-    operationalKeyPair =
-        SecurityUtils.genKeyPair(SecurityUtils.KEY_ALGORITHM, SecurityUtils.KEY_SIZE);
+    operationalKeyPair = SecurityUtils.genKeyPair(SecurityUtils.KEY_ALGORITHM, SecurityUtils.KEY_SIZE);
 
-    PKCS10CertificationRequest csr =
-        genCertificateRequest(
-            SUBJECT_NAME,
-            operationalKeyPair.getPublic(),
-            SecurityUtils.SIGNATURE_ALGORITHM,
-            operationalKeyPair.getPrivate());
+    PKCS10CertificationRequest csr = genCertificateRequest(SUBJECT_NAME, operationalKeyPair.getPublic(),
+        SecurityUtils.SIGNATURE_ALGORITHM, operationalKeyPair.getPrivate());
 
     X509Certificate cert = requestSigning(csr, Constants.SIMPLE_ENROLL);
     if (cert == null) {
@@ -350,10 +330,8 @@ public class Pledge extends CoapClient {
 
     operationalCertificate = cert;
 
-    logger.info(
-        "operational certificate (PEM): \n" + SecurityUtils.toPEMFormat(operationalCertificate));
-    logger.info(
-        "operational private key (PEM): \n" + SecurityUtils.toPEMFormat(operationalKeyPair));
+    logger.info("operational certificate (PEM): \n" + SecurityUtils.toPEMFormat(operationalCertificate));
+    logger.info("operational private key (PEM): \n" + SecurityUtils.toPEMFormat(operationalKeyPair));
   }
 
   /**
@@ -373,12 +351,8 @@ public class Pledge extends CoapClient {
     // Reset the endpoint, so the pledge will rehandshake
     initEndpoint(privateKey, certificateChain, certVerifier);
 
-    PKCS10CertificationRequest csr =
-        genCertificateRequest(
-            SUBJECT_NAME,
-            operationalKeyPair.getPublic(),
-            SecurityUtils.SIGNATURE_ALGORITHM,
-            operationalKeyPair.getPrivate());
+    PKCS10CertificationRequest csr = genCertificateRequest(SUBJECT_NAME, operationalKeyPair.getPublic(),
+        SecurityUtils.SIGNATURE_ALGORITHM, operationalKeyPair.getPrivate());
 
     X509Certificate cert = requestSigning(csr, Constants.SIMPLE_REENROLL);
     if (cert == null) {
@@ -412,8 +386,7 @@ public class Pledge extends CoapClient {
     return certificateChain[certificateChain.length - 1];
   }
 
-  private void init(PrivateKey privateKey, X509Certificate[] certificateChain, String hostURI)
-      throws PledgeException {
+  private void init(PrivateKey privateKey, X509Certificate[] certificateChain, String hostURI) throws PledgeException {
     this.hostURI = hostURI;
 
     if (certificateChain.length < 2) {
@@ -454,8 +427,7 @@ public class Pledge extends CoapClient {
     return post(csr.getEncoded(), ExtendedMediaTypeRegistry.APPLICATION_PKCS10);
   }
 
-  private X509Certificate requestSigning(PKCS10CertificationRequest csr, String resource)
-      throws Exception {
+  private X509Certificate requestSigning(PKCS10CertificationRequest csr, String resource) throws Exception {
     // 0. Send CSR request and get response
     CoapResponse response = sendCSR(csr, resource);
     if (response == null) {
@@ -465,13 +437,9 @@ public class Pledge extends CoapClient {
       throw new PledgeException("CSR request failed: " + response.getCode().toString());
     }
 
-    if (response.getOptions().getContentFormat()
-        != ExtendedMediaTypeRegistry.APPLICATION_PKIX_CERT) {
-      throw new PledgeException(
-          String.format(
-              "expect CSR response in format[%d], but got [%d]",
-              ExtendedMediaTypeRegistry.APPLICATION_PKIX_CERT,
-              response.getOptions().getContentFormat()));
+    if (response.getOptions().getContentFormat() != ExtendedMediaTypeRegistry.APPLICATION_PKIX_CERT) {
+      throw new PledgeException(String.format("expect CSR response in format[%d], but got [%d]",
+          ExtendedMediaTypeRegistry.APPLICATION_PKIX_CERT, response.getOptions().getContentFormat()));
     }
 
     byte[] payload = response.getPayload();
@@ -487,13 +455,11 @@ public class Pledge extends CoapClient {
     return (X509Certificate) certFactory.generateCertificate(new ByteArrayInputStream(payload));
   }
 
-  private PKCS10CertificationRequest genCertificateRequest(
-      String name, PublicKey publicKey, String signatureAlgorithm, PrivateKey signingPrivateKey)
-      throws OperatorCreationException, PKCSException, GeneralSecurityException {
+  private PKCS10CertificationRequest genCertificateRequest(String name, PublicKey publicKey, String signatureAlgorithm,
+      PrivateKey signingPrivateKey) throws OperatorCreationException, PKCSException, GeneralSecurityException {
     X500Name subject = new X500Name(name);
     ContentSigner signer = new JcaContentSignerBuilder(signatureAlgorithm).build(signingPrivateKey);
-    PKCS10CertificationRequest csr =
-        new JcaPKCS10CertificationRequestBuilder(subject, publicKey).build(signer);
+    PKCS10CertificationRequest csr = new JcaPKCS10CertificationRequestBuilder(subject, publicKey).build(signer);
     ContentVerifierProvider verifier = new JcaContentVerifierProviderBuilder().build(publicKey);
     if (!csr.isSignatureValid(verifier)) {
       throw new GeneralSecurityException("signature verification failed");
@@ -501,8 +467,7 @@ public class Pledge extends CoapClient {
     return csr;
   }
 
-  private X509Certificate extractCertFromCMSSignedData(CMSSignedData signedData)
-      throws CertificateException {
+  private X509Certificate extractCertFromCMSSignedData(CMSSignedData signedData) throws CertificateException {
     Store<X509CertificateHolder> certStore = signedData.getCertificates();
     for (X509CertificateHolder holder : certStore.getMatches(null)) {
       return new JcaX509CertificateConverter().getCertificate(holder);
@@ -521,11 +486,9 @@ public class Pledge extends CoapClient {
     return nonce;
   }
 
-  private void initEndpoint(
-      PrivateKey privateKey, X509Certificate[] certificateChain, CertificateVerifier verifier) {
-    CoapEndpoint endpoint =
-        SecurityUtils.genCoapClientEndPoint(
-            new X509Certificate[] {}, privateKey, certificateChain, verifier);
+  private void initEndpoint(PrivateKey privateKey, X509Certificate[] certificateChain, CertificateVerifier verifier) {
+    CoapEndpoint endpoint = SecurityUtils.genCoapClientEndPoint(new X509Certificate[] {}, privateKey, certificateChain,
+        verifier);
     setEndpoint(endpoint);
   }
 
@@ -545,7 +508,8 @@ public class Pledge extends CoapClient {
 
       Set<TrustAnchor> trustAnchors = new HashSet<>();
 
-      // Build trust anchor with the last certificate's issuer name and public key of Domain CA.
+      // Build trust anchor with the last certificate's issuer name and public key of
+      // Domain CA.
       trustAnchors.add(new TrustAnchor(lastCert.getIssuerX500Principal(), domainPublicKey, null));
       PKIXParameters params = new PKIXParameters(trustAnchors);
 
