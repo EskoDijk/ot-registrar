@@ -28,6 +28,9 @@
 
 package com.google.openthread;
 
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.x509.KeyPurposeId;
+
 public class Constants {
 
   // BRSKI - EST
@@ -78,6 +81,11 @@ public class Constants {
   public static final String PRIVATE_HARDWARE_TYPE_OID = "1.3.6.1.4.1.21335";
 
   public static final String THREAD_DOMAIN_NAME_OID = "1.3.6.1.4.1.44970.1"; // per Thread 1.2 spec
+
+  public static final String CMC_RA_PKIX_KEY_PURPOSE = "1.3.6.1.5.5.7.3.28"; // RFC 6402 2.10
+
+  public static final KeyPurposeId id_kp_cmcRA =
+      KeyPurposeId.getInstance(new ASN1ObjectIdentifier(CMC_RA_PKIX_KEY_PURPOSE));
 
   public static final Integer ASN1_TAG_GENERALNAME_OTHERNAME =
       Integer.valueOf(0); // RFC 5280 Section 4.2.1.6

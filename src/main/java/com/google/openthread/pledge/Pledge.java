@@ -93,6 +93,7 @@ import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -168,6 +169,7 @@ public class Pledge extends CoapClient {
    */
   public String getDomainName() {
     if (operationalCertificate == null) return null;
+
     try {
       Collection<List<?>> cSubjAltNames = operationalCertificate.getSubjectAlternativeNames();
       if (cSubjAltNames == null) return Constants.THREAD_DOMAIN_NAME_DEFAULT;
@@ -241,7 +243,7 @@ public class Pledge extends CoapClient {
    * @throws PledgeException
    */
   public ConstrainedVoucher requestConstrainedVoucher(ConstrainedVoucherRequest req)
-      throws PledgeException {
+      throws PledgeException, ConnectorException, IOException {
     // 0. Send to registrar
     CoapResponse response = sendRequestConstrainedVoucher(req);
 
@@ -332,7 +334,8 @@ public class Pledge extends CoapClient {
    * @throws IllegalStateException
    * @throws PledgeException
    */
-  public void requestCSRAttributes() throws IllegalStateException, PledgeException {
+  public void requestCSRAttributes()
+      throws IllegalStateException, PledgeException, ConnectorException, IOException {
     if (certState != CertState.ACCEPT) {
       throw new IllegalStateException("should successfully get voucher first");
     }
@@ -453,7 +456,7 @@ public class Pledge extends CoapClient {
     operationalCertificate = cert;
   }
 
-  public CoapResponse sayHello() {
+  public CoapResponse sayHello() throws IOException, ConnectorException {
     setURI(getESTPath() + "/" + Constants.HELLO);
     return get();
   }
@@ -498,18 +501,20 @@ public class Pledge extends CoapClient {
     initEndpoint(this.privateKey, this.certificateChain, this.certVerifier);
   }
 
-  private CoapResponse sendRequestConstrainedVoucher(ConstrainedVoucherRequest voucherRequest) {
+  private CoapResponse sendRequestConstrainedVoucher(ConstrainedVoucherRequest voucherRequest)
+      throws IOException, ConnectorException {
     setURI(getBRSKIPath() + "/" + Constants.REQUEST_VOUCHER);
     byte[] payload = new CBORSerializer().serialize(voucherRequest);
     return post(payload, ExtendedMediaTypeRegistry.APPLICATION_CBOR);
   }
 
-  private CoapResponse sendRequestCSRAttributes() {
+  private CoapResponse sendRequestCSRAttributes() throws IOException, ConnectorException {
     setURI(getESTPath() + "/" + Constants.CSR_ATTRIBUTES);
     return get();
   }
 
-  private CoapResponse sendCSR(PKCS10CertificationRequest csr, String resource) throws IOException {
+  private CoapResponse sendCSR(PKCS10CertificationRequest csr, String resource)
+      throws IOException, ConnectorException {
     setURI(getESTPath() + "/" + resource);
     return post(csr.getEncoded(), ExtendedMediaTypeRegistry.APPLICATION_PKCS10);
   }

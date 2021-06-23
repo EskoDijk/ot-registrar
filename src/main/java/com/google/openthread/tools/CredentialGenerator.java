@@ -51,9 +51,11 @@ import org.apache.commons.cli.Options;
 import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.DERIA5String;
+import org.bouncycastle.asn1.x509.ExtendedKeyUsage;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.GeneralName;
 import org.bouncycastle.asn1.x509.GeneralNames;
+import org.bouncycastle.asn1.x509.KeyPurposeId;
 import org.bouncycastle.asn1.x509.KeyUsage;
 import org.bouncycastle.asn1.x509.OtherName;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
@@ -150,7 +152,57 @@ public class CredentialGenerator {
         subKeyPair, subName, issuerKeyPair, issuerName, false, extensions);
   }
 
-  public void make(String[] caCertKeyFiles, String[] masaCertKeyFiles) throws Exception {
+  /**
+   * generate a Registrar's certificate which has the cmcRA extended key usage (EKU) set. Due to RFC
+   * 5280 4.2.1.12 rules, if the EKU is present also the 'server' EKU must be present or else the
+   * identity is not allowed to operate as server. Similar for 'client' EKU; as the Registrar also
+   * must operate as a client towards MASA potentially with same identity (or potentially with
+   * another.)
+   *
+   * @param subKeyPair
+   * @param subName
+   * @param issuerKeyPair
+   * @param issuerName
+   * @return
+   * @throws Exception
+   */
+  public X509Certificate genRegistrarCertificate(
+      KeyPair subKeyPair, String subName, KeyPair issuerKeyPair, String issuerName)
+      throws Exception {
+
+    Extension keyUsage =
+        new Extension(
+            Extension.keyUsage,
+            true,
+            new KeyUsage(
+                    KeyUsage.digitalSignature
+                        | KeyUsage.keyEncipherment
+                        | KeyUsage.dataEncipherment
+                        | KeyUsage.keyAgreement)
+                .getEncoded(ASN1Encoding.DER));
+
+    Extension extKeyUsage =
+        new Extension(
+            Extension.extendedKeyUsage,
+            false,
+            new ExtendedKeyUsage(
+                    new KeyPurposeId[] {
+                      KeyPurposeId.id_kp_serverAuth,
+                      KeyPurposeId.id_kp_clientAuth,
+                      Constants.id_kp_cmcRA
+                    })
+                .getEncoded(ASN1Encoding.DER));
+
+    List<Extension> extensions = new ArrayList<>();
+    extensions.add(keyUsage);
+    extensions.add(extKeyUsage);
+    return SecurityUtils.genCertificate(
+        subKeyPair, subName, issuerKeyPair, issuerName, false, extensions);
+  }
+
+  public void make(
+      String[] caCertKeyFiles, String[] masaCertKeyFiles, String[] registrarCertKeyFiles)
+      throws Exception {
 
     HardwareModuleName hwModuleName =
         new HardwareModuleName(Constants.PRIVATE_HARDWARE_TYPE_OID, PLEDGE_SN.getBytes());
@@ -189,15 +241,25 @@ public class CredentialGenerator {
       domaincaKeyPair = SecurityUtils.genKeyPair();
       domaincaCert = genSelfSignedCert(domaincaKeyPair, DOMAINCA_DNAME);
     }
-    registrarKeyPair = SecurityUtils.genKeyPair();
-    registrarCert =
-        SecurityUtils.genCertificate(
-            registrarKeyPair,
-            REGISTRAR_DNAME,
-            domaincaKeyPair,
-            domaincaCert.getSubjectX500Principal().getName(),
-            false,
-            null);
+
+    if (registrarCertKeyFiles != null) {
+      try (Reader reader = new FileReader(registrarCertKeyFiles[0])) {
+        registrarCert = SecurityUtils.parseCertFromPem(reader);
+      }
+      try (Reader reader = new FileReader(registrarCertKeyFiles[1])) {
+        registrarKeyPair =
+            new KeyPair(domaincaCert.getPublicKey(), SecurityUtils.parsePrivateKeyFromPem(reader));
+      }
+
+    } else {
+      registrarKeyPair = SecurityUtils.genKeyPair();
+      registrarCert =
+          genRegistrarCertificate(
+              registrarKeyPair,
+              REGISTRAR_DNAME,
+              domaincaKeyPair,
+              domaincaCert.getSubjectX500Principal().getName());
+    }
     commissionerKeyPair = SecurityUtils.genKeyPair();
     commissionerCert =
         SecurityUtils.genCertificate(
@@ -319,6 +381,14 @@ public class CredentialGenerator {
             .build();
     masaOpt.setArgs(2);
 
+    Option regOpt =
+        Option.builder("r")
+            .longOpt("reg")
+            .hasArg()
+            .desc("Registrar root key & certificate file")
+            .build();
+    regOpt.setArgs(2);
+
     Option masaUriOpt =
         Option.builder("u")
             .longOpt("masauri")
@@ -335,6 +405,7 @@ public class CredentialGenerator {
         .addOption(dumpOpt)
         .addOption(caOpt)
         .addOption(masaOpt)
+        .addOption(regOpt)
         .addOption(masaUriOpt);
 
     try {
@@ -352,10 +423,12 @@ public class CredentialGenerator {
       }
 
       String masaUri = cmd.getOptionValue('u');
-      if (masaUri != null) {}
+      if (masaUri != null) {
+        throw new Exception("MASA URI option not yet implemented.");
+      }
 
       CredentialGenerator cg = new CredentialGenerator();
-      cg.make(cmd.getOptionValues("c"), cmd.getOptionValues("m"));
+      cg.make(cmd.getOptionValues("c"), cmd.getOptionValues("m"), cmd.getOptionValues("r"));
       cg.store(keyStoreFile);
 
       if (cmd.hasOption('d')) {

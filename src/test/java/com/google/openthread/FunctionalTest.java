@@ -60,9 +60,13 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import se.sics.ace.cwt.CWT;
 
 public class FunctionalTest {
+
+  private static Logger logger = LoggerFactory.getLogger(FunctionalTest.class);
 
   private static final String REGISTRAR_URI =
       "coaps://[::1]:" + Constants.DEFAULT_REGISTRAR_COAPS_PORT;
@@ -94,7 +98,7 @@ public class FunctionalTest {
   @BeforeClass
   public static void setup() throws Exception {
     CredentialGenerator cg = new CredentialGenerator();
-    cg.make(null, null);
+    cg.make(null, null, null);
     domaincaKeyPair = cg.domaincaKeyPair;
     domaincaCert = cg.domaincaCert;
 
@@ -193,7 +197,7 @@ public class FunctionalTest {
   }
 
   @Test
-  public void testConnection() {
+  public void testConnection() throws Exception {
     CoapResponse response = pledge.sayHello();
     assertSame(CoAP.ResponseCode.CONTENT, response.getCode());
   }
@@ -266,7 +270,7 @@ public class FunctionalTest {
 
   @Test
   public void testMultiPledges() {
-    PledgeThread[] threads = new PledgeThread[10];
+    PledgeThread[] threads = new PledgeThread[8];
 
     for (int i = 0; i < threads.length; ++i) {
       threads[i] = new PledgeThread();
@@ -277,13 +281,21 @@ public class FunctionalTest {
     for (PledgeThread thread : threads) {
       try {
         thread.join();
+        if (thread.errorState != null) {
+          String msg = "Pledge [" + thread.getId() + "] had an exception: " + thread.errorState;
+          logger.error(msg, thread.errorState);
+          Assert.fail(msg);
+        }
       } catch (InterruptedException e) {
-        System.out.print("join failed: " + e.getMessage());
+        Assert.fail("join failed: " + e.getMessage());
       }
     }
   }
 
   private class PledgeThread extends Thread {
+
+    public Exception errorState = null;
+
     @Override
     public void run() {
       try {
@@ -295,9 +307,7 @@ public class FunctionalTest {
         pledge.reenroll();
         VerifyEnroll();
       } catch (Exception e) {
-        System.out.println("pledge [" + this.getId() + "]failed");
-        e.printStackTrace();
-        assert (false);
+        errorState = e;
       }
     }
   }

@@ -34,6 +34,7 @@ import com.google.openthread.Constants;
 import com.google.openthread.ExtendedMediaTypeRegistry;
 import com.google.openthread.SecurityUtils;
 import com.upokecenter.cbor.CBORObject;
+import java.io.IOException;
 import java.math.BigInteger;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -42,6 +43,7 @@ import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.elements.exception.ConnectorException;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
@@ -70,7 +72,8 @@ public class Commissioner extends CoapClient {
     initEndpoint();
   }
 
-  public CWT requestToken(String domainName, String registrarURI) throws CommissionerException {
+  public CWT requestToken(String domainName, String registrarURI)
+      throws CommissionerException, IOException, ConnectorException {
     // 0. build COM_TOK.req
     CBORObject req = genTokenRequest(domainName, getCertificate().getPublicKey());
 
@@ -132,7 +135,8 @@ public class Commissioner extends CoapClient {
     return req;
   }
 
-  public CoapResponse sendTokenRequest(CBORObject req, String registrarURI) {
+  public CoapResponse sendTokenRequest(CBORObject req, String registrarURI)
+      throws IOException, ConnectorException {
     setURI(registrarURI + Constants.CCM_PATH);
     return post(req.EncodeToBytes(), ExtendedMediaTypeRegistry.APPLICATION_CWT);
   }

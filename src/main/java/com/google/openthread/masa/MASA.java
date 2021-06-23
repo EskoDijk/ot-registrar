@@ -123,6 +123,26 @@ public class MASA extends CoapServer {
 
       // TODO(wgtdkp):
       // Section 5.5.3 BRSKI: MASA authentication of registrar (certificate)
+      // do a first check on RA flag of Registrar cert. BHC-651
+      boolean isRA = false;
+      try {
+        X509Certificate registrarCert = reqCerts.get(0);
+        if (registrarCert.getExtendedKeyUsage() != null) {
+          for (String eku : registrarCert.getExtendedKeyUsage()) {
+            if (eku.equals(Constants.CMC_RA_PKIX_KEY_PURPOSE)) {
+              isRA = true;
+              break;
+            }
+          }
+        }
+      } catch (Exception ex) {
+        logger.error("Couldn't parse extended key usage in Registrar certificate.", ex);
+        exchange.respond(ResponseCode.BAD_REQUEST);
+      }
+      if (!isRA) {
+        logger.error("Registrar certificate did not have RA set in Extended Key Usage.");
+        exchange.respond(ResponseCode.UNAUTHORIZED);
+      }
 
       // TODO(wgtdkp):
       // Section 5.5.4 BRSKI: MASA revocation checking of registrar (certificate)
@@ -171,8 +191,7 @@ public class MASA extends CoapServer {
       } catch (Exception e) {
         // logger.error("get encoded subject-public-key-info failed: " +
         // e.getMessage());
-        logger.error("get encoded domain-ca-cert failed: " + e.getMessage());
-        e.printStackTrace();
+        logger.error("get encoded domain-ca-cert failed: " + e.getMessage(), e);
         exchange.respond(ResponseCode.SERVICE_UNAVAILABLE, e.getMessage());
         return;
       }
@@ -217,7 +236,7 @@ public class MASA extends CoapServer {
     CoapEndpoint endpoint =
         SecurityUtils.genCoapServerEndPoint(
             listenPort,
-            new X509Certificate[] {certificate},
+            null /* with verifier, no trust store can be given */,
             privateKey,
             certificateChain,
             verifier);

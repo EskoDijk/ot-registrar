@@ -62,6 +62,7 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.auth.X509CertPath;
+import org.eclipse.californium.elements.exception.ConnectorException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -398,7 +399,8 @@ public class Registrar extends CoapServer {
      * @param masaURI the MASA URI (without URI path) to send it to
      * @return null if any error happens
      */
-    public CoapResponse requestVoucher(byte[] payload, String masaURI) {
+    public CoapResponse requestVoucher(byte[] payload, String masaURI)
+        throws IOException, ConnectorException {
       setURI(masaURI + Constants.BRSKI_PATH + "/" + Constants.REQUEST_VOUCHER);
       // send request as CMS signed CBOR, accept only COSE-signed CBOR back.
       return post(
@@ -623,7 +625,7 @@ public class Registrar extends CoapServer {
     CoapEndpoint endpoint =
         SecurityUtils.genCoapServerEndPoint(
             listenPort,
-            trustAnchors.toArray(new X509Certificate[trustAnchors.size()]),
+            null,
             privateKey,
             certificateChain,
             new RegistrarCertificateVerifier(

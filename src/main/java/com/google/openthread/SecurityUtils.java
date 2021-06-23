@@ -387,7 +387,7 @@ public class SecurityUtils {
 
     v3CertGen.addExtension(Extension.authorityKeyIdentifier, false, createAuthorityKeyId(issPub));
 
-    v3CertGen.addExtension(Extension.basicConstraints, false, new BasicConstraints(ca));
+    v3CertGen.addExtension(Extension.basicConstraints, true, new BasicConstraints(ca));
 
     // Additional extensions
     if (extensions != null) {
@@ -483,11 +483,9 @@ public class SecurityUtils {
       config.setClientOnly().setSniEnabled(false);
     }
 
-    config.setTrustStore(trustAnchors);
+    if (verifier != null) config.setCertificateVerifier(verifier);
 
-    if (verifier != null) {
-      config.setCertificateVerifier(verifier);
-    }
+    if (trustAnchors != null) config.setTrustStore(trustAnchors);
 
     List<CertificateType> types = new ArrayList<>();
 
