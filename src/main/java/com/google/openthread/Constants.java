@@ -59,6 +59,7 @@ public class Constants {
 
   // COM_TOK
   // This is not defined in Thread specs and we currently use "/.well-known/ccm".
+  // FIXME should use Thread Group's namespace for this: "/.well-known/thread/ccm".
   public static final String COM_TOK = "ccm";
 
   public static final String CCM_PATH = "/" + String.join("/", WELL_KNOWN, COM_TOK);

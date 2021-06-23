@@ -592,7 +592,7 @@ public class Pledge extends CoapClient {
   // We need a provisional DTLS session before requesting
   // voucher since we need registrar certificate. But there
   // is no 'connect' API to build this session ahead. We
-  // here send a GET to registrar to have this session built.
+  // here send a 'CoAP ping' to registrar to have this session built.
   private void connect() {
     setURI(getBRSKIPath());
     ping();
