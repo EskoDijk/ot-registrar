@@ -58,7 +58,7 @@ public class Constants {
   public static final String HELLO = "hello";
 
   // COM_TOK
-  // This is not defined in specs and we currently use "/.well-known/ccm".
+  // This is not defined in Thread specs and we currently use "/.well-known/ccm".
   public static final String COM_TOK = "ccm";
 
   public static final String CCM_PATH = "/" + String.join("/", WELL_KNOWN, COM_TOK);
@@ -76,6 +76,11 @@ public class Constants {
 
   public static final String PRIVATE_HARDWARE_TYPE_OID = "1.3.6.1.4.1.21335";
 
+  public static final String THREAD_DOMAIN_NAME_OID = "1.3.6.1.4.1.44970.1"; // per Thread 1.2 spec
+
+  public static final Integer ASN1_TAG_GENERALNAME_OTHERNAME =
+      Integer.valueOf(0); // RFC 5280 Section 4.2.1.6
+
   public static final String KEY_STORE_FORMAT = "PKCS12";
 
   public static final long CERT_VALIDITY = 5 * 365; // LDevID validity in Days.
@@ -83,4 +88,7 @@ public class Constants {
   public static final int DEFAULT_REGISTRAR_COAPS_PORT = 5684;
 
   public static final int DEFAULT_MASA_COAPS_PORT = 5685;
+
+  // Default Thread Domain Name per Thread 1.2 spec. Must not be changed, unless spec changes.
+  public static final String THREAD_DOMAIN_NAME_DEFAULT = "DefaultDomain";
 }

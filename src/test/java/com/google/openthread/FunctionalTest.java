@@ -156,7 +156,7 @@ public class FunctionalTest {
     X509Certificate cert = pledge.getOperationalCert();
     Assert.assertTrue(cert != null);
 
-    String domainName = SecurityUtils.getDNSName(cert);
+    String domainName = pledge.getDomainName();
     Assert.assertTrue(domainName.equals(registrar.getDomainName()));
 
     // we expect the LDevID to NOT contain subject key id, per 802.1AR-2018 spec section 8.10.2 for
