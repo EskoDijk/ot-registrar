@@ -90,6 +90,13 @@ public class DomainCA {
     return certificate;
   }
 
+  /**
+  * Get the Thread Domain Name currently used by this Domain CA. Note that a Domain CA may use any
+  * number of Thread Domains within its own Enterprise Domain, with arbitrary string identifiers.
+  * In the present implementation only one Thread Domain is used.
+  *
+  * @return the currently used Thread Domain Name for signing LDevID certificates.
+  */
   public String getDomainName() {
     return domainName;
   }
