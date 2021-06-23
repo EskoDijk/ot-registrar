@@ -28,21 +28,7 @@
 
 package com.google.openthread.masa;
 
-import java.security.PrivateKey;
-import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-
-import org.eclipse.californium.core.CoapResource;
-import org.eclipse.californium.core.CoapServer;
-import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import COSE.CoseException;
 import com.google.openthread.BouncyCastleInitializer;
 import com.google.openthread.Constants;
 import com.google.openthread.ExtendedMediaTypeRegistry;
@@ -52,8 +38,19 @@ import com.google.openthread.brski.CBORSerializer;
 import com.google.openthread.brski.ConstrainedVoucher;
 import com.google.openthread.brski.ConstrainedVoucherRequest;
 import com.google.openthread.brski.Voucher;
-
-import COSE.CoseException;
+import java.security.PrivateKey;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MASA extends CoapServer {
   static {
@@ -109,7 +106,8 @@ public class MASA extends CoapServer {
         return;
       }
 
-      ConstrainedVoucherRequest req = (ConstrainedVoucherRequest) new CBORSerializer().deserialize(reqContent);
+      ConstrainedVoucherRequest req =
+          (ConstrainedVoucherRequest) new CBORSerializer().deserialize(reqContent);
       if (!req.validate() || reqCerts.isEmpty()) {
         logger.error("invalid voucher request");
         exchange.respond(ResponseCode.BAD_REQUEST);
@@ -189,8 +187,11 @@ public class MASA extends CoapServer {
       // Generate and send response
       try {
         byte[] content = new CBORSerializer().serialize(voucher);
-        byte[] payload = SecurityUtils.genCoseSign1Message(privateKey, SecurityUtils.COSE_SIGNATURE_ALGORITHM, content);
-        exchange.respond(ResponseCode.CHANGED, payload, ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
+        byte[] payload =
+            SecurityUtils.genCoseSign1Message(
+                privateKey, SecurityUtils.COSE_SIGNATURE_ALGORITHM, content);
+        exchange.respond(
+            ResponseCode.CHANGED, payload, ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
       } catch (CoseException e) {
         logger.error("COSE signing voucher request failed: " + e.getMessage());
         exchange.respond(ResponseCode.NOT_ACCEPTABLE);
@@ -209,12 +210,17 @@ public class MASA extends CoapServer {
   }
 
   private void initEndPoint() {
-    X509Certificate[] certificateChain = new X509Certificate[] { certificate };
+    X509Certificate[] certificateChain = new X509Certificate[] {certificate};
 
     // We currently don't authenticate a client
     CertificateVerifier verifier = new SecurityUtils.DoNothingVerifier(certificateChain);
-    CoapEndpoint endpoint = SecurityUtils.genCoapServerEndPoint(listenPort, new X509Certificate[] { certificate },
-        privateKey, certificateChain, verifier);
+    CoapEndpoint endpoint =
+        SecurityUtils.genCoapServerEndPoint(
+            listenPort,
+            new X509Certificate[] {certificate},
+            privateKey,
+            certificateChain,
+            verifier);
     addEndpoint(endpoint);
   }
 

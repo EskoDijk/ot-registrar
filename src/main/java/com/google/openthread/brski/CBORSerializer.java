@@ -28,10 +28,9 @@
 
 package com.google.openthread.brski;
 
+import com.upokecenter.cbor.CBORObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.upokecenter.cbor.CBORObject;
 
 /** Create new instance for each serialization/deserialization job. */
 public class CBORSerializer implements VoucherSerializer {
@@ -60,8 +59,7 @@ public class CBORSerializer implements VoucherSerializer {
     CBORObject cbor = CBORObject.NewMap();
     container = CBORObject.NewMap();
 
-    if (voucher.assertion != null)
-      add((Voucher.ASSERTION), voucher.assertion.getValue());
+    if (voucher.assertion != null) add((Voucher.ASSERTION), voucher.assertion.getValue());
 
     if (voucher.createdOn != null)
       add((Voucher.CREATED_ON), Voucher.dateToYoungFormat(voucher.createdOn));
@@ -107,8 +105,12 @@ public class CBORSerializer implements VoucherSerializer {
             voucher = new ConstrainedVoucherRequest();
             parentSid = ConstrainedVoucherRequest.VOUCHER_REQUEST_SID;
           } else {
-            String msg = String.format("wrong voucher sid: %d, expecting %d for voucher or %d for voucher request",
-                ku.AsInt32(), ConstrainedVoucher.VOUCHER_SID, ConstrainedVoucherRequest.VOUCHER_REQUEST_SID);
+            String msg =
+                String.format(
+                    "wrong voucher sid: %d, expecting %d for voucher or %d for voucher request",
+                    ku.AsInt32(),
+                    ConstrainedVoucher.VOUCHER_SID,
+                    ConstrainedVoucherRequest.VOUCHER_REQUEST_SID);
             throw new IllegalArgumentException(msg);
           }
         } else if (key.AsString().equals(Voucher.VOUCHER)) {
@@ -116,8 +118,10 @@ public class CBORSerializer implements VoucherSerializer {
         } else if (key.AsString().equals(Voucher.VOUCHER_REQUEST)) {
           voucher = new VoucherRequest();
         } else {
-          String msg = String.format("wrong voucher : %s, expecting %s for voucher or %s for voucher request",
-              key.AsString(), Voucher.VOUCHER, Voucher.VOUCHER_REQUEST);
+          String msg =
+              String.format(
+                  "wrong voucher : %s, expecting %s for voucher or %s for voucher request",
+                  key.AsString(), Voucher.VOUCHER, Voucher.VOUCHER_REQUEST);
           throw new IllegalArgumentException(msg);
         }
 
@@ -212,7 +216,8 @@ public class CBORSerializer implements VoucherSerializer {
       for (CBORObject k : container.getKeys()) {
         CBORObject ku = k.Untag();
         if (ku.isNumber() // Untag needed due to particularity in isNumber()
-            && ((ku.AsInt32() == keyInt && k.HasTag(47)) || (ku.AsInt32() == deltaKey && !k.HasTag(47)))) {
+            && ((ku.AsInt32() == keyInt && k.HasTag(47))
+                || (ku.AsInt32() == deltaKey && !k.HasTag(47)))) {
           return container.get(k);
         }
       }

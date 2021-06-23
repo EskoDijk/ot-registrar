@@ -28,6 +28,12 @@
 
 package com.google.openthread.domainca;
 
+import COSE.OneKey;
+import com.google.openthread.BouncyCastleInitializer;
+import com.google.openthread.Constants;
+import com.google.openthread.SecurityUtils;
+import com.google.openthread.brski.Voucher;
+import com.upokecenter.cbor.CBORObject;
 import java.math.BigInteger;
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
@@ -46,7 +52,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
-
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.AuthorityKeyIdentifier;
 import org.bouncycastle.asn1.x509.BasicConstraints;
@@ -63,14 +68,6 @@ import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.operator.jcajce.JcaContentVerifierProviderBuilder;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
-
-import com.google.openthread.BouncyCastleInitializer;
-import com.google.openthread.Constants;
-import com.google.openthread.SecurityUtils;
-import com.google.openthread.brski.Voucher;
-import com.upokecenter.cbor.CBORObject;
-
-import COSE.OneKey;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
@@ -101,7 +98,8 @@ public class DomainCA {
 
     // 0. POP (proof-of-possession) verification
     // Ref: RFC-7030 [3.4]
-    if (!csr.isSignatureValid(new JcaContentVerifierProviderBuilder().build(csr.getSubjectPublicKeyInfo()))) {
+    if (!csr.isSignatureValid(
+        new JcaContentVerifierProviderBuilder().build(csr.getSubjectPublicKeyInfo()))) {
       throw new GeneralSecurityException("POP verification failed");
     }
 
@@ -111,9 +109,11 @@ public class DomainCA {
     X500Name issuer = getSubjectName();
     BigInteger serial = allocateSerialNumber();
     Date notBefore = new Date();
-    Date notAfter = new Date(System.currentTimeMillis() + Constants.CERT_VALIDITY * 3600 * 24 * 1000);
-    X509v3CertificateBuilder builder = new X509v3CertificateBuilder(issuer, serial, notBefore, notAfter,
-        csr.getSubject(), csr.getSubjectPublicKeyInfo());
+    Date notAfter =
+        new Date(System.currentTimeMillis() + Constants.CERT_VALIDITY * 3600 * 24 * 1000);
+    X509v3CertificateBuilder builder =
+        new X509v3CertificateBuilder(
+            issuer, serial, notBefore, notAfter, csr.getSubject(), csr.getSubjectPublicKeyInfo());
 
     logger.info("operational certificate not-before: " + notBefore.toString());
     logger.info("operational certificate not-after: " + notAfter.toString());
@@ -132,16 +132,19 @@ public class DomainCA {
     // builder.addExtension(Extension.subjectKeyIdentifier, false, subjectKeyId);
 
     // Or we should directly copy this from subject-key-identifier of domain CA ?
-    AuthorityKeyIdentifier authorityKeyId = extUtils
-        .createAuthorityKeyIdentifier(SubjectPublicKeyInfo.getInstance(getPublicKey().getEncoded()));
+    AuthorityKeyIdentifier authorityKeyId =
+        extUtils.createAuthorityKeyIdentifier(
+            SubjectPublicKeyInfo.getInstance(getPublicKey().getEncoded()));
     builder.addExtension(Extension.authorityKeyIdentifier, false, authorityKeyId);
 
     // Includes domain name in subfield of SubjectAltName extension
-    GeneralNames subjectAltName = new GeneralNames(new GeneralName(GeneralName.dNSName, domainName));
+    GeneralNames subjectAltName =
+        new GeneralNames(new GeneralName(GeneralName.dNSName, domainName));
     builder.addExtension(Extension.subjectAlternativeName, false, subjectAltName);
 
     // 2. Sign and verify certificate
-    ContentSigner signer = new JcaContentSignerBuilder(SecurityUtils.SIGNATURE_ALGORITHM).build(this.privateKey);
+    ContentSigner signer =
+        new JcaContentSignerBuilder(SecurityUtils.SIGNATURE_ALGORITHM).build(this.privateKey);
     X509CertificateHolder holder = builder.build(signer);
     X509Certificate cert = new JcaX509CertificateConverter().getCertificate(holder);
     cert.verify(this.certificate.getPublicKey());
@@ -168,12 +171,16 @@ public class DomainCA {
   }
 
   public CBORObject signCommissionerToken(CBORObject token) throws Exception {
-    return signCommissionerToken(token, privateKey, SecurityUtils.COSE_SIGNATURE_ALGORITHM,
+    return signCommissionerToken(
+        token,
+        privateKey,
+        SecurityUtils.COSE_SIGNATURE_ALGORITHM,
         SecurityUtils.getSubjectKeyId(getCertificate()));
   }
 
-  public static CBORObject signCommissionerToken(CBORObject token, PrivateKey signingKey, CBORObject signingAlg,
-      byte[] subjectKeyId) throws Exception {
+  public static CBORObject signCommissionerToken(
+      CBORObject token, PrivateKey signingKey, CBORObject signingAlg, byte[] subjectKeyId)
+      throws Exception {
     Map<Short, CBORObject> claims = new HashMap<>();
 
     Object aud = token.get(CBORObject.FromObject(se.sics.ace.Constants.AUD));
@@ -183,13 +190,16 @@ public class DomainCA {
     // DTLS handshake
     CBORObject cnf = CBORObject.NewMap();
     CBORObject tokenCnf = token.get(CBORObject.FromObject(se.sics.ace.Constants.REQ_CNF));
-    cnf.Add(se.sics.ace.Constants.COSE_KEY, tokenCnf.get(CBORObject.FromObject(se.sics.ace.Constants.COSE_KEY)));
+    cnf.Add(
+        se.sics.ace.Constants.COSE_KEY,
+        tokenCnf.get(CBORObject.FromObject(se.sics.ace.Constants.COSE_KEY)));
     claims.put(se.sics.ace.Constants.CNF, cnf);
 
     String keyId = new String(subjectKeyId);
     claims.put(se.sics.ace.Constants.ISS, CBORObject.FromObject(keyId));
 
-    Date expire = new Date(System.currentTimeMillis() + 3600 * 24 * 1000 * Constants.COM_TOK_VALIDITY);
+    Date expire =
+        new Date(System.currentTimeMillis() + 3600 * 24 * 1000 * Constants.COM_TOK_VALIDITY);
     claims.put(se.sics.ace.Constants.EXP, CBORObject.FromObject(Voucher.dateToYoungFormat(expire)));
 
     OneKey oneKey = new OneKey(null, signingKey);

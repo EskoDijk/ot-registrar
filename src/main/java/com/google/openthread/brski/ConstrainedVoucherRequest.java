@@ -36,24 +36,25 @@ public class ConstrainedVoucherRequest extends ConstrainedVoucher {
   public static final int VOUCHER_REQUEST_SID = 2501;
 
   @SuppressWarnings("serial")
-  protected static final Map<String, Integer> voucherRequestSIDMap = new HashMap<String, Integer>() {
-    {
-      put(VOUCHER_REQUEST, VOUCHER_REQUEST_SID);
-      put(ASSERTION, VOUCHER_REQUEST_SID + 1);
-      put(CREATED_ON, VOUCHER_REQUEST_SID + 2);
-      put(DOMAIN_CERT_REVOCATION_CHECKS, VOUCHER_REQUEST_SID + 3);
-      put(EXPIRES_ON, VOUCHER_REQUEST_SID + 4);
-      put(IDEVID_ISSUER, VOUCHER_REQUEST_SID + 5);
-      put(LAST_RENEWAL_DATE, VOUCHER_REQUEST_SID + 6);
-      put(NONCE, VOUCHER_REQUEST_SID + 7);
-      put(PINNED_DOMAIN_CERT, VOUCHER_REQUEST_SID + 8);
-      put(PRIOR_SIGNED_VOUCHER_REQUEST, VOUCHER_REQUEST_SID + 9);
-      put(PROXIMITY_REGISTRAR_CERT, VOUCHER_REQUEST_SID + 10);
-      put(SHA256_REGISTRAR_SPKI, VOUCHER_REQUEST_SID + 11);
-      put(PROXIMITY_REGISTRAR_SPKI, VOUCHER_REQUEST_SID + 12);
-      put(SERIAL_NUMBER, VOUCHER_REQUEST_SID + 13);
-    }
-  };
+  protected static final Map<String, Integer> voucherRequestSIDMap =
+      new HashMap<String, Integer>() {
+        {
+          put(VOUCHER_REQUEST, VOUCHER_REQUEST_SID);
+          put(ASSERTION, VOUCHER_REQUEST_SID + 1);
+          put(CREATED_ON, VOUCHER_REQUEST_SID + 2);
+          put(DOMAIN_CERT_REVOCATION_CHECKS, VOUCHER_REQUEST_SID + 3);
+          put(EXPIRES_ON, VOUCHER_REQUEST_SID + 4);
+          put(IDEVID_ISSUER, VOUCHER_REQUEST_SID + 5);
+          put(LAST_RENEWAL_DATE, VOUCHER_REQUEST_SID + 6);
+          put(NONCE, VOUCHER_REQUEST_SID + 7);
+          put(PINNED_DOMAIN_CERT, VOUCHER_REQUEST_SID + 8);
+          put(PRIOR_SIGNED_VOUCHER_REQUEST, VOUCHER_REQUEST_SID + 9);
+          put(PROXIMITY_REGISTRAR_CERT, VOUCHER_REQUEST_SID + 10);
+          put(SHA256_REGISTRAR_SPKI, VOUCHER_REQUEST_SID + 11);
+          put(PROXIMITY_REGISTRAR_SPKI, VOUCHER_REQUEST_SID + 12);
+          put(SERIAL_NUMBER, VOUCHER_REQUEST_SID + 13);
+        }
+      };
 
   public ConstrainedVoucherRequest() {
     sidMap = voucherRequestSIDMap;
