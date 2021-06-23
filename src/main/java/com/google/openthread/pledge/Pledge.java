@@ -28,19 +28,14 @@
 
 package com.google.openthread.pledge;
 
-import COSE.CoseException;
-import COSE.Message;
-import COSE.MessageTag;
-import COSE.OneKey;
-import COSE.Sign1Message;
-import com.google.openthread.BouncyCastleInitializer;
-import com.google.openthread.Constants;
-import com.google.openthread.ExtendedMediaTypeRegistry;
-import com.google.openthread.SecurityUtils;
-import com.google.openthread.brski.*;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.security.*;
+import java.security.GeneralSecurityException;
+import java.security.KeyFactory;
+import java.security.KeyPair;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.SecureRandom;
 import java.security.cert.CertPath;
 import java.security.cert.CertPathValidator;
 import java.security.cert.Certificate;
@@ -51,8 +46,13 @@ import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import javax.security.auth.x500.X500Principal;
+
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.est.CsrAttrs;
 import org.bouncycastle.asn1.x500.X500Name;
@@ -78,6 +78,21 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.openthread.BouncyCastleInitializer;
+import com.google.openthread.Constants;
+import com.google.openthread.ExtendedMediaTypeRegistry;
+import com.google.openthread.SecurityUtils;
+import com.google.openthread.brski.CBORSerializer;
+import com.google.openthread.brski.ConstrainedVoucher;
+import com.google.openthread.brski.ConstrainedVoucherRequest;
+import com.google.openthread.brski.Voucher;
+
+import COSE.CoseException;
+import COSE.Message;
+import COSE.MessageTag;
+import COSE.OneKey;
+import COSE.Sign1Message;
 
 public class Pledge extends CoapClient {
   static {

@@ -28,7 +28,21 @@
 
 package com.google.openthread.masa;
 
-import COSE.CoseException;
+import java.security.PrivateKey;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.openthread.BouncyCastleInitializer;
 import com.google.openthread.Constants;
 import com.google.openthread.ExtendedMediaTypeRegistry;
@@ -39,19 +53,7 @@ import com.google.openthread.brski.ConstrainedVoucher;
 import com.google.openthread.brski.ConstrainedVoucherRequest;
 import com.google.openthread.brski.Voucher;
 
-import java.security.PrivateKey;
-import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import org.eclipse.californium.core.CoapResource;
-import org.eclipse.californium.core.CoapServer;
-import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import COSE.CoseException;
 
 public class MASA extends CoapServer {
   static {

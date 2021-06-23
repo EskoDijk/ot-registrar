@@ -28,26 +28,15 @@
 
 package com.google.openthread.registrar;
 
-import COSE.CoseException;
-import COSE.Message;
-import COSE.MessageTag;
-import COSE.OneKey;
-import COSE.Sign1Message;
-import com.google.openthread.BouncyCastleInitializer;
-import com.google.openthread.Constants;
-import com.google.openthread.ExtendedMediaTypeRegistry;
-import com.google.openthread.RequestDumper;
-import com.google.openthread.SecurityUtils;
-import com.google.openthread.brski.CBORSerializer;
-import com.google.openthread.brski.ConstrainedVoucherRequest;
-import com.google.openthread.domainca.DomainCA;
-import com.google.openthread.pledge.Pledge;
-import com.upokecenter.cbor.CBORObject;
 import java.io.IOException;
 import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+
 import org.bouncycastle.asn1.est.CsrAttrs;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.util.encoders.Hex;
@@ -62,26 +51,42 @@ import org.eclipse.californium.elements.auth.X509CertPath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.openthread.BouncyCastleInitializer;
+import com.google.openthread.Constants;
+import com.google.openthread.ExtendedMediaTypeRegistry;
+import com.google.openthread.RequestDumper;
+import com.google.openthread.SecurityUtils;
+import com.google.openthread.brski.CBORSerializer;
+import com.google.openthread.brski.ConstrainedVoucherRequest;
+import com.google.openthread.domainca.DomainCA;
+import com.google.openthread.pledge.Pledge;
+import com.upokecenter.cbor.CBORObject;
+
+import COSE.CoseException;
+import COSE.Message;
+import COSE.MessageTag;
+import COSE.OneKey;
+import COSE.Sign1Message;
+
 /**
  * The registrar implements BRSKI-EST over CoAPs
  *
  * @author wgtdkp
  */
 public class Registrar extends CoapServer {
-  // EST resources
-  // EST             EST-CoAPS
-  // /cacerts        /crts
-  // /simpleenroll   /sen
-  // /simplereenroll /sren
-  // /fullcmc        (N/A)
-  // /serverkeygen   /skg
-  // /csrattrs       /att
+  // EST resources___________EST EST-CoAPS
+  // /cacerts________________/crts
+  // /simpleenroll___________/sen
+  // /simplereenroll_________/sren
+  // /fullcmc________________(N/A)
+  // /serverkeygen___________/skg
+  // /csrattrs_______________/att
   //
   // Voucher related
-  // BRSKI           BRSKI-EST-coaps
-  // /requestvoucher /rv
-  // /voucher-status /vs
-  // /enrollstatus   /es
+  // BRSKI___________________BRSKI-EST-coaps
+  // /requestvoucher_________/rv
+  // /voucher-status_________/vs
+  // /enrollstatus___________/es
 
   static {
     BouncyCastleInitializer.init();
@@ -346,9 +351,7 @@ public class Registrar extends CoapServer {
         // Registrar forwards MASA's success response without modification
         exchange.respond(response.getCode(), response.getPayload(),
             ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
-      } catch (
-
-      Exception e) {
+      } catch (Exception e) {
         logger.warn("handle voucher request failed: " + e.getMessage(), e);
         exchange.respond(ResponseCode.SERVICE_UNAVAILABLE);
         return;
@@ -498,7 +501,6 @@ public class Registrar extends CoapServer {
         exchange.respond(ResponseCode.BAD_REQUEST, e.getMessage());
       }
     }
-
   }
 
   public static void validateComTokenReq(CBORObject req) throws RegistrarException {

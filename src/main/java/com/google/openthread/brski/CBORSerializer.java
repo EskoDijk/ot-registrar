@@ -28,9 +28,10 @@
 
 package com.google.openthread.brski;
 
-import com.upokecenter.cbor.CBORObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.upokecenter.cbor.CBORObject;
 
 /** Create new instance for each serialization/deserialization job. */
 public class CBORSerializer implements VoucherSerializer {
