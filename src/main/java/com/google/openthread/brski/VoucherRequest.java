@@ -36,7 +36,7 @@ public class VoucherRequest extends Voucher {
 
   @Override
   public boolean validate() {
-    if (assertion == null || serialNumber == null) {
+    if (serialNumber == null) {
       return false;
     }
     if (expiresOn != null && nonce != null) {
