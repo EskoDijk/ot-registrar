@@ -35,10 +35,10 @@ import com.google.openthread.commissioner.Commissioner;
 import com.google.openthread.domainca.DomainCA;
 import com.google.openthread.masa.MASA;
 import com.google.openthread.pledge.Pledge;
+import com.google.openthread.pledge.PledgeException;
 import com.google.openthread.registrar.Registrar;
 import com.google.openthread.registrar.RegistrarBuilder;
 import com.google.openthread.tools.CredentialGenerator;
-import java.security.KeyPair;
 import java.security.cert.CertPath;
 import java.security.cert.CertPathValidator;
 import java.security.cert.Certificate;
@@ -52,6 +52,7 @@ import java.util.List;
 import java.util.Set;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -66,54 +67,27 @@ import se.sics.ace.cwt.CWT;
 
 public class FunctionalTest {
 
-  private static Logger logger = LoggerFactory.getLogger(FunctionalTest.class);
-
-  private static final String REGISTRAR_URI =
+  public static final String REGISTRAR_URI =
       "coaps://[::1]:" + Constants.DEFAULT_REGISTRAR_COAPS_PORT;
 
-  private static KeyPair domaincaKeyPair;
-  private static X509Certificate domaincaCert;
+  public static final String DEFAULT_DOMAIN_NAME = "Thread-Test";
 
-  private static KeyPair registrarKeyPiar;
-  private static X509Certificate registrarCert;
-
-  private static KeyPair commissionerKeyPair;
-  private static X509Certificate commissionerCert;
-
-  private static KeyPair pledgeKeyPair;
-  private static X509Certificate pledgeCert;
-
-  private static KeyPair masaKeyPair;
-  private static X509Certificate masaCert;
-
-  private static final String DEFAULT_DOMAIN_NAME = "Thread-Test";
   private DomainCA domainCA;
-  private Registrar registrar;
+  private Registrar registrar, registrar2;
   private Commissioner commissioner;
   private Pledge pledge;
   private MASA masa;
+
+  private static CredentialGenerator cg;
+
+  private static Logger logger = LoggerFactory.getLogger(FunctionalTest.class);
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @BeforeClass
   public static void setup() throws Exception {
-    CredentialGenerator cg = new CredentialGenerator();
+    cg = new CredentialGenerator();
     cg.make(null, null, null);
-    domaincaKeyPair = cg.domaincaKeyPair;
-    domaincaCert = cg.domaincaCert;
-
-    registrarKeyPiar = cg.registrarKeyPair;
-    registrarCert = cg.registrarCert;
-
-    // Commissioner cert signed by domain ca
-    commissionerKeyPair = cg.commissionerKeyPair;
-    commissionerCert = cg.commissionerCert;
-
-    masaKeyPair = cg.masaKeyPair;
-    masaCert = cg.masaCert;
-
-    pledgeKeyPair = cg.pledgeKeyPair;
-    pledgeCert = cg.pledgeCert;
   }
 
   @AfterClass
@@ -121,28 +95,28 @@ public class FunctionalTest {
 
   @Before
   public void init() throws Exception {
-    masa = new MASA(masaKeyPair.getPrivate(), masaCert, Constants.DEFAULT_MASA_COAPS_PORT);
+    masa = new MASA(cg.masaKeyPair.getPrivate(), cg.masaCert, Constants.DEFAULT_MASA_COAPS_PORT);
     pledge =
         new Pledge(
-            pledgeKeyPair.getPrivate(),
-            new X509Certificate[] {pledgeCert, masaCert},
+            cg.pledgeKeyPair.getPrivate(),
+            new X509Certificate[] {cg.pledgeCert, cg.masaCert},
             REGISTRAR_URI);
 
-    domainCA = new DomainCA(DEFAULT_DOMAIN_NAME, domaincaKeyPair.getPrivate(), domaincaCert);
+    domainCA = new DomainCA(DEFAULT_DOMAIN_NAME, cg.domaincaKeyPair.getPrivate(), cg.domaincaCert);
 
     RegistrarBuilder registrarBuilder = new RegistrarBuilder();
     registrar =
         registrarBuilder
-            .setPrivateKey(registrarKeyPiar.getPrivate())
-            .setCertificateChain(new X509Certificate[] {registrarCert, domaincaCert})
-            .addMasaCertificate(masaCert)
+            .setPrivateKey(cg.registrarKeyPair.getPrivate())
+            .setCertificateChain(new X509Certificate[] {cg.registrarCert, cg.domaincaCert})
+            .addMasaCertificate(cg.masaCert)
             .build(Constants.DEFAULT_REGISTRAR_COAPS_PORT);
     registrar.setDomainCA(domainCA);
 
     commissioner =
         new Commissioner(
-            commissionerKeyPair.getPrivate(),
-            new X509Certificate[] {commissionerCert, domaincaCert});
+            cg.commissionerKeyPair.getPrivate(),
+            new X509Certificate[] {cg.commissionerCert, cg.domaincaCert});
 
     masa.start();
     registrar.start();
@@ -153,6 +127,7 @@ public class FunctionalTest {
     pledge.shutdown();
     commissioner.shutdown();
     registrar.stop();
+    if (registrar2 != null) registrar2.stop();
     masa.stop();
   }
 
@@ -173,7 +148,7 @@ public class FunctionalTest {
   public void testCertificateChainValidationWithSelf() throws Exception {
     thrown.expect(Exception.class);
 
-    X509Certificate cert = registrarCert;
+    X509Certificate cert = cg.registrarCert;
 
     Set<TrustAnchor> trustAnchors = new HashSet<>();
     trustAnchors.add(new TrustAnchor(cert, null));
@@ -193,7 +168,7 @@ public class FunctionalTest {
 
   @Test
   public void testPledgeCertificate() {
-    Assert.assertTrue(SecurityUtils.getMasaUri(pledgeCert).equals(Constants.DEFAULT_MASA_URI));
+    Assert.assertTrue(SecurityUtils.getMasaUri(cg.pledgeCert).equals(Constants.DEFAULT_MASA_URI));
   }
 
   @Test
@@ -309,6 +284,44 @@ public class FunctionalTest {
       } catch (Exception e) {
         errorState = e;
       }
+    }
+  }
+
+  @Test
+  public void testRegistrarWithoutCmcRa() throws Exception {
+
+    registrar.stop();
+
+    // create new Registrar without EKU extension in Registrar cert
+    cg.setRegistrarExtendedKeyUsage(false);
+    X509Certificate registrarCert =
+        cg.genRegistrarCertificate(
+            cg.registrarKeyPair,
+            CredentialGenerator.REGISTRAR_DNAME,
+            cg.domaincaKeyPair,
+            cg.domaincaCert.getSubjectX500Principal().getName());
+
+    // build a new Registrar
+    RegistrarBuilder registrarBuilder = new RegistrarBuilder();
+    registrar2 =
+        registrarBuilder
+            .setPrivateKey(cg.registrarKeyPair.getPrivate())
+            .setCertificateChain(new X509Certificate[] {registrarCert, cg.domaincaCert})
+            .addMasaCertificate(cg.masaCert)
+            .build(Constants.DEFAULT_REGISTRAR_COAPS_PORT);
+    registrar2.setDomainCA(domainCA);
+    registrar2.start();
+
+    // test connection works - our Pledge won't check (others may)
+    CoapResponse response = pledge.sayHello();
+    assertSame(CoAP.ResponseCode.CONTENT, response.getCode());
+
+    // test that the voucher request now fails
+    try {
+      ConstrainedVoucher voucher = pledge.requestVoucher();
+      Assert.fail("MASA mistakenly accepted voucher request");
+    } catch (PledgeException ex) {
+      Assert.assertEquals(ResponseCode.FORBIDDEN, ex.code);
     }
   }
 }

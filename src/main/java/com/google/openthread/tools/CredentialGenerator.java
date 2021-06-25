@@ -96,9 +96,28 @@ public class CredentialGenerator {
   public X509Certificate commissionerCert;
 
   private String masaUri = Constants.DEFAULT_MASA_URI;
+  private boolean isIncludeExtKeyUsage = true;
 
-  public void SetMasaUri(String masaUri) {
+  /**
+   * Set the MASA URI that will be included in a generated Pledge certificate, in the MASA URI
+   * extension (RFC 8995 2.3.2).
+   *
+   * @param masaUri string that is typically only the 'authority' part of a URI. See RFC 8995 for
+   *     exception cases where more elements can be added.
+   */
+  public void setMasaUri(String masaUri) {
     this.masaUri = masaUri;
+  }
+
+  /**
+   * Sets whether the Extended Key Usage (EKU) extensions is included in a generated Registrar cert.
+   * By default, it is included and must be included to comply to specifications. For testing
+   * situations it can be excluded.
+   *
+   * @param isIncluded true if EKU is included (should be used by default), false if not.
+   */
+  public void setRegistrarExtendedKeyUsage(boolean isIncluded) {
+    this.isIncludeExtKeyUsage = isIncluded;
   }
 
   public X509Certificate genSelfSignedCert(KeyPair keyPair, String dname) throws Exception {
@@ -163,6 +182,8 @@ public class CredentialGenerator {
    * @param subName
    * @param issuerKeyPair
    * @param issuerName
+   * @param isIncludeExtKeyUsage if true (default), include Extended Key Usage (EKU) extension in
+   *     cert with the cmcRA flag set. Use only 'false' for test purposes.
    * @return
    * @throws Exception
    */
@@ -195,11 +216,24 @@ public class CredentialGenerator {
 
     List<Extension> extensions = new ArrayList<>();
     extensions.add(keyUsage);
-    extensions.add(extKeyUsage);
+    if (isIncludeExtKeyUsage) {
+      extensions.add(extKeyUsage);
+    }
     return SecurityUtils.genCertificate(
         subKeyPair, subName, issuerKeyPair, issuerName, false, extensions);
   }
 
+  /**
+   * Make/generate a complete set of certificates and store locally in this object.
+   *
+   * @param caCertKeyFiles filenames for CA cert key file and cert file, or null to generate this
+   *     key/cert
+   * @param masaCertKeyFiles filenames for MASA cert key file and cert file, or null to generate
+   *     this key/cert
+   * @param registrarCertKeyFiles filenames for Registrar cert key file and cert file, or null to
+   *     generate this key/cert
+   * @throws Exception
+   */
   public void make(
       String[] caCertKeyFiles, String[] masaCertKeyFiles, String[] registrarCertKeyFiles)
       throws Exception {

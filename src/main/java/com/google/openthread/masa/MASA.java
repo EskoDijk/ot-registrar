@@ -100,9 +100,8 @@ public class MASA extends CoapServer {
       try {
         reqContent = SecurityUtils.decodeCMSSignedMessage(exchange.getRequestPayload(), reqCerts);
       } catch (Exception e) {
-        logger.error("CMS signed voucher request error: " + e.getMessage());
-        e.printStackTrace();
-        exchange.respond(ResponseCode.FORBIDDEN);
+        logger.error("CMS signed voucher request error: " + e.getMessage(), e);
+        exchange.respond(ResponseCode.FORBIDDEN, "CMS signature could not be decoded.");
         return;
       }
 
@@ -110,7 +109,7 @@ public class MASA extends CoapServer {
           (ConstrainedVoucherRequest) new CBORSerializer().deserialize(reqContent);
       if (!req.validate() || reqCerts.isEmpty()) {
         logger.error("invalid voucher request");
-        exchange.respond(ResponseCode.BAD_REQUEST);
+        exchange.respond(ResponseCode.BAD_REQUEST, "Voucher Request validation error.");
         return;
       }
 
@@ -136,12 +135,14 @@ public class MASA extends CoapServer {
           }
         }
       } catch (Exception ex) {
-        logger.error("Couldn't parse extended key usage in Registrar certificate.", ex);
-        exchange.respond(ResponseCode.BAD_REQUEST);
+        final String msg = "Couldn't parse extended key usage in Registrar certificate.";
+        logger.error(msg, ex);
+        exchange.respond(ResponseCode.BAD_REQUEST, msg);
       }
       if (!isRA) {
-        logger.error("Registrar certificate did not have RA set in Extended Key Usage.");
-        exchange.respond(ResponseCode.UNAUTHORIZED);
+        final String msg = "Registrar certificate did not have RA set in Extended Key Usage.";
+        logger.error(msg);
+        exchange.respond(ResponseCode.FORBIDDEN, msg); // per RFC 8995 5.6
       }
 
       // TODO(wgtdkp):
@@ -151,8 +152,9 @@ public class MASA extends CoapServer {
       // Section 5.5.5 BRSKI: MASA verification of pledge prior-signed-voucher-request
       // Note: RFC 8995 suggests HTTP 415 for this case.
       if (req.priorSignedVoucherRequest == null) {
-        logger.error("missing priorSignedVoucherRequest");
-        exchange.respond(ResponseCode.BAD_REQUEST);
+        final String msg = "missing priorSignedVoucherRequest";
+        logger.error(msg);
+        exchange.respond(ResponseCode.BAD_REQUEST, msg);
       }
 
       // TODO(wgtdkp):
@@ -192,7 +194,7 @@ public class MASA extends CoapServer {
         // logger.error("get encoded subject-public-key-info failed: " +
         // e.getMessage());
         logger.error("get encoded domain-ca-cert failed: " + e.getMessage(), e);
-        exchange.respond(ResponseCode.SERVICE_UNAVAILABLE, e.getMessage());
+        exchange.respond(ResponseCode.BAD_REQUEST, "Get encoded domain-ca-cert failed.");
         return;
       }
 
@@ -212,8 +214,8 @@ public class MASA extends CoapServer {
         exchange.respond(
             ResponseCode.CHANGED, payload, ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
       } catch (CoseException e) {
-        logger.error("COSE signing voucher request failed: " + e.getMessage());
-        exchange.respond(ResponseCode.NOT_ACCEPTABLE);
+        logger.error("COSE signing voucher request failed: " + e.getMessage(), e);
+        exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
       }
     }
   }

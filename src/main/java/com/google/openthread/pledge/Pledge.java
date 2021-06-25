@@ -252,7 +252,8 @@ public class Pledge extends CoapClient {
       throw new PledgeException("voucher request failed: null response");
     }
     if (response.getCode() != ResponseCode.CHANGED) {
-      throw new PledgeException("voucher request failed: " + response.getCode().toString());
+      throw new PledgeException(
+          "voucher request failed: " + response.getCode().toString(), response.getCode());
     }
 
     if (response.getOptions().getContentFormat()
@@ -321,8 +322,8 @@ public class Pledge extends CoapClient {
 
       return voucher;
     } catch (Exception e) {
-      e.printStackTrace();
-      throw new PledgeException("voucher error: " + e.getMessage());
+      logger.error("voucher processing error: " + e.getMessage(), e);
+      throw new PledgeException("voucher processing error: " + e.getMessage());
     }
   }
 
@@ -345,7 +346,8 @@ public class Pledge extends CoapClient {
       throw new PledgeException("request CSR Attributes failed: null response");
     }
     if (response.getCode() != ResponseCode.CONTENT) {
-      logger.warn("CSR attributes request failed: " + response.getCode().toString());
+      logger.warn(
+          "CSR attributes request failed: " + response.getCode().toString(), response.getCode());
       return;
     }
 
@@ -527,7 +529,8 @@ public class Pledge extends CoapClient {
       throw new PledgeException("CSR request failed: null response");
     }
     if (response.getCode() != ResponseCode.CHANGED) {
-      throw new PledgeException("CSR request failed: " + response.getCode().toString());
+      throw new PledgeException(
+          "CSR request failed: " + response.getCode().toString(), response.getCode());
     }
 
     if (response.getOptions().getContentFormat()

@@ -28,9 +28,19 @@
 
 package com.google.openthread.pledge;
 
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+
 public class PledgeException extends Exception {
+
+  public ResponseCode code = null;
+
   public PledgeException(String msg) {
     super(msg);
+  }
+
+  public PledgeException(String msg, ResponseCode coapCode) {
+    super(msg);
+    this.code = coapCode;
   }
 
   private static final long serialVersionUID = -1980574489782019605L;

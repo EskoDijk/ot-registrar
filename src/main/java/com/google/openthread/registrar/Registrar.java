@@ -215,8 +215,8 @@ public class Registrar extends CoapServer {
         // Get client certificate, it is pledge's idevid for voucher request
         Principal clientId = exchange.advanced().getRequest().getSourceContext().getPeerIdentity();
         if (!(clientId instanceof X509CertPath)) {
-          logger.error("unsupported client identity");
-          exchange.respond(ResponseCode.UNPROCESSABLE_ENTITY);
+          logger.error("unsupported client identity type");
+          exchange.respond(ResponseCode.UNAUTHORIZED, "Unsupported client identity type.");
           return;
         }
         X509Certificate idevid = ((X509CertPath) clientId).getTarget();
@@ -246,8 +246,9 @@ public class Registrar extends CoapServer {
 
         // Validate pledge's voucher request
         if (!pledgeReq.validate()) {
-          logger.error("bad voucher request");
-          exchange.respond(ResponseCode.UNPROCESSABLE_ENTITY);
+          final String msg = "voucher request did not validate";
+          logger.error(msg);
+          exchange.respond(ResponseCode.FORBIDDEN, msg);
           return;
         }
 
@@ -266,7 +267,7 @@ public class Registrar extends CoapServer {
           if (!Arrays.equals(
               pledgeReq.proximityRegistrarSPKI, getCertificate().getPublicKey().getEncoded())) {
             logger.error("unmatched proximity registrar SPKI in Pledge's Voucher Request");
-            exchange.respond(ResponseCode.BAD_REQUEST);
+            exchange.respond(ResponseCode.BAD_REQUEST, "proximityRegistrarSPKI error");
             return;
           }
         }
@@ -286,7 +287,7 @@ public class Registrar extends CoapServer {
               String.format(
                   "bad serial number in voucher request: [%s] != [%s]",
                   pledgeReq.serialNumber, req.serialNumber));
-          exchange.respond(ResponseCode.UNPROCESSABLE_ENTITY);
+          exchange.respond(ResponseCode.BAD_REQUEST, "serial number check failure");
           return;
         }
 
@@ -348,17 +349,18 @@ public class Registrar extends CoapServer {
           return;
         }
 
-        if (response.getPayload() == null) {
-          logger.warn("unexpected null payload from MASA server");
-          exchange.respond(ResponseCode.SERVICE_UNAVAILABLE);
-          return;
-        }
-
         if (response.getCode() != ResponseCode.CHANGED) {
           logger.warn("request voucher from MASA failed with response code " + response.getCode());
           // mirror the MASA's response code, so the Pledge can distinguish errors from
-          // MASA.
-          exchange.respond(response.getCode());
+          // MASA. Get also MASA's diagnostic error message if any.
+          if (response.getPayload() != null) {
+            String msg = new String(response.getPayload());
+            if (msg.length() > 80)
+              msg = msg.substring(0, 80); // keep it short for constrained Pledges.
+            exchange.respond(response.getCode(), msg);
+          } else {
+            exchange.respond(response.getCode());
+          }
           return;
         }
 
@@ -372,6 +374,13 @@ public class Registrar extends CoapServer {
           return;
         }
 
+        // Note: payload null check must be last.
+        if (response.getPayload() == null) {
+          logger.warn("unexpected null payload from MASA server");
+          exchange.respond(ResponseCode.SERVICE_UNAVAILABLE);
+          return;
+        }
+
         // Registrar forwards MASA's success response without modification
         exchange.respond(
             response.getCode(),
@@ -379,7 +388,7 @@ public class Registrar extends CoapServer {
             ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
       } catch (Exception e) {
         logger.warn("handle voucher request failed: " + e.getMessage(), e);
-        exchange.respond(ResponseCode.SERVICE_UNAVAILABLE);
+        exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
         return;
       }
     }
@@ -448,7 +457,7 @@ public class Registrar extends CoapServer {
       } catch (Exception e) {
         logger.warn("sign certificate failed: " + e.getMessage(), e);
         // TODO(wgtdkp):
-        exchange.respond(ResponseCode.SERVICE_UNAVAILABLE);
+        exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
         return;
       }
     }
