@@ -131,7 +131,7 @@ public class FunctionalTest {
     masa.stop();
   }
 
-  private void VerifyEnroll() throws Exception {
+  private void VerifyEnroll(Pledge pledge) throws Exception {
     X509Certificate cert = pledge.getOperationalCert();
     Assert.assertTrue(cert != null);
 
@@ -198,7 +198,7 @@ public class FunctionalTest {
     pledge.requestCSRAttributes();
     pledge.enroll();
 
-    VerifyEnroll();
+    VerifyEnroll(pledge);
 
     // TODO(wgtdkp): verify pledge state
   }
@@ -208,10 +208,10 @@ public class FunctionalTest {
     pledge.requestVoucher();
     pledge.requestCSRAttributes();
     pledge.enroll();
-    VerifyEnroll();
+    VerifyEnroll(pledge);
 
     pledge.reenroll();
-    VerifyEnroll();
+    VerifyEnroll(pledge);
 
     // TODO(wgtdkp): verify pledge state
   }
@@ -221,20 +221,20 @@ public class FunctionalTest {
     pledge.requestVoucher();
     pledge.requestCSRAttributes();
     pledge.enroll();
-    VerifyEnroll();
+    VerifyEnroll(pledge);
 
     pledge.reenroll();
-    VerifyEnroll();
+    VerifyEnroll(pledge);
 
     pledge.reset();
 
     pledge.requestVoucher();
     pledge.requestCSRAttributes();
     pledge.enroll();
-    VerifyEnroll();
+    VerifyEnroll(pledge);
 
     pledge.reenroll();
-    VerifyEnroll();
+    VerifyEnroll(pledge);
   }
 
   @Test
@@ -244,22 +244,23 @@ public class FunctionalTest {
   }
 
   @Test
-  public void testMultiPledges() {
-    PledgeThread[] threads = new PledgeThread[8];
+  public void testMultiPledges() throws Exception {
+    PledgeThread[] threads = new PledgeThread[12];
 
     for (int i = 0; i < threads.length; ++i) {
       threads[i] = new PledgeThread();
     }
     for (PledgeThread thread : threads) {
       thread.start();
+      Thread.sleep(20);
     }
     for (PledgeThread thread : threads) {
       try {
         thread.join();
         if (thread.errorState != null) {
-          String msg = "Pledge [" + thread.getId() + "] had an exception: " + thread.errorState;
+          String msg = "Pledge [" + thread.getId() + "] had an exception/error: " + thread.errorState;
           logger.error(msg, thread.errorState);
-          Assert.fail(msg);
+          Assert.fail();
         }
       } catch (InterruptedException e) {
         Assert.fail("join failed: " + e.getMessage());
@@ -267,22 +268,36 @@ public class FunctionalTest {
     }
   }
 
+  /**
+   * In a thread, create a new Pledge and let it do voucher request and enrollment operations.
+   * Any error state is logged internally.
+   */
   private class PledgeThread extends Thread {
 
-    public Exception errorState = null;
+    public Throwable errorState = null;
 
     @Override
     public void run() {
+      Pledge p = null;
       try {
-        pledge.requestVoucher();
-        pledge.requestCSRAttributes();
-        pledge.enroll();
-        VerifyEnroll();
+        p =
+            new Pledge(
+                cg.pledgeKeyPair.getPrivate(),
+                new X509Certificate[] {cg.pledgeCert, cg.masaCert},
+                REGISTRAR_URI);
+        p.requestVoucher();
+        p.requestCSRAttributes();
+        p.enroll();
+        VerifyEnroll(p);
 
-        pledge.reenroll();
-        VerifyEnroll();
-      } catch (Exception e) {
+        p.reenroll();
+        VerifyEnroll(p);
+      } catch (Throwable e) {
         errorState = e;
+      }
+      finally {
+        if (p != null)
+          p.shutdown();
       }
     }
   }
@@ -312,7 +327,7 @@ public class FunctionalTest {
     registrar2.setDomainCA(domainCA);
     registrar2.start();
 
-    // test connection works - our Pledge won't check (others may)
+    // test connection works - our Pledge won't check for cmcRA in certificate (other implementations may do this)
     CoapResponse response = pledge.sayHello();
     assertSame(CoAP.ResponseCode.CONTENT, response.getCode());
 
