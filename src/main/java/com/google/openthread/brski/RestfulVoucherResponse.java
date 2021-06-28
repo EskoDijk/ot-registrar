@@ -1,7 +1,6 @@
 package com.google.openthread.brski;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import com.google.openthread.ExtendedMediaTypeRegistry;
 
 /**
  * A MASA's or Registrar's generic RESTful response to a Voucher Request; including status code and
@@ -9,6 +8,8 @@ import com.google.openthread.ExtendedMediaTypeRegistry;
  * CoAP specific semantics.
  */
 public class RestfulVoucherResponse {
+
+  public static final int MAX_DIAGNOSTIC_MESSAGE_LENGTH = 80;
 
   protected ResponseCode code;
   protected String msg;
@@ -22,6 +23,9 @@ public class RestfulVoucherResponse {
   }
 
   public RestfulVoucherResponse(ResponseCode errorStatus, String msg) {
+    // keep message short for constrained systems
+    if (msg.length() > MAX_DIAGNOSTIC_MESSAGE_LENGTH)
+      msg = msg.substring(0, MAX_DIAGNOSTIC_MESSAGE_LENGTH);
     this.code = errorStatus;
     this.msg = msg;
   }
@@ -35,15 +39,15 @@ public class RestfulVoucherResponse {
   public RestfulVoucherResponse(int httpStatus, byte[] payload, String contentType) {
     this.code = codeFromHttpStatus(httpStatus);
     this.payload = payload;
-    if(!contentType.toLowerCase().equals("application/voucher-cms+json"))
-        throw new IllegalArgumentException("Unsupported Content-Type " + contentType);
+    if (!contentType.toLowerCase().equals("application/voucher-cms+json"))
+      throw new IllegalArgumentException("Unsupported Content-Type " + contentType);
     this.contentFormat = -2; // TODO
   }
 
   private ResponseCode codeFromHttpStatus(int httpStatus) {
     int nClass = httpStatus / 100;
-    int nDetail = httpStatus - nClass*100;
-    ResponseCode c = ResponseCode.valueOf( nClass << 5 + nDetail );
+    int nDetail = httpStatus - nClass * 100;
+    ResponseCode c = ResponseCode.valueOf(nClass << 5 + nDetail);
     return c;
   }
 
@@ -82,4 +86,15 @@ public class RestfulVoucherResponse {
   public String getMessage() {
     return msg;
   }
+
+  /*
+  public String toString() {
+    return code
+        + " "
+        + msg
+        + " CF="
+        + contentFormat
+        + ((payload != null) ? (" " + payload.length + "B") : "");
+  }*/
+
 }

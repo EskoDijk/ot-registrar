@@ -35,6 +35,7 @@ import COSE.OneKey;
 import COSE.Sign1Message;
 import com.google.openthread.BouncyCastleInitializer;
 import com.google.openthread.Constants;
+import com.google.openthread.Credentials;
 import com.google.openthread.ExtendedMediaTypeRegistry;
 import com.google.openthread.RequestDumper;
 import com.google.openthread.SecurityUtils;
@@ -43,11 +44,13 @@ import com.google.openthread.brski.ConstrainedVoucherRequest;
 import com.google.openthread.brski.RestfulVoucherResponse;
 import com.google.openthread.domainca.DomainCA;
 import com.google.openthread.pledge.Pledge;
+import com.google.openthread.tools.CredentialGenerator;
 import com.upokecenter.cbor.CBORObject;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.net.HttpURLConnection;
 import java.net.URL;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
@@ -55,6 +58,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
 import org.bouncycastle.asn1.est.CsrAttrs;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.util.encoders.Hex;
@@ -108,6 +114,7 @@ public class Registrar extends CoapServer {
       PrivateKey privateKey,
       X509Certificate[] certificateChain,
       X509Certificate[] masaTrustAnchors,
+      Credentials cred,
       int port)
       throws RegistrarException {
     if (certificateChain.length < 2) {
@@ -118,6 +125,7 @@ public class Registrar extends CoapServer {
     this.privateKey = privateKey;
     this.certificateChain = certificateChain;
     this.masaTrustAnchors = masaTrustAnchors;
+    this.credentials = cred;
     try {
       this.csrAttributes = new CSRAttributes(CSRAttributes.DEFAULT_FILE);
     } catch (Exception e) {
@@ -342,8 +350,8 @@ public class Registrar extends CoapServer {
           uri = Constants.DEFAULT_MASA_URI;
         }
 
-        //MASAConnector masaClient = new MASAConnector(masaTrustAnchors);
-        MASAConnectorHttp masaClient = new MASAConnectorHttp(masaTrustAnchors);
+        MASAConnector masaClient = new MASAConnector(masaTrustAnchors);
+        // MASAConnectorHttp masaClient = new MASAConnectorHttp(masaTrustAnchors);
         RestfulVoucherResponse response = masaClient.requestVoucher(payload, uri);
 
         if (response == null) {
@@ -352,18 +360,11 @@ public class Registrar extends CoapServer {
           return;
         }
 
-        if (response.getCode() != ResponseCode.CHANGED) {
+        if (!response.isSuccess()) {
           logger.warn("request voucher from MASA failed with response code " + response.getCode());
           // mirror the MASA's response code, so the Pledge can distinguish errors from
           // MASA. Get also MASA's diagnostic error message if any.
-          if (response.getPayload() != null) {
-            String msg = new String(response.getPayload());
-            if (msg.length() > 80)
-              msg = msg.substring(0, 80); // keep it short for constrained Pledges.
-            exchange.respond(response.getCode(), msg);
-          } else {
-            exchange.respond(response.getCode());
-          }
+          exchange.respond(response.getCode(), response.getMessage());
           return;
         }
 
@@ -390,7 +391,6 @@ public class Registrar extends CoapServer {
       } catch (Exception e) {
         logger.warn("handle voucher request failed: " + e.getMessage(), e);
         exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
-        return;
       }
     }
   }
@@ -434,7 +434,9 @@ public class Registrar extends CoapServer {
   /** CoAP-based MASA connector, acts as client towards MASA. */
   public final class MASAConnectorHttp {
 
-    MASAConnectorHttp(X509Certificate[] trustAnchors) {
+    protected SSLContext sc;
+
+    MASAConnectorHttp(X509Certificate[] trustAnchors) throws Exception {
       initEndPoint(trustAnchors);
     }
 
@@ -446,11 +448,13 @@ public class Registrar extends CoapServer {
      * @return null if any error happens
      */
     public RestfulVoucherResponse requestVoucher(byte[] body, String masaURI)
-        throws IOException, ConnectorException {
+        throws IOException, ConnectorException, NoSuchAlgorithmException, KeyManagementException {
       URL url =
-          new URL("https://" + masaURI + Constants.BRSKI_PATH + "/" + Constants.REQUEST_VOUCHER_HTTP);
+          new URL(
+              "https://" + masaURI + Constants.BRSKI_PATH + "/" + Constants.REQUEST_VOUCHER_HTTP);
       // send request as CMS signed JSON, accept only COSE-signed CBOR back.
-      HttpURLConnection con = (HttpURLConnection) url.openConnection();
+      HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
+      con.setSSLSocketFactory(sc.getSocketFactory());
       con.setRequestMethod("POST");
       con.setDoOutput(true);
       con.setRequestProperty("Content-Type", "application/voucher-cms+json");
@@ -461,10 +465,15 @@ public class Registrar extends CoapServer {
       out.flush();
       out.close();
       byte[] respPayload = con.getInputStream().readAllBytes();
-      return new RestfulVoucherResponse(con.getResponseCode(), respPayload , con.getContentType());
+      return new RestfulVoucherResponse(con.getResponseCode(), respPayload, con.getContentType());
     }
 
-    private void initEndPoint(X509Certificate[] trustAnchors) {}
+    private void initEndPoint(X509Certificate[] trustAnchors) throws Exception {
+      sc = SSLContext.getInstance("TLS");
+      KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+      kmf.init(credentials.getKeyStore(), CredentialGenerator.PASSWORD.toCharArray());
+      sc.init(kmf.getKeyManagers(), null, null);
+    }
   }
 
   public class EnrollResource extends CoapResource {
@@ -692,6 +701,8 @@ public class Registrar extends CoapServer {
   private X509Certificate[] certificateChain;
 
   private X509Certificate[] masaTrustAnchors;
+
+  private Credentials credentials;
 
   private CSRAttributes csrAttributes;
 

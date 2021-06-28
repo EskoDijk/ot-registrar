@@ -29,6 +29,7 @@
 package com.google.openthread.tools;
 
 import com.google.openthread.Constants;
+import com.google.openthread.Credentials;
 import com.google.openthread.HardwareModuleName;
 import com.google.openthread.SecurityUtils;
 import java.io.File;
@@ -122,6 +123,10 @@ public class CredentialGenerator {
    */
   public void setRegistrarExtendedKeyUsage(boolean isIncluded) {
     this.isIncludeExtKeyUsage = isIncluded;
+  }
+
+  public Credentials getCredentials(String alias) throws Exception {
+    return new Credentials(getKeyStore(), alias, PASSWORD);
   }
 
   /**

@@ -99,8 +99,7 @@ public class FunctionalTest {
         new MASA(
             cg.masaKeyPair.getPrivate(),
             cg.masaCert,
-            cg.getKeyStore(),
-            CredentialGenerator.PASSWORD.toCharArray(),
+            cg.getCredentials(CredentialGenerator.MASA_ALIAS),
             Constants.DEFAULT_MASA_COAPS_PORT);
     pledge =
         new Pledge(
@@ -116,7 +115,8 @@ public class FunctionalTest {
             .setPrivateKey(cg.registrarKeyPair.getPrivate())
             .setCertificateChain(new X509Certificate[] {cg.registrarCert, cg.domaincaCert})
             .addMasaCertificate(cg.masaCert)
-            .build(Constants.DEFAULT_REGISTRAR_COAPS_PORT);
+            .setCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
+            .build();
     registrar.setDomainCA(domainCA);
 
     commissioner =
@@ -322,13 +322,20 @@ public class FunctionalTest {
             cg.domaincaCert.getSubjectX500Principal().getName());
 
     // build a new Registrar
+    X509Certificate[] certChain = new X509Certificate[] {registrarCert, cg.domaincaCert};
     RegistrarBuilder registrarBuilder = new RegistrarBuilder();
     registrar2 =
         registrarBuilder
             .setPrivateKey(cg.registrarKeyPair.getPrivate())
-            .setCertificateChain(new X509Certificate[] {registrarCert, cg.domaincaCert})
+            .setCertificateChain(certChain)
             .addMasaCertificate(cg.masaCert)
-            .build(Constants.DEFAULT_REGISTRAR_COAPS_PORT);
+            .setCredentials(
+                new Credentials(
+                    cg.registrarKeyPair.getPrivate(),
+                    certChain,
+                    CredentialGenerator.REGISTRAR_ALIAS,
+                    CredentialGenerator.PASSWORD))
+            .build();
     registrar2.setDomainCA(domainCA);
     registrar2.start();
 

@@ -31,6 +31,7 @@ package com.google.openthread.masa;
 import COSE.CoseException;
 import com.google.openthread.BouncyCastleInitializer;
 import com.google.openthread.Constants;
+import com.google.openthread.Credentials;
 import com.google.openthread.ExtendedMediaTypeRegistry;
 import com.google.openthread.RequestDumper;
 import com.google.openthread.SecurityUtils;
@@ -47,7 +48,6 @@ import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.BlockingHandler;
 import io.undertow.server.handlers.PathHandler;
 import io.undertow.util.HttpString;
-import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -88,12 +88,7 @@ public class MASA {
     public void checkServerTrusted(X509Certificate[] certs, String authType) {}
   }
 
-  public MASA(
-      PrivateKey privateKey,
-      X509Certificate certificate,
-      KeyStore httpsKeyStore,
-      char[] httpsKeyStorePassword,
-      int port)
+  public MASA(PrivateKey privateKey, X509Certificate certificate, Credentials credentials, int port)
       throws Exception {
     this.privateKey = privateKey;
     this.certificate = certificate;
@@ -105,7 +100,7 @@ public class MASA {
     KeyManager[] keyManagers;
     KeyManagerFactory keyManagerFactory =
         KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-    keyManagerFactory.init(httpsKeyStore, httpsKeyStorePassword);
+    keyManagerFactory.init(credentials.getKeyStore(), credentials.getPassword().toCharArray());
     keyManagers = keyManagerFactory.getKeyManagers();
 
     TrustManager[] trustManagers;
@@ -120,7 +115,8 @@ public class MASA {
                 new BlockingHandler(new VoucherRequestHttpHandler()));
     httpServer =
         Undertow.builder()
-            .addHttpsListener(8080, "localhost", httpSsl)
+            .addHttpsListener(
+                Constants.DEFAULT_MASA_URI_PORT, Constants.DEFAULT_MASA_URI_AUTHORITY, httpSsl)
             .setHandler(voucherRequestPathHandler)
             .build();
     initResources();
@@ -133,12 +129,12 @@ public class MASA {
 
   public void start() {
     coapServer.start();
-    httpServer.start();
+    // httpServer.start();
   }
 
   public void stop() {
     coapServer.stop();
-    httpServer.stop();
+    // httpServer.stop();
   }
 
   X509Certificate getCertificate() {

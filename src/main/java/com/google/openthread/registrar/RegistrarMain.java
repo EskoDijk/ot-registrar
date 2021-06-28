@@ -137,13 +137,14 @@ public final class RegistrarMain {
         throw new KeyStoreException("can't find registrar key or certificate");
       }
 
-      builder.setPrivateKey(cred.getPrivateKey()).setCertificateChain(cred.getCertificateChain());
+      builder.setCredentials(cred);
+      builder.setPort(Integer.parseInt(port));
       if (masaCred.getCertificate() != null) {
         builder.addMasaCertificate(masaCred.getCertificate());
       }
       System.out.println("masa server number: " + builder.getMasaNumber());
 
-      registrar = builder.build(Integer.parseInt(port));
+      registrar = builder.build();
 
       DomainCA ca =
           new DomainCA(domainName, domainCred.getPrivateKey(), domainCred.getCertificate());

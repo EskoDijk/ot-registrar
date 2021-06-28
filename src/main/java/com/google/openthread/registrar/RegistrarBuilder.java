@@ -29,6 +29,7 @@
 package com.google.openthread.registrar;
 
 import com.google.openthread.Constants;
+import com.google.openthread.Credentials;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -52,6 +53,11 @@ public class RegistrarBuilder {
     masaCertificates = new ArrayList<>();
   }
 
+  public RegistrarBuilder setCredentials(Credentials cred) {
+    this.credentials = cred;
+    return this;
+  }
+
   public RegistrarBuilder setPrivateKey(PrivateKey privateKey) {
     this.privateKey = privateKey;
     return this;
@@ -67,19 +73,23 @@ public class RegistrarBuilder {
     return this;
   }
 
+  public RegistrarBuilder setPort(int port) {
+    this.port = port;
+    return this;
+  }
+
   public int getMasaNumber() {
     return masaCertificates.size();
   }
 
   public Registrar build() throws RegistrarException {
-    return build(Constants.DEFAULT_REGISTRAR_COAPS_PORT);
-  }
-
-  public Registrar build(int port) throws RegistrarException {
-    if (privateKey == null || certificateChain == null || getMasaCertificates().length == 0) {
+    if (privateKey == null
+        || certificateChain == null
+        || getMasaCertificates().length == 0
+        || credentials == null) {
       throw new RegistrarException("bad registrar credentials");
     }
-    return new Registrar(privateKey, certificateChain, getMasaCertificates(), port);
+    return new Registrar(privateKey, certificateChain, getMasaCertificates(), credentials, port);
   }
 
   private X509Certificate[] getMasaCertificates() {
@@ -89,4 +99,6 @@ public class RegistrarBuilder {
   private PrivateKey privateKey;
   private X509Certificate[] certificateChain;
   private List<X509Certificate> masaCertificates;
+  private Credentials credentials;
+  private int port = Constants.DEFAULT_REGISTRAR_COAPS_PORT;
 }

@@ -108,13 +108,7 @@ public class MASAMain {
         throw new KeyStoreException("can't find MASA key or certificate");
       }
 
-      masa =
-          new MASA(
-              cred.getPrivateKey(),
-              cred.getCertificate(),
-              cred.getKeyStore(),
-              CredentialGenerator.PASSWORD.toCharArray(),
-              Integer.parseInt(port));
+      masa = new MASA(cred.getPrivateKey(), cred.getCertificate(), cred, Integer.parseInt(port));
     } catch (Exception e) {
       System.err.println("error: " + e.getMessage());
       helper.printHelp(HELP_FORMAT, options);

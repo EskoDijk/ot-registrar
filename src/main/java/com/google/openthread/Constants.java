@@ -75,8 +75,13 @@ public class Constants {
   // Temporary/early allocation in draft-ietf-anima-bootstrapping-keyinfra-44
   public static final String MASA_URI_OID = "1.3.6.1.5.5.7.1.32";
 
+  public static final String DEFAULT_MASA_URI_AUTHORITY = "localhost";
+
+  public static final int DEFAULT_MASA_URI_PORT = 5685;
+
   // In case the MASA URI is not specified, this value will be used.
-  public static final String DEFAULT_MASA_URI = "localhost:8080"; // 5685
+  public static final String DEFAULT_MASA_URI =
+      DEFAULT_MASA_URI_AUTHORITY + ":" + DEFAULT_MASA_URI_PORT;
 
   public static final String HARDWARE_MODULE_NAME_OID = "1.3.6.1.5.5.7.8.4";
 

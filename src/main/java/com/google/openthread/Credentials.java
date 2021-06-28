@@ -37,6 +37,7 @@ import java.security.cert.X509Certificate;
 import org.eclipse.californium.elements.util.SslContextUtil;
 
 public class Credentials {
+
   public Credentials(String file, String alias, String password) throws Exception {
     this.alias = alias;
     this.password = password;
@@ -45,6 +46,21 @@ public class Credentials {
     try (InputStream in = new FileInputStream(file)) {
       keyStore.load(in, password.toCharArray());
     }
+  }
+
+  public Credentials(KeyStore ks, String alias, String password) throws Exception {
+    this.alias = alias;
+    this.password = password;
+    this.keyStore = ks;
+  }
+
+  public Credentials(PrivateKey privKey, X509Certificate[] certChain, String alias, String password)
+      throws Exception {
+    // this.alias = alias;
+    this.password = password;
+    this.keyStore = KeyStore.getInstance(Constants.KEY_STORE_FORMAT);
+    keyStore.load(null, password.toCharArray());
+    keyStore.setKeyEntry(alias, privKey, password.toCharArray(), certChain);
   }
 
   // Returns null if alias not included.
@@ -62,8 +78,17 @@ public class Credentials {
     return SslContextUtil.asX509Certificates(keyStore.getCertificateChain(alias));
   }
 
+  /**
+   * returns the entire KeyStore that was used to fetch these credentials.
+   *
+   * @return
+   */
   public KeyStore getKeyStore() {
     return keyStore;
+  }
+
+  public String getPassword() {
+    return password;
   }
 
   private String alias;
