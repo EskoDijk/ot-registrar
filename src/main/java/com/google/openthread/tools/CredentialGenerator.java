@@ -34,11 +34,15 @@ import com.google.openthread.SecurityUtils;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileReader;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.security.KeyPair;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
@@ -118,6 +122,49 @@ public class CredentialGenerator {
    */
   public void setRegistrarExtendedKeyUsage(boolean isIncluded) {
     this.isIncludeExtKeyUsage = isIncluded;
+  }
+
+  /**
+   * Return all the credentials in form of a Java KeyStore object, password protected with
+   * CredentialGenerator.PASSWORD.
+   *
+   * @return
+   * @throws KeyStoreException
+   * @throws CertificateException
+   * @throws NoSuchAlgorithmException
+   * @throws IOException
+   */
+  public KeyStore getKeyStore()
+      throws KeyStoreException, CertificateException, NoSuchAlgorithmException, IOException {
+
+    char[] password = PASSWORD.toCharArray();
+
+    KeyStore ks = KeyStore.getInstance(Constants.KEY_STORE_FORMAT);
+    ks.load(null, password); // create empty keystore
+
+    ks.setKeyEntry(
+        MASA_ALIAS, masaKeyPair.getPrivate(), password, new X509Certificate[] {masaCert});
+    ks.setKeyEntry(
+        PLEDGE_ALIAS,
+        pledgeKeyPair.getPrivate(),
+        password,
+        new X509Certificate[] {pledgeCert, masaCert});
+    ks.setKeyEntry(
+        DOMAINCA_ALIAS,
+        domaincaKeyPair.getPrivate(),
+        password,
+        new X509Certificate[] {domaincaCert});
+    ks.setKeyEntry(
+        REGISTRAR_ALIAS,
+        registrarKeyPair.getPrivate(),
+        password,
+        new X509Certificate[] {registrarCert, domaincaCert});
+    ks.setKeyEntry(
+        COMMISSIONER_ALIAS,
+        commissionerKeyPair.getPrivate(),
+        password,
+        new X509Certificate[] {commissionerCert, domaincaCert});
+    return ks;
   }
 
   public X509Certificate genSelfSignedCert(KeyPair keyPair, String dname) throws Exception {
@@ -308,31 +355,7 @@ public class CredentialGenerator {
   public void store(String filename) throws Exception {
     char[] password = PASSWORD.toCharArray();
 
-    KeyStore ks = KeyStore.getInstance(Constants.KEY_STORE_FORMAT);
-    ks.load(null, PASSWORD.toCharArray());
-
-    ks.setKeyEntry(
-        MASA_ALIAS, masaKeyPair.getPrivate(), password, new X509Certificate[] {masaCert});
-    ks.setKeyEntry(
-        PLEDGE_ALIAS,
-        pledgeKeyPair.getPrivate(),
-        password,
-        new X509Certificate[] {pledgeCert, masaCert});
-    ks.setKeyEntry(
-        DOMAINCA_ALIAS,
-        domaincaKeyPair.getPrivate(),
-        password,
-        new X509Certificate[] {domaincaCert});
-    ks.setKeyEntry(
-        REGISTRAR_ALIAS,
-        registrarKeyPair.getPrivate(),
-        password,
-        new X509Certificate[] {registrarCert, domaincaCert});
-    ks.setKeyEntry(
-        COMMISSIONER_ALIAS,
-        commissionerKeyPair.getPrivate(),
-        password,
-        new X509Certificate[] {commissionerCert, domaincaCert});
+    KeyStore ks = this.getKeyStore();
 
     File file = new File(filename);
     file.createNewFile();

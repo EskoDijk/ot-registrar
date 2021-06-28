@@ -62,6 +62,10 @@ public class Credentials {
     return SslContextUtil.asX509Certificates(keyStore.getCertificateChain(alias));
   }
 
+  public KeyStore getKeyStore() {
+    return keyStore;
+  }
+
   private String alias;
   private String password;
   private KeyStore keyStore;

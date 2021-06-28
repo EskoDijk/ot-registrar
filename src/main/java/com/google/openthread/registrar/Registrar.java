@@ -40,10 +40,14 @@ import com.google.openthread.RequestDumper;
 import com.google.openthread.SecurityUtils;
 import com.google.openthread.brski.CBORSerializer;
 import com.google.openthread.brski.ConstrainedVoucherRequest;
+import com.google.openthread.brski.RestfulVoucherResponse;
 import com.google.openthread.domainca.DomainCA;
 import com.google.openthread.pledge.Pledge;
 import com.upokecenter.cbor.CBORObject;
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
@@ -338,10 +342,9 @@ public class Registrar extends CoapServer {
           uri = Constants.DEFAULT_MASA_URI;
         }
 
-        uri = "coaps://" + uri;
-
-        MASAConnector masaClient = new MASAConnector(masaTrustAnchors);
-        CoapResponse response = masaClient.requestVoucher(payload, uri);
+        //MASAConnector masaClient = new MASAConnector(masaTrustAnchors);
+        MASAConnectorHttp masaClient = new MASAConnectorHttp(masaTrustAnchors);
+        RestfulVoucherResponse response = masaClient.requestVoucher(payload, uri);
 
         if (response == null) {
           logger.warn("request voucher from MASA failed with response null");
@@ -364,12 +367,10 @@ public class Registrar extends CoapServer {
           return;
         }
 
-        if (response.getOptions().getContentFormat()
+        if (response.getContentFormat()
             != ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR) {
           // TODO(wgtdkp): we can support more formats
-          logger.error(
-              "Not-supported content format from MASA: "
-                  + response.getOptions().getContentFormat());
+          logger.error("Not-supported content format from MASA: " + response.getContentFormat());
           exchange.respond(ResponseCode.SERVICE_UNAVAILABLE);
           return;
         }
@@ -394,6 +395,7 @@ public class Registrar extends CoapServer {
     }
   }
 
+  /** CoAP-based MASA connector, acts as client towards MASA. */
   public final class MASAConnector extends CoapClient {
 
     MASAConnector(X509Certificate[] trustAnchors) {
@@ -405,17 +407,21 @@ public class Registrar extends CoapServer {
      * custom to OT-Registrar and OT-Masa.
      *
      * @param payload the Voucher Request in application/voucher-cms+cbor format
-     * @param masaURI the MASA URI (without URI path) to send it to
-     * @return null if any error happens
+     * @param masaURI the MASA URI (without URI path, without coaps:// scheme) to send it to
+     * @return null if a timeout error happens
      */
-    public CoapResponse requestVoucher(byte[] payload, String masaURI)
+    public RestfulVoucherResponse requestVoucher(byte[] payload, String masaURI)
         throws IOException, ConnectorException {
-      setURI(masaURI + Constants.BRSKI_PATH + "/" + Constants.REQUEST_VOUCHER);
+      setURI("coaps://" + masaURI + Constants.BRSKI_PATH + "/" + Constants.REQUEST_VOUCHER);
       // send request as CMS signed CBOR, accept only COSE-signed CBOR back.
-      return post(
-          payload,
-          ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_CBOR,
-          ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
+      CoapResponse resp =
+          post(
+              payload,
+              ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_CBOR,
+              ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
+      if (resp == null) return null;
+      return new RestfulVoucherResponse(
+          resp.getCode(), resp.getPayload(), resp.getOptions().getContentFormat());
     }
 
     private void initEndPoint(X509Certificate[] trustAnchors) {
@@ -423,6 +429,42 @@ public class Registrar extends CoapServer {
           SecurityUtils.genCoapClientEndPoint(trustAnchors, privateKey, certificateChain);
       setEndpoint(endpoint);
     }
+  }
+
+  /** CoAP-based MASA connector, acts as client towards MASA. */
+  public final class MASAConnectorHttp {
+
+    MASAConnectorHttp(X509Certificate[] trustAnchors) {
+      initEndPoint(trustAnchors);
+    }
+
+    /**
+     * Send new Voucher Request to MASA.
+     *
+     * @param body the Voucher Request in application/voucher-cms+json format bytes
+     * @param masaURI the MASA URI (without URI path, without https:// scheme) to send it to
+     * @return null if any error happens
+     */
+    public RestfulVoucherResponse requestVoucher(byte[] body, String masaURI)
+        throws IOException, ConnectorException {
+      URL url =
+          new URL("https://" + masaURI + Constants.BRSKI_PATH + "/" + Constants.REQUEST_VOUCHER_HTTP);
+      // send request as CMS signed JSON, accept only COSE-signed CBOR back.
+      HttpURLConnection con = (HttpURLConnection) url.openConnection();
+      con.setRequestMethod("POST");
+      con.setDoOutput(true);
+      con.setRequestProperty("Content-Type", "application/voucher-cms+json");
+      con.setRequestProperty("Accept", "application/voucher-cose+cbor");
+      con.setInstanceFollowRedirects(true);
+      DataOutputStream out = new DataOutputStream(con.getOutputStream());
+      out.write(body);
+      out.flush();
+      out.close();
+      byte[] respPayload = con.getInputStream().readAllBytes();
+      return new RestfulVoucherResponse(con.getResponseCode(), respPayload , con.getContentType());
+    }
+
+    private void initEndPoint(X509Certificate[] trustAnchors) {}
   }
 
   public class EnrollResource extends CoapResource {

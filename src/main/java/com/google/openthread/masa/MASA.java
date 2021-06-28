@@ -37,15 +37,27 @@ import com.google.openthread.SecurityUtils;
 import com.google.openthread.brski.CBORSerializer;
 import com.google.openthread.brski.ConstrainedVoucher;
 import com.google.openthread.brski.ConstrainedVoucherRequest;
+import com.google.openthread.brski.JSONSerializer;
+import com.google.openthread.brski.RestfulVoucherResponse;
 import com.google.openthread.brski.Voucher;
+import com.google.openthread.brski.VoucherRequest;
 import io.undertow.Undertow;
-import java.security.NoSuchAlgorithmException;
+import io.undertow.server.HttpHandler;
+import io.undertow.server.HttpServerExchange;
+import io.undertow.server.handlers.BlockingHandler;
+import io.undertow.server.handlers.PathHandler;
+import io.undertow.util.HttpString;
+import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -62,17 +74,55 @@ public class MASA {
   }
 
   protected CoapServer coapServer;
+
   protected Undertow httpServer;
 
-  public MASA(PrivateKey privateKey, X509Certificate certificate, int port)
-      throws NoSuchAlgorithmException {
+  public class DummyTrustManager implements X509TrustManager {
+
+    public X509Certificate[] getAcceptedIssuers() {
+      return new X509Certificate[] {};
+    }
+
+    public void checkClientTrusted(X509Certificate[] certs, String authType) {}
+
+    public void checkServerTrusted(X509Certificate[] certs, String authType) {}
+  }
+
+  public MASA(
+      PrivateKey privateKey,
+      X509Certificate certificate,
+      KeyStore httpsKeyStore,
+      char[] httpsKeyStorePassword,
+      int port)
+      throws Exception {
     this.privateKey = privateKey;
     this.certificate = certificate;
 
     this.listenPort = port;
     coapServer = new CoapServer();
+
+    // http
+    KeyManager[] keyManagers;
+    KeyManagerFactory keyManagerFactory =
+        KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+    keyManagerFactory.init(httpsKeyStore, httpsKeyStorePassword);
+    keyManagers = keyManagerFactory.getKeyManagers();
+
+    TrustManager[] trustManagers;
+    trustManagers = new X509TrustManager[] {new DummyTrustManager()};
+
+    SSLContext httpSsl = SSLContext.getInstance("TLS");
+    httpSsl.init(keyManagers, trustManagers, null);
+    PathHandler voucherRequestPathHandler =
+        new PathHandler()
+            .addExactPath(
+                "/.well-known/brski/requestvoucher",
+                new BlockingHandler(new VoucherRequestHttpHandler()));
     httpServer =
-        Undertow.builder().addHttpsListener(8080, "localhost", SSLContext.getDefault()).build();
+        Undertow.builder()
+            .addHttpsListener(8080, "localhost", httpSsl)
+            .setHandler(voucherRequestPathHandler)
+            .build();
     initResources();
     initEndPoint();
   }
@@ -83,16 +133,68 @@ public class MASA {
 
   public void start() {
     coapServer.start();
-    //httpServer.start();
+    httpServer.start();
   }
 
   public void stop() {
     coapServer.stop();
-    //httpServer.stop();
+    httpServer.stop();
   }
 
   X509Certificate getCertificate() {
     return certificate;
+  }
+
+  final class VoucherRequestHttpHandler implements HttpHandler {
+
+    public VoucherRequestHttpHandler() {}
+
+    @Override
+    public void handleRequest(HttpServerExchange exchange) throws Exception {
+      byte[] body = exchange.getInputStream().readAllBytes();
+      RequestDumper.dump(logger, exchange.getRequestURI(), body);
+
+      if (!exchange.getRequestMethod().equals(HttpString.tryFromString("POST"))) {
+        exchange.setStatusCode(405);
+        return;
+      }
+
+      if (!exchange.getRequestHeaders().contains("Content-Type")) {
+        exchange.setStatusCode(400);
+        exchange.setReasonPhrase("Missing Content-Type header");
+        return;
+      }
+
+      List<X509Certificate> reqCerts = new ArrayList<>();
+      byte[] reqContent = null;
+      try {
+        reqContent = SecurityUtils.decodeCMSSignedMessage(body, reqCerts);
+      } catch (Exception e) {
+        logger.error("CMS signed voucher request error: " + e.getMessage(), e);
+        exchange.setStatusCode(403);
+        exchange.setReasonPhrase("CMS signing error in voucher request");
+        return;
+      }
+
+      VoucherRequest req = (VoucherRequest) new JSONSerializer().deserialize(reqContent);
+      RestfulVoucherResponse resp = processVoucherRequest(req, new ConstrainedVoucher(), reqCerts);
+      if (resp.isSuccess()) {
+        exchange.setStatusCode(200);
+        byte[] voucherRespBytes = new JSONSerializer().serialize(resp.getVoucher());
+        byte[] cmsSignedVoucher =
+            SecurityUtils.genCMSSignedMessage(
+                privateKey,
+                getCertificate(),
+                SecurityUtils.SIGNATURE_ALGORITHM,
+                new X509Certificate[] {certificate},
+                voucherRespBytes);
+        exchange.getOutputStream().write(cmsSignedVoucher);
+      } else {
+        // send the error response and diagnostic msg.
+        exchange.setStatusCode(resp.getHttpCode());
+        exchange.setReasonPhrase(resp.getMessage());
+      }
+    }
   }
 
   final class VoucherRequestResource extends CoapResource {
@@ -127,12 +229,12 @@ public class MASA {
 
       ConstrainedVoucherRequest req =
           (ConstrainedVoucherRequest) new CBORSerializer().deserialize(reqContent);
-      RestfulResponse resp = processVoucherRequest(req, new ConstrainedVoucher(), reqCerts);
+      RestfulVoucherResponse resp = processVoucherRequest(req, new ConstrainedVoucher(), reqCerts);
 
       // Generate and send response
       if (resp.isSuccess()) {
         try {
-          byte[] content = new CBORSerializer().serialize(resp.voucher);
+          byte[] content = new CBORSerializer().serialize(resp.getVoucher());
           byte[] payload =
               SecurityUtils.genCoseSign1Message(
                   privateKey, SecurityUtils.COSE_SIGNATURE_ALGORITHM, content);
@@ -146,7 +248,7 @@ public class MASA {
         }
       } else {
         // send the error response and diagnostic msg.
-        exchange.respond(resp.code, resp.msg);
+        exchange.respond(resp.getCode(), resp.getMessage());
       }
     }
   }
@@ -157,16 +259,19 @@ public class MASA {
    * by the respective CoAP or HTTP (or other) protocol server back to the client.
    *
    * @param req received Voucher Request object
-   * @param voucher a new Voucher object of the right type, to be returned upon success in RestfulResponse.
+   * @param voucher a new Voucher object of the right type, to be returned upon success in
+   *     RestfulResponse.
    * @param reqCerts accompanying certificates of the Registrar to verify against
    * @return a RESTful response that is either error (with diagnostic message) or success (with
    *     Voucher)
    */
-  protected RestfulResponse processVoucherRequest(Voucher req, Voucher voucher, List<X509Certificate> reqCerts) {
+  protected RestfulVoucherResponse processVoucherRequest(
+      Voucher req, Voucher voucher, List<X509Certificate> reqCerts) {
 
     if (!req.validate() || reqCerts.isEmpty()) {
       logger.error("invalid voucher request");
-      return new RestfulResponse(ResponseCode.BAD_REQUEST, "Voucher Request validation error.");
+      return new RestfulVoucherResponse(
+          ResponseCode.BAD_REQUEST, "Voucher Request validation error.");
     }
 
     // TODO(wgtdkp):
@@ -193,12 +298,12 @@ public class MASA {
     } catch (Exception ex) {
       final String msg = "Couldn't parse extended key usage in Registrar certificate.";
       logger.error(msg, ex);
-      return new RestfulResponse(ResponseCode.BAD_REQUEST, msg);
+      return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, msg);
     }
     if (!isRA) {
       final String msg = "Registrar certificate did not have RA set in Extended Key Usage.";
       logger.error(msg);
-      return new RestfulResponse(ResponseCode.FORBIDDEN, msg); // per RFC 8995 5.6
+      return new RestfulVoucherResponse(ResponseCode.FORBIDDEN, msg); // per RFC 8995 5.6
     }
 
     // TODO(wgtdkp):
@@ -210,7 +315,7 @@ public class MASA {
     if (req.priorSignedVoucherRequest == null) {
       final String msg = "missing priorSignedVoucherRequest";
       logger.error(msg);
-      return new RestfulResponse(ResponseCode.BAD_REQUEST, msg);
+      return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, msg);
     }
 
     // TODO(wgtdkp):
@@ -248,7 +353,8 @@ public class MASA {
       // logger.error("get encoded subject-public-key-info failed: " +
       // e.getMessage());
       logger.error("get encoded domain-ca-cert failed: " + e.getMessage(), e);
-      return new RestfulResponse(ResponseCode.BAD_REQUEST, "Get encoded domain-ca-cert failed.");
+      return new RestfulVoucherResponse(
+          ResponseCode.BAD_REQUEST, "Get encoded domain-ca-cert failed.");
     }
 
     if (voucher.nonce == null) {
@@ -259,7 +365,7 @@ public class MASA {
     // TODO(wgtdkp): update audit log
 
     // Generate and send response
-    return new RestfulResponse(voucher);
+    return new RestfulVoucherResponse(voucher);
   }
 
   private void initResources() {

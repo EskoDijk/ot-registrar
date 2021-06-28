@@ -95,7 +95,13 @@ public class FunctionalTest {
 
   @Before
   public void init() throws Exception {
-    masa = new MASA(cg.masaKeyPair.getPrivate(), cg.masaCert, Constants.DEFAULT_MASA_COAPS_PORT);
+    masa =
+        new MASA(
+            cg.masaKeyPair.getPrivate(),
+            cg.masaCert,
+            cg.getKeyStore(),
+            CredentialGenerator.PASSWORD.toCharArray(),
+            Constants.DEFAULT_MASA_COAPS_PORT);
     pledge =
         new Pledge(
             cg.pledgeKeyPair.getPrivate(),
@@ -258,7 +264,8 @@ public class FunctionalTest {
       try {
         thread.join();
         if (thread.errorState != null) {
-          String msg = "Pledge [" + thread.getId() + "] had an exception/error: " + thread.errorState;
+          String msg =
+              "Pledge [" + thread.getId() + "] had an exception/error: " + thread.errorState;
           logger.error(msg, thread.errorState);
           Assert.fail();
         }
@@ -269,8 +276,8 @@ public class FunctionalTest {
   }
 
   /**
-   * In a thread, create a new Pledge and let it do voucher request and enrollment operations.
-   * Any error state is logged internally.
+   * In a thread, create a new Pledge and let it do voucher request and enrollment operations. Any
+   * error state is logged internally.
    */
   private class PledgeThread extends Thread {
 
@@ -294,10 +301,8 @@ public class FunctionalTest {
         VerifyEnroll(p);
       } catch (Throwable e) {
         errorState = e;
-      }
-      finally {
-        if (p != null)
-          p.shutdown();
+      } finally {
+        if (p != null) p.shutdown();
       }
     }
   }
@@ -327,7 +332,8 @@ public class FunctionalTest {
     registrar2.setDomainCA(domainCA);
     registrar2.start();
 
-    // test connection works - our Pledge won't check for cmcRA in certificate (other implementations may do this)
+    // test connection works - our Pledge won't check for cmcRA in certificate (other
+    // implementations may do this)
     CoapResponse response = pledge.sayHello();
     assertSame(CoAP.ResponseCode.CONTENT, response.getCode());
 
