@@ -36,12 +36,16 @@ import COSE.Sign1Message;
 import com.google.openthread.BouncyCastleInitializer;
 import com.google.openthread.Constants;
 import com.google.openthread.Credentials;
+import com.google.openthread.DummyTrustManager;
 import com.google.openthread.ExtendedMediaTypeRegistry;
 import com.google.openthread.RequestDumper;
 import com.google.openthread.SecurityUtils;
 import com.google.openthread.brski.CBORSerializer;
 import com.google.openthread.brski.ConstrainedVoucherRequest;
+import com.google.openthread.brski.JSONSerializer;
 import com.google.openthread.brski.RestfulVoucherResponse;
+import com.google.openthread.brski.Voucher;
+import com.google.openthread.brski.VoucherRequest;
 import com.google.openthread.domainca.DomainCA;
 import com.google.openthread.pledge.Pledge;
 import com.google.openthread.tools.CredentialGenerator;
@@ -61,6 +65,7 @@ import java.util.List;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
 import org.bouncycastle.asn1.est.CsrAttrs;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.util.encoders.Hex;
@@ -266,7 +271,8 @@ public class Registrar extends CoapServer {
 
         // Constructing new voucher request for MASA
         // ref: section 5.5 BRSKI RFC8995
-        ConstrainedVoucherRequest req = new ConstrainedVoucherRequest();
+        // Voucher req = new ConstrainedVoucherRequest();
+        Voucher req = new VoucherRequest();
         // req.assertion = pledgeReq.assertion; // no assertion is made; only Pledge
         // makes
         // assertion.
@@ -324,7 +330,7 @@ public class Registrar extends CoapServer {
         req.priorSignedVoucherRequest = exchange.getRequestPayload();
 
         // Create CMS-cbor voucher request
-        byte[] content = new CBORSerializer().serialize(req);
+        byte[] content = new JSONSerializer().serialize(req);
         byte[] payload;
         try {
           payload =
@@ -350,8 +356,8 @@ public class Registrar extends CoapServer {
           uri = Constants.DEFAULT_MASA_URI;
         }
 
-        MASAConnector masaClient = new MASAConnector(masaTrustAnchors);
-        // MASAConnectorHttp masaClient = new MASAConnectorHttp(masaTrustAnchors);
+        // MASAConnector masaClient = new MASAConnector(masaTrustAnchors);
+        MASAConnectorHttp masaClient = new MASAConnectorHttp(masaTrustAnchors);
         RestfulVoucherResponse response = masaClient.requestVoucher(payload, uri);
 
         if (response == null) {
@@ -470,9 +476,10 @@ public class Registrar extends CoapServer {
 
     private void initEndPoint(X509Certificate[] trustAnchors) throws Exception {
       sc = SSLContext.getInstance("TLS");
-      KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+      KeyManagerFactory kmf =
+          KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
       kmf.init(credentials.getKeyStore(), CredentialGenerator.PASSWORD.toCharArray());
-      sc.init(kmf.getKeyManagers(), null, null);
+      sc.init(kmf.getKeyManagers(), new TrustManager[] {new DummyTrustManager()}, null);
     }
   }
 

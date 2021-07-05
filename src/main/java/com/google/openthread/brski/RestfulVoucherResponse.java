@@ -39,12 +39,14 @@ public class RestfulVoucherResponse {
   public RestfulVoucherResponse(int httpStatus, byte[] payload, String contentType) {
     this.code = codeFromHttpStatus(httpStatus);
     this.payload = payload;
-    if (!contentType.toLowerCase().equals("application/voucher-cms+json"))
+    if (contentType!=null && !contentType.toLowerCase().equals("application/voucher-cms+json"))
       throw new IllegalArgumentException("Unsupported Content-Type " + contentType);
     this.contentFormat = -2; // TODO
   }
 
   private ResponseCode codeFromHttpStatus(int httpStatus) {
+    if (httpStatus == 200)
+      return ResponseCode.CHANGED; // Note: POST-specific, not for GET.
     int nClass = httpStatus / 100;
     int nDetail = httpStatus - nClass * 100;
     ResponseCode c = ResponseCode.valueOf(nClass << 5 + nDetail);

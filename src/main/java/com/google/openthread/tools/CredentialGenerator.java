@@ -179,8 +179,14 @@ public class CredentialGenerator {
             true,
             new KeyUsage(KeyUsage.digitalSignature | KeyUsage.keyCertSign | KeyUsage.cRLSign)
                 .getEncoded());
+    // for MASA certs, include dns name so that Registrar HTTP client can accept it.
+    GeneralName altName = new GeneralName(GeneralName.dNSName, "localhost");
+    GeneralNames subjectAltName = new GeneralNames(altName);
+    Extension san =
+        new Extension(Extension.subjectAlternativeName, false, subjectAltName.getEncoded());
     List<Extension> extensions = new ArrayList<Extension>();
     extensions.add(keyUsage);
+    extensions.add(san);
     return SecurityUtils.genCertificate(keyPair, dname, keyPair, dname, true, extensions);
   }
 

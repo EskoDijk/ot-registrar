@@ -32,6 +32,7 @@ import COSE.CoseException;
 import com.google.openthread.BouncyCastleInitializer;
 import com.google.openthread.Constants;
 import com.google.openthread.Credentials;
+import com.google.openthread.DummyTrustManager;
 import com.google.openthread.ExtendedMediaTypeRegistry;
 import com.google.openthread.RequestDumper;
 import com.google.openthread.SecurityUtils;
@@ -77,17 +78,6 @@ public class MASA {
 
   protected Undertow httpServer;
 
-  public class DummyTrustManager implements X509TrustManager {
-
-    public X509Certificate[] getAcceptedIssuers() {
-      return new X509Certificate[] {};
-    }
-
-    public void checkClientTrusted(X509Certificate[] certs, String authType) {}
-
-    public void checkServerTrusted(X509Certificate[] certs, String authType) {}
-  }
-
   public MASA(PrivateKey privateKey, X509Certificate certificate, Credentials credentials, int port)
       throws Exception {
     this.privateKey = privateKey;
@@ -128,13 +118,13 @@ public class MASA {
   }
 
   public void start() {
-    coapServer.start();
-    // httpServer.start();
+    // coapServer.start();
+    httpServer.start();
   }
 
   public void stop() {
-    coapServer.stop();
-    // httpServer.stop();
+    // coapServer.stop();
+    httpServer.stop();
   }
 
   X509Certificate getCertificate() {
@@ -172,7 +162,14 @@ public class MASA {
         return;
       }
 
-      VoucherRequest req = (VoucherRequest) new JSONSerializer().deserialize(reqContent);
+      VoucherRequest req = null;
+      try {
+        req = (VoucherRequest) new JSONSerializer().deserialize(reqContent);
+      } catch (Exception e) {
+        logger.error("JSON deserialization error: " + e.getMessage(), e);
+        exchange.setStatusCode(400);
+        exchange.setReasonPhrase("JSON deserialization error");
+      }
       RestfulVoucherResponse resp = processVoucherRequest(req, new ConstrainedVoucher(), reqCerts);
       if (resp.isSuccess()) {
         exchange.setStatusCode(200);

@@ -64,7 +64,8 @@ public class JSONSerializer implements VoucherSerializer {
     GsonVoucher jsonRoot = new GsonVoucher();
     HashMap<String, Object> container = new HashMap<String, Object>();
 
-    add(container, voucher.getKey(Voucher.ASSERTION), voucher.assertion.toString());
+    if (voucher.assertion != null)
+      add(container, voucher.getKey(Voucher.ASSERTION), voucher.assertion.toString());
 
     if (voucher.createdOn != null) {
       add(
