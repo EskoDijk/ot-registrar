@@ -29,6 +29,10 @@
 package com.google.openthread.masa;
 
 import COSE.CoseException;
+import COSE.Message;
+import COSE.MessageTag;
+import COSE.OneKey;
+import COSE.Sign1Message;
 import com.google.openthread.BouncyCastleInitializer;
 import com.google.openthread.Constants;
 import com.google.openthread.Credentials;
@@ -137,7 +141,7 @@ public class MASA {
 
     @Override
     public void handleRequest(HttpServerExchange exchange) throws Exception {
-      byte[] body = exchange.getInputStream().readAllBytes();
+      final byte[] body = exchange.getInputStream().readAllBytes();
       RequestDumper.dump(logger, exchange.getRequestURI(), body);
 
       if (!exchange.getRequestMethod().equals(HttpString.tryFromString("POST"))) {
@@ -151,37 +155,99 @@ public class MASA {
         return;
       }
 
+      final String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
       List<X509Certificate> reqCerts = new ArrayList<>();
       byte[] reqContent = null;
-      try {
-        reqContent = SecurityUtils.decodeCMSSignedMessage(body, reqCerts);
-      } catch (Exception e) {
-        logger.error("CMS signed voucher request error: " + e.getMessage(), e);
-        exchange.setStatusCode(403);
-        exchange.setReasonPhrase("CMS signing error in voucher request");
-        return;
+      VoucherRequest req = null;
+      Sign1Message sign1Msg = null;
+
+      switch (contentType) {
+        case Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON:
+          try {
+            reqContent =
+                SecurityUtils.decodeCMSSignedMessage(
+                    body, reqCerts); // decode CMS and get the embedded reqCerts back.
+          } catch (Exception e) {
+            logger.error("CMS signed voucher request error: " + e.getMessage(), e);
+            exchange.setStatusCode(403);
+            exchange.setReasonPhrase(
+                "CMS signing/decoding error in voucher request: " + e.getMessage());
+            return;
+          }
+          break;
+
+        case Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR:
+          try {
+            // Verify signature
+            sign1Msg = (Sign1Message) Message.DecodeFromBytes(body, MessageTag.Sign1);
+            // look for set of x509 certificates in header parameters, per draft-ietf-cose-x509-08
+            reqCerts = SecurityUtils.getX5BagCertificates(sign1Msg);
+            if (reqCerts == null || reqCerts.size() < 1)
+              throw new CoseException(
+                  "Registrar signing cert chain not found in X5Bag field of voucher request");
+            if (sign1Msg == null
+                || !sign1Msg.validate(new OneKey(reqCerts.get(0).getPublicKey(), null))) {
+              throw new CoseException("COSE-sign1 voucher validation failed");
+            }
+
+          } catch (Exception e) {
+            logger.error("CBOR signed voucher request error: " + e.getMessage(), e);
+            exchange.setStatusCode(403);
+            exchange.setReasonPhrase(
+                "COSE signing/decoding error in voucher request: " + e.getMessage());
+            return;
+          }
+          break;
+
+        default:
+          exchange.setStatusCode(400);
+          exchange.setReasonPhrase("Unsupported voucher request format: " + contentType);
+          return;
       }
 
-      VoucherRequest req = null;
-      try {
-        req = (VoucherRequest) new JSONSerializer().deserialize(reqContent);
-      } catch (Exception e) {
-        logger.error("JSON deserialization error: " + e.getMessage(), e);
-        exchange.setStatusCode(400);
-        exchange.setReasonPhrase("JSON deserialization error");
+      switch (contentType) {
+        case Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON:
+          try {
+            req = (VoucherRequest) new JSONSerializer().deserialize(reqContent);
+          } catch (Exception e) {
+            logger.error("JSON deserialization error: " + e.getMessage(), e);
+            exchange.setStatusCode(400);
+            exchange.setReasonPhrase("JSON deserialization error: " + e.getMessage());
+          }
+          break;
+
+        case Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR:
+          try {
+            req = (VoucherRequest) new CBORSerializer().deserialize(sign1Msg.GetContent());
+          } catch (Exception e) {
+            logger.error("CBOR deserialization error: " + e.getMessage(), e);
+            exchange.setStatusCode(400);
+            exchange.setReasonPhrase("CBOR deserialization error: " + e.getMessage());
+          }
+          break;
+
+        default:
+          throw new RuntimeException("Internal MASA error");
       }
-      RestfulVoucherResponse resp = processVoucherRequest(req, new ConstrainedVoucher(), reqCerts);
+
+      final RestfulVoucherResponse resp =
+          processVoucherRequest(req, new ConstrainedVoucher(), reqCerts);
+
+      // Generate and send response
       if (resp.isSuccess()) {
         exchange.setStatusCode(200);
-        byte[] voucherRespBytes = new JSONSerializer().serialize(resp.getVoucher());
-        byte[] cmsSignedVoucher =
-            SecurityUtils.genCMSSignedMessage(
-                privateKey,
-                getCertificate(),
-                SecurityUtils.SIGNATURE_ALGORITHM,
-                new X509Certificate[] {certificate},
-                voucherRespBytes);
-        exchange.getOutputStream().write(cmsSignedVoucher);
+        exchange
+            .getResponseHeaders()
+            .put(
+                HttpString.tryFromString("Content-Type"),
+                Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR);
+        byte[] content = new CBORSerializer().serialize(resp.getVoucher());
+        byte[] payload =
+            SecurityUtils.genCoseSign1Message(
+                privateKey, SecurityUtils.COSE_SIGNATURE_ALGORITHM, content);
+        exchange.getOutputStream().write(payload);
+        exchange.getOutputStream().flush();
+        exchange.getOutputStream().close();
       } else {
         // send the error response and diagnostic msg.
         exchange.setStatusCode(resp.getHttpCode());
@@ -241,7 +307,7 @@ public class MASA {
         }
       } else {
         // send the error response and diagnostic msg.
-        exchange.respond(resp.getCode(), resp.getMessage());
+        exchange.respond(resp.getCoapCode(), resp.getMessage());
       }
     }
   }

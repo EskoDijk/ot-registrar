@@ -78,6 +78,26 @@ public class RegistrarBuilder {
     return this;
   }
 
+  public RegistrarBuilder setHttpToMasa(boolean isHttp) {
+    this.isHttpToMasa = isHttp;
+    return this;
+  }
+
+  public RegistrarBuilder setRequestFormat(String mediaType) {
+    switch (mediaType) {
+      case Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON:
+        this.isCmsJsonRequests = true;
+        break;
+      case Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR:
+        this.isCmsJsonRequests = false;
+        break;
+      default:
+        throw new IllegalArgumentException(
+            "Unsupported mediaType for RegistrarBuilder: " + mediaType);
+    }
+    return this;
+  }
+
   public int getMasaNumber() {
     return masaCertificates.size();
   }
@@ -89,7 +109,15 @@ public class RegistrarBuilder {
         || credentials == null) {
       throw new RegistrarException("bad registrar credentials");
     }
-    return new Registrar(privateKey, certificateChain, getMasaCertificates(), credentials, port);
+    return new Registrar(
+        privateKey,
+        certificateChain,
+        getMasaCertificates(),
+        credentials,
+        port,
+        isCmsJsonRequests,
+        isCmsJsonRequests,
+        isHttpToMasa);
   }
 
   private X509Certificate[] getMasaCertificates() {
@@ -101,4 +129,6 @@ public class RegistrarBuilder {
   private List<X509Certificate> masaCertificates;
   private Credentials credentials;
   private int port = Constants.DEFAULT_REGISTRAR_COAPS_PORT;
+  private boolean isCmsJsonRequests = true;
+  private boolean isHttpToMasa = true;
 }

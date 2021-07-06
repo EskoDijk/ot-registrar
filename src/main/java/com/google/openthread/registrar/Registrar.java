@@ -106,13 +106,16 @@ public class Registrar extends CoapServer {
   }
 
   /**
-   * Constructing registrar with credentials and listening port.
+   * Constructing registrar with specified settings, credentials and listening port.
    *
-   * @param masaTrustAnchors pre-installed MASA trust anchors
    * @param privateKey the private key used for DTLS connection
    * @param certificateChain the certificate chain leading up to domain CA and including domain CA
    *     certificate
+   * @param masaTrustAnchors pre-installed MASA trust anchors
+   * @param cred credentials to use in Credentials format, same as privateKey / certificateChain
    * @param port the port to listen on
+   * @param isCmsSignedRequests whether to use CMS signed requests (true) or COSE (false)
+   * @param isJsonVoucherRequests whether to use JSON voucher requests (true) or CBOR (false)
    * @throws RegistrarException
    */
   Registrar(
@@ -120,7 +123,10 @@ public class Registrar extends CoapServer {
       X509Certificate[] certificateChain,
       X509Certificate[] masaTrustAnchors,
       Credentials cred,
-      int port)
+      int port,
+      boolean isCmsSignedRequests,
+      boolean isJsonRequests,
+      boolean isHttpToMasa)
       throws RegistrarException {
     if (certificateChain.length < 2) {
       throw new RegistrarException("bad certificate chain");
@@ -131,6 +137,9 @@ public class Registrar extends CoapServer {
     this.certificateChain = certificateChain;
     this.masaTrustAnchors = masaTrustAnchors;
     this.credentials = cred;
+    this.isCmsSignedVoucherRequests = isCmsSignedRequests;
+    this.isJsonVoucherRequests = isJsonRequests;
+    this.isHttpToMasa = isHttpToMasa;
     try {
       this.csrAttributes = new CSRAttributes(CSRAttributes.DEFAULT_FILE);
     } catch (Exception e) {
@@ -329,21 +338,53 @@ public class Registrar extends CoapServer {
         // Mandatory for Thread 1.2.
         req.priorSignedVoucherRequest = exchange.getRequestPayload();
 
-        // Create CMS-cbor voucher request
-        byte[] content = new JSONSerializer().serialize(req);
+        // Create voucher request to MASA. Uses HTTPS or CoAPS as protocol.
+        // Uses CMS or COSE signing.
+        String requestMediaType;
+        int requestContentFormat;
+        byte[] content = null;
+
+        // Uses CBOR or JSON voucher request format.
+        if (isJsonVoucherRequests) content = new JSONSerializer().serialize(req);
+        else content = new CBORSerializer().serialize(req);
+
         byte[] payload;
-        try {
-          payload =
-              SecurityUtils.genCMSSignedMessage(
-                  privateKey,
-                  getCertificate(),
-                  SecurityUtils.SIGNATURE_ALGORITHM,
-                  certificateChain,
-                  content);
-        } catch (Exception e) {
-          logger.warn("CMS signing voucher request failed: " + e.getMessage(), e);
-          exchange.respond(ResponseCode.SERVICE_UNAVAILABLE);
-          return;
+        if (isCmsSignedVoucherRequests) {
+          // CMS signing.
+          requestMediaType =
+              isJsonVoucherRequests
+                  ? Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON
+                  : Constants.HTTP_APPLICATION_VOUCHER_CMS_CBOR;
+          requestContentFormat =
+              isJsonVoucherRequests
+                  ? ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON
+                  : ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_CBOR;
+          try {
+            payload =
+                SecurityUtils.genCMSSignedMessage(
+                    privateKey,
+                    getCertificate(),
+                    SecurityUtils.SIGNATURE_ALGORITHM,
+                    certificateChain,
+                    content);
+          } catch (Exception e) {
+            logger.warn("CMS signing voucher request failed: " + e.getMessage(), e);
+            exchange.respond(ResponseCode.SERVICE_UNAVAILABLE);
+            return;
+          }
+        } else {
+          // COSE signing.
+          requestMediaType = Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR;
+          requestContentFormat = ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR;
+          try {
+            payload =
+                SecurityUtils.genCoseSign1Message(
+                    privateKey, SecurityUtils.COSE_SIGNATURE_ALGORITHM, content, certificateChain);
+          } catch (Exception e) {
+            logger.warn("COSE signing voucher request failed: " + e.getMessage(), e);
+            exchange.respond(ResponseCode.SERVICE_UNAVAILABLE);
+            return;
+          }
         }
 
         // Request voucher from MASA server indicated in IDevID cert, or else the
@@ -356,9 +397,14 @@ public class Registrar extends CoapServer {
           uri = Constants.DEFAULT_MASA_URI;
         }
 
-        // MASAConnector masaClient = new MASAConnector(masaTrustAnchors);
-        MASAConnectorHttp masaClient = new MASAConnectorHttp(masaTrustAnchors);
-        RestfulVoucherResponse response = masaClient.requestVoucher(payload, uri);
+        RestfulVoucherResponse response = null;
+        if (isHttpToMasa) {
+          MASAConnectorHttp masaClient = new MASAConnectorHttp(masaTrustAnchors);
+          response = masaClient.requestVoucher(requestMediaType, payload, uri);
+        } else {
+          MASAConnector masaClient = new MASAConnector(masaTrustAnchors);
+          response = masaClient.requestVoucher(requestContentFormat, payload, uri);
+        }
 
         if (response == null) {
           logger.warn("request voucher from MASA failed with response null");
@@ -367,10 +413,11 @@ public class Registrar extends CoapServer {
         }
 
         if (!response.isSuccess()) {
-          logger.warn("request voucher from MASA failed with response code " + response.getCode());
+          logger.warn(
+              "request voucher from MASA failed with response code " + response.getCoapCode());
           // mirror the MASA's response code, so the Pledge can distinguish errors from
           // MASA. Get also MASA's diagnostic error message if any.
-          exchange.respond(response.getCode(), response.getMessage());
+          exchange.respond(response.getCoapCode(), response.getMessage());
           return;
         }
 
@@ -391,7 +438,7 @@ public class Registrar extends CoapServer {
 
         // Registrar forwards MASA's success response without modification
         exchange.respond(
-            response.getCode(),
+            response.getCoapCode(),
             response.getPayload(),
             ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
       } catch (Exception e) {
@@ -412,18 +459,20 @@ public class Registrar extends CoapServer {
      * Send new Voucher Request to MASA. Note that the present format used is not standardized, but
      * custom to OT-Registrar and OT-Masa.
      *
+     * @param requestContentFormat the CoAP content-format of the request
      * @param payload the Voucher Request in application/voucher-cms+cbor format
      * @param masaURI the MASA URI (without URI path, without coaps:// scheme) to send it to
      * @return null if a timeout error happens
      */
-    public RestfulVoucherResponse requestVoucher(byte[] payload, String masaURI)
+    public RestfulVoucherResponse requestVoucher(
+        int requestContentFormat, byte[] payload, String masaURI)
         throws IOException, ConnectorException {
       setURI("coaps://" + masaURI + Constants.BRSKI_PATH + "/" + Constants.REQUEST_VOUCHER);
       // send request as CMS signed CBOR, accept only COSE-signed CBOR back.
       CoapResponse resp =
           post(
               payload,
-              ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_CBOR,
+              requestContentFormat,
               ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
       if (resp == null) return null;
       return new RestfulVoucherResponse(
@@ -449,11 +498,13 @@ public class Registrar extends CoapServer {
     /**
      * Send new Voucher Request to MASA.
      *
-     * @param body the Voucher Request in application/voucher-cms+json format bytes
+     * @param the media type string of the body
+     * @param body the Voucher Request in bytes
      * @param masaURI the MASA URI (without URI path, without https:// scheme) to send it to
      * @return null if any error happens
      */
-    public RestfulVoucherResponse requestVoucher(byte[] body, String masaURI)
+    public RestfulVoucherResponse requestVoucher(
+        String requestMediaType, byte[] body, String masaURI)
         throws IOException, ConnectorException, NoSuchAlgorithmException, KeyManagementException {
       URL url =
           new URL(
@@ -463,15 +514,23 @@ public class Registrar extends CoapServer {
       con.setSSLSocketFactory(sc.getSocketFactory());
       con.setRequestMethod("POST");
       con.setDoOutput(true);
-      con.setRequestProperty("Content-Type", "application/voucher-cms+json");
-      con.setRequestProperty("Accept", "application/voucher-cose+cbor");
+      con.setRequestProperty("Content-Type", requestMediaType);
+      con.setRequestProperty("Accept", Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR);
       con.setInstanceFollowRedirects(true);
       DataOutputStream out = new DataOutputStream(con.getOutputStream());
       out.write(body);
       out.flush();
       out.close();
-      byte[] respPayload = con.getInputStream().readAllBytes();
-      return new RestfulVoucherResponse(con.getResponseCode(), respPayload, con.getContentType());
+      byte[] respPayload = null;
+      try {
+        respPayload = con.getInputStream().readAllBytes();
+      } catch (IOException ex) { // in case no data is sent by MASA.
+        ;
+      }
+      // TODO below assumes the Content-Type of the response, because Accept header was used. May
+      // need to be checked though.
+      return new RestfulVoucherResponse(
+          con.getResponseCode(), respPayload, Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR);
     }
 
     private void initEndPoint(X509Certificate[] trustAnchors) throws Exception {
@@ -712,6 +771,12 @@ public class Registrar extends CoapServer {
   private Credentials credentials;
 
   private CSRAttributes csrAttributes;
+
+  protected boolean isCmsSignedVoucherRequests = true;
+
+  protected boolean isJsonVoucherRequests = true;
+
+  protected boolean isHttpToMasa = true;
 
   private static Logger logger = LoggerFactory.getLogger(Registrar.class);
 }

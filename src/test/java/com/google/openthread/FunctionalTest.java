@@ -346,10 +346,34 @@ public class FunctionalTest {
 
     // test that the voucher request now fails
     try {
-      ConstrainedVoucher voucher = pledge.requestVoucher();
+      pledge.requestVoucher();
       Assert.fail("MASA mistakenly accepted voucher request");
     } catch (PledgeException ex) {
       Assert.assertEquals(ResponseCode.FORBIDDEN, ex.code);
     }
+  }
+
+  @Test
+  public void testRegistrarUsingCoseVoucherRequest() throws Exception {
+
+    registrar.stop();
+
+    // create new Registrar that uses COSE-signed requests towards MASA
+    RegistrarBuilder registrarBuilder = new RegistrarBuilder();
+    registrar2 =
+        registrarBuilder
+            .setPrivateKey(cg.registrarKeyPair.getPrivate())
+            .setCertificateChain(new X509Certificate[] {cg.registrarCert, cg.domaincaCert})
+            .addMasaCertificate(cg.masaCert)
+            .setCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
+            .setRequestFormat(Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR)
+            .build();
+    registrar2.setDomainCA(domainCA);
+    registrar2.start();
+
+    ConstrainedVoucher voucher = pledge.requestVoucher();
+    pledge.enroll();
+    VerifyEnroll(pledge);
+    // TODO verify voucher
   }
 }

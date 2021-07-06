@@ -33,7 +33,7 @@ import org.bouncycastle.asn1.x509.KeyPurposeId;
 
 public class Constants {
 
-  // BRSKI - EST
+  // --- BRSKI - EST resources and paths
   public static final String WELL_KNOWN = ".well-known";
 
   public static final String EST = "est";
@@ -62,7 +62,17 @@ public class Constants {
 
   public static final String HELLO = "hello";
 
-  // COM_TOK
+  // --- HTTP Media Types
+  public static final String HTTP_APPLICATION_VOUCHER_CMS_JSON = "application/voucher-cms+json";
+  public static final String HTTP_APPLICATION_VOUCHER_CMS_CBOR = "application/voucher-cms+cbor";
+
+  public static final String HTTP_APPLICATION_VOUCHER_COSE_CBOR = "application/voucher-cose+cbor";
+  public static final String HTTP_APPLICATION_VOUCHER_COSE_JSON = "application/voucher-cose+json";
+
+  // --- COSE items
+  public static final int COSE_X5BAG_HEADER_KEY = 42; // FIXME is TBD4 in draft
+
+  // --- COM_TOK items
   // This is not defined in Thread specs and we currently use "/.well-known/ccm".
   // FIXME should use Thread Group's namespace for this: "/.well-known/thread/ccm".
   public static final String COM_TOK = "ccm";
@@ -72,16 +82,9 @@ public class Constants {
   // Commissioner token validity in days
   public static final int COM_TOK_VALIDITY = 365;
 
+  // --- OID items
   // Temporary/early allocation in draft-ietf-anima-bootstrapping-keyinfra-44
   public static final String MASA_URI_OID = "1.3.6.1.5.5.7.1.32";
-
-  public static final String DEFAULT_MASA_URI_AUTHORITY = "localhost";
-
-  public static final int DEFAULT_MASA_URI_PORT = 5685;
-
-  // In case the MASA URI is not specified, this value will be used.
-  public static final String DEFAULT_MASA_URI =
-      DEFAULT_MASA_URI_AUTHORITY + ":" + DEFAULT_MASA_URI_PORT;
 
   public static final String HARDWARE_MODULE_NAME_OID = "1.3.6.1.5.5.7.8.4";
 
@@ -97,14 +100,24 @@ public class Constants {
   public static final Integer ASN1_TAG_GENERALNAME_OTHERNAME =
       Integer.valueOf(0); // RFC 5280 Section 4.2.1.6
 
-  public static final String KEY_STORE_FORMAT = "PKCS12";
-
-  public static final long CERT_VALIDITY = 5 * 365; // LDevID validity in Days.
-
+  // --- URIs, ports and hostnames
   public static final int DEFAULT_REGISTRAR_COAPS_PORT = 5684;
 
   public static final int DEFAULT_MASA_COAPS_PORT = 5685;
 
+  public static final String DEFAULT_MASA_URI_AUTHORITY = "localhost";
+
+  public static final int DEFAULT_MASA_URI_PORT = 5685;
+
+  // In case the MASA URI is not specified, this value will be used.
+  public static final String DEFAULT_MASA_URI =
+      DEFAULT_MASA_URI_AUTHORITY + ":" + DEFAULT_MASA_URI_PORT;
+
+  // -- Other items
   // Default Thread Domain Name per Thread 1.2 spec. Must not be changed, unless spec changes.
   public static final String THREAD_DOMAIN_NAME_DEFAULT = "DefaultDomain";
+
+  public static final String KEY_STORE_FORMAT = "PKCS12";
+
+  public static final long CERT_VALIDITY = 5 * 365; // LDevID validity in Days.
 }
