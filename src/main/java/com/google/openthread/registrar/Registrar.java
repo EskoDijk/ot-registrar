@@ -36,6 +36,7 @@ import COSE.Sign1Message;
 import com.google.openthread.BouncyCastleInitializer;
 import com.google.openthread.Constants;
 import com.google.openthread.Credentials;
+import com.google.openthread.DummyHostnameVerifier;
 import com.google.openthread.DummyTrustManager;
 import com.google.openthread.ExtendedMediaTypeRegistry;
 import com.google.openthread.RequestDumper;
@@ -517,6 +518,8 @@ public class Registrar extends CoapServer {
               "https://" + masaURI + Constants.BRSKI_PATH + "/" + Constants.REQUEST_VOUCHER_HTTP);
       // send request as CMS signed JSON, accept only COSE-signed CBOR back.
       HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
+      con.setUseCaches(false);
+      con.setHostnameVerifier(new DummyHostnameVerifier());
       con.setSSLSocketFactory(sc.getSocketFactory());
       con.setRequestMethod("POST");
       con.setDoOutput(true);
