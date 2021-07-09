@@ -30,6 +30,7 @@ package com.google.openthread.registrar;
 
 import com.google.openthread.Constants;
 import com.google.openthread.Credentials;
+import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -42,32 +43,51 @@ import java.util.List;
  */
 public class RegistrarBuilder {
 
-  public RegistrarBuilder(PrivateKey privateKey, X509Certificate[] certificateChain) {
-    this();
-
-    this.privateKey = privateKey;
-    this.certificateChain = certificateChain;
-  }
-
   public RegistrarBuilder() {
     masaCertificates = new ArrayList<>();
   }
 
-  public RegistrarBuilder setCredentials(Credentials cred) {
+  /**
+   * Supply the credentials to be used for Registrar in its role as MASA client.
+   *
+   * @param cred
+   * @return
+   * @throws GeneralSecurityException
+   */
+  public RegistrarBuilder setMasaClientCredentials(Credentials cred)
+      throws GeneralSecurityException {
     this.credentials = cred;
     return this;
   }
 
+  /**
+   * Supply the private key used for DTLS connections from Pledge, in DTLS server role.
+   *
+   * @param privateKey
+   * @return
+   */
   public RegistrarBuilder setPrivateKey(PrivateKey privateKey) {
     this.privateKey = privateKey;
     return this;
   }
 
+  /**
+   * Supply the X.509 certificate chain used for DTLS connections from Pledge, in DTLS server role.
+   *
+   * @param certificateChain
+   * @return
+   */
   public RegistrarBuilder setCertificateChain(X509Certificate[] certificateChain) {
     this.certificateChain = certificateChain;
     return this;
   }
 
+  /**
+   * Add a MASA certificate
+   *
+   * @param masaCertificate
+   * @return
+   */
   public RegistrarBuilder addMasaCertificate(X509Certificate masaCertificate) {
     masaCertificates.add(masaCertificate);
     return this;
@@ -98,7 +118,13 @@ public class RegistrarBuilder {
     return this;
   }
 
-  public int getMasaNumber() {
+  /**
+   * return the number of supported/trusted MASA servers. Use addMasaCertificate() to add more
+   * trusted MASA servers.
+   *
+   * @return the number of MASA certificates that are considered trusted.
+   */
+  public int getNumberOfMasaServers() {
     return masaCertificates.size();
   }
 
@@ -107,7 +133,7 @@ public class RegistrarBuilder {
         || certificateChain == null
         || getMasaCertificates().length == 0
         || credentials == null) {
-      throw new RegistrarException("bad registrar credentials");
+      throw new RegistrarException("bad or missing registrar credentials");
     }
     return new Registrar(
         privateKey,

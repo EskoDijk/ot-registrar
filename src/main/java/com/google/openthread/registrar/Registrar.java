@@ -108,12 +108,12 @@ public class Registrar extends CoapServer {
   /**
    * Constructing registrar with specified settings, credentials and listening port.
    *
-   * @param privateKey the private key used for DTLS connection
+   * @param privateKey the private key used for DTLS connection from Pledge
    * @param certificateChain the certificate chain leading up to domain CA and including domain CA
-   *     certificate
+   *     certificate, used for DTLS connection from Pledge.
    * @param masaTrustAnchors pre-installed MASA trust anchors
-   * @param cred credentials to use in Credentials format, same as privateKey / certificateChain
-   * @param port the port to listen on
+   * @param masaClientCreds credentials to use towards MASA client in Credentials format
+   * @param port the CoAP port to listen on
    * @param isCmsSignedRequests whether to use CMS signed requests (true) or COSE (false)
    * @param isJsonVoucherRequests whether to use JSON voucher requests (true) or CBOR (false)
    * @throws RegistrarException
@@ -122,7 +122,7 @@ public class Registrar extends CoapServer {
       PrivateKey privateKey,
       X509Certificate[] certificateChain,
       X509Certificate[] masaTrustAnchors,
-      Credentials cred,
+      Credentials masaClientCreds,
       int port,
       boolean isCmsSignedRequests,
       boolean isJsonRequests,
@@ -136,7 +136,7 @@ public class Registrar extends CoapServer {
     this.privateKey = privateKey;
     this.certificateChain = certificateChain;
     this.masaTrustAnchors = masaTrustAnchors;
-    this.credentials = cred;
+    this.masaClientCredentials = masaClientCreds;
     this.isCmsSignedVoucherRequests = isCmsSignedRequests;
     this.isJsonVoucherRequests = isJsonRequests;
     this.isHttpToMasa = isHttpToMasa;
@@ -149,6 +149,12 @@ public class Registrar extends CoapServer {
     initResources();
 
     initEndpoint();
+  }
+
+  @Override
+  public void start() {
+    logger.info("Registrar starting - Number of trusted MASA servers: " + masaTrustAnchors.length);
+    super.start();
   }
 
   public void setDomainCA(DomainCA domainCA) {
@@ -537,7 +543,7 @@ public class Registrar extends CoapServer {
       sc = SSLContext.getInstance("TLS");
       KeyManagerFactory kmf =
           KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-      kmf.init(credentials.getKeyStore(), CredentialGenerator.PASSWORD.toCharArray());
+      kmf.init(masaClientCredentials.getKeyStore(), CredentialGenerator.PASSWORD.toCharArray());
       sc.init(kmf.getKeyManagers(), new TrustManager[] {new DummyTrustManager()}, null);
     }
   }
@@ -768,7 +774,8 @@ public class Registrar extends CoapServer {
 
   private X509Certificate[] masaTrustAnchors;
 
-  private Credentials credentials;
+  // credentials used as a HTTP/CoAP client towards MASA.
+  private Credentials masaClientCredentials;
 
   private CSRAttributes csrAttributes;
 

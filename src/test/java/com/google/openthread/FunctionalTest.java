@@ -115,7 +115,7 @@ public class FunctionalTest {
             .setPrivateKey(cg.registrarKeyPair.getPrivate())
             .setCertificateChain(new X509Certificate[] {cg.registrarCert, cg.domaincaCert})
             .addMasaCertificate(cg.masaCert)
-            .setCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
+            .setMasaClientCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
             .build();
     registrar.setDomainCA(domainCA);
 
@@ -329,7 +329,7 @@ public class FunctionalTest {
             .setPrivateKey(cg.registrarKeyPair.getPrivate())
             .setCertificateChain(certChain)
             .addMasaCertificate(cg.masaCert)
-            .setCredentials(
+            .setMasaClientCredentials(
                 new Credentials(
                     cg.registrarKeyPair.getPrivate(),
                     certChain,
@@ -365,7 +365,7 @@ public class FunctionalTest {
             .setPrivateKey(cg.registrarKeyPair.getPrivate())
             .setCertificateChain(new X509Certificate[] {cg.registrarCert, cg.domaincaCert})
             .addMasaCertificate(cg.masaCert)
-            .setCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
+            .setMasaClientCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
             .setRequestFormat(Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR)
             .build();
     registrar2.setDomainCA(domainCA);

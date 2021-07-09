@@ -29,7 +29,9 @@
 package com.google.openthread;
 
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.PrivateKey;
@@ -55,7 +57,7 @@ public class Credentials {
   }
 
   public Credentials(PrivateKey privKey, X509Certificate[] certChain, String alias, String password)
-      throws Exception {
+      throws GeneralSecurityException, IOException {
     // this.alias = alias;
     this.password = password;
     this.keyStore = KeyStore.getInstance(Constants.KEY_STORE_FORMAT);
@@ -64,7 +66,7 @@ public class Credentials {
   }
 
   // Returns null if alias not included.
-  public PrivateKey getPrivateKey() throws Exception {
+  public PrivateKey getPrivateKey() throws GeneralSecurityException {
     return (PrivateKey) keyStore.getKey(alias, password.toCharArray());
   }
 
