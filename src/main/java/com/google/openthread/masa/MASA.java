@@ -461,7 +461,7 @@ public class MASA {
                 new BlockingHandler(new VoucherRequestHttpHandler()));
     httpServer =
         Undertow.builder()
-            .addHttpsListener(listenPort, "localhost", httpSsl)
+            .addHttpsListener(listenPort, "::", httpSsl)
             .setHandler(voucherRequestPathHandler)
             .build();
   }

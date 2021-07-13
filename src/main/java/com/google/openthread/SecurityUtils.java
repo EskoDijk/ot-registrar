@@ -195,7 +195,8 @@ public class SecurityUtils {
     try {
       X509CertificateHolder holder = new JcaX509CertificateHolder(cert);
       Extension masaUri = holder.getExtension(new ASN1ObjectIdentifier(Constants.MASA_URI_OID));
-      return DERIA5String.fromByteArray(masaUri.getExtnValue().getOctets()).toString();
+      String sUri = DERIA5String.fromByteArray(masaUri.getExtnValue().getOctets()).toString();
+      return sUri;
     } catch (IOException e) {
       e.printStackTrace();
       return null;
