@@ -42,7 +42,7 @@ RUN java -version
 
 WORKDIR /home/ot-registrar
 
-# COPY . .
+COPY . .
 
 # RUN mvn clean package
 

@@ -36,11 +36,12 @@ readonly LOGS=logs/${TIMESTAMP}
 readonly TRI_LOG=${LOGS}/tri.log
 readonly REGISTRAR_LOG=${LOGS}/registrar.log
 readonly MASA_LOG=${LOGS}/masa.log
+readonly MASA_COAP_LOG=${LOGS}/masa_coap.log
 
 readonly TRI_PORT=5683
 readonly REGISTRAR_PORT=5684
 # for CoAP 5685
-#readonly MASA_PORT=5685
+readonly MASA_COAP_PORT=5685
 # for HTTP 9443
 readonly MASA_PORT=9443
 #readonly BORDER_AGENT_PORT=61631
@@ -82,3 +83,10 @@ java -cp $JAR_FILE \
     com.google.openthread.masa.MASAMain \
     -p $MASA_PORT -f $CREDENTIAL \
     >> $MASA_LOG 2>&1 &
+
+echo "starting COAPS masa server, port=${MASA_COAP_PORT}, log=${MASA_COAP_LOG}..."
+java -cp $JAR_FILE \
+    com.google.openthread.masa.MASAMain \
+    -c -p $MASA_COAP_PORT -f $CREDENTIAL \
+    >> $MASA_COAP_LOG 2>&1 &
+
