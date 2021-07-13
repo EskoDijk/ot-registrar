@@ -31,7 +31,7 @@ set -e
 
 readonly DOMAIN_NAME=TestDomainTCE
 
-readonly TIMESTAMP=$(date "+%Y-%m-%d-%H.%M.%S")
+readonly TIMESTAMP=$(date "+%Y-%m-%d_%H.%M.%S")
 readonly LOGS=logs/${TIMESTAMP}
 readonly TRI_LOG=${LOGS}/tri.log
 readonly REGISTRAR_LOG=${LOGS}/registrar.log
@@ -39,7 +39,10 @@ readonly MASA_LOG=${LOGS}/masa.log
 
 readonly TRI_PORT=5683
 readonly REGISTRAR_PORT=5684
-readonly MASA_PORT=5685
+# for CoAP 5685
+#readonly MASA_PORT=5685
+# for HTTP 9443
+readonly MASA_PORT=9443
 #readonly BORDER_AGENT_PORT=61631
 
 readonly JAR_FILE=./target/ot-registrar-0.1-SNAPSHOT-jar-with-dependencies.jar
@@ -74,7 +77,7 @@ java -cp $JAR_FILE \
     -v -d $DOMAIN_NAME -p $REGISTRAR_PORT -f $CREDENTIAL \
     >> $REGISTRAR_LOG 2>&1 &
 
-echo "starting masa server, port=${MASA_PORT}, log=${MASA_LOG}..."
+echo "starting HTTPS masa server, port=${MASA_PORT}, log=${MASA_LOG}..."
 java -cp $JAR_FILE \
     com.google.openthread.masa.MASAMain \
     -p $MASA_PORT -f $CREDENTIAL \
