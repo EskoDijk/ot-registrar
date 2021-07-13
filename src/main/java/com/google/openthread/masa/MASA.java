@@ -53,6 +53,7 @@ import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.BlockingHandler;
 import io.undertow.server.handlers.PathHandler;
 import io.undertow.util.HttpString;
+import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -82,39 +83,28 @@ public class MASA {
 
   protected Undertow httpServer;
 
-  public MASA(PrivateKey privateKey, X509Certificate certificate, Credentials credentials, int port)
+  protected Credentials credentials;
+
+  public MASA(
+      PrivateKey privateKey,
+      X509Certificate certificate,
+      Credentials credentials,
+      int port,
+      boolean isCoapServer)
       throws Exception {
     this.privateKey = privateKey;
     this.certificate = certificate;
-
+    this.credentials = credentials;
     this.listenPort = port;
-    coapServer = new CoapServer();
 
-    // http
-    KeyManager[] keyManagers;
-    KeyManagerFactory keyManagerFactory =
-        KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-    keyManagerFactory.init(credentials.getKeyStore(), credentials.getPassword().toCharArray());
-    keyManagers = keyManagerFactory.getKeyManagers();
-
-    TrustManager[] trustManagers;
-    trustManagers = new X509TrustManager[] {new DummyTrustManager()};
-
-    SSLContext httpSsl = SSLContext.getInstance("TLS");
-    httpSsl.init(keyManagers, trustManagers, null);
-    PathHandler voucherRequestPathHandler =
-        new PathHandler()
-            .addExactPath(
-                "/.well-known/brski/requestvoucher",
-                new BlockingHandler(new VoucherRequestHttpHandler()));
-    httpServer =
-        Undertow.builder()
-            .addHttpsListener(
-                Constants.DEFAULT_MASA_URI_PORT, Constants.DEFAULT_MASA_URI_AUTHORITY, httpSsl)
-            .setHandler(voucherRequestPathHandler)
-            .build();
-    initResources();
-    initEndPoint();
+    // choice between coap and http server
+    if (isCoapServer) {
+      initCoapServer();
+      initCoapResources();
+      initCoapEndPoint();
+    } else {
+      initHttpServer();
+    }
   }
 
   public int getListenPort() {
@@ -122,17 +112,13 @@ public class MASA {
   }
 
   public void start() {
-    // coapServer.start();
-    httpServer.start();
+    if (coapServer != null) coapServer.start();
+    if (httpServer != null) httpServer.start();
   }
 
   public void stop() {
-    // coapServer.stop();
-    httpServer.stop();
-  }
-
-  X509Certificate getCertificate() {
-    return certificate;
+    if (coapServer != null) coapServer.stop();
+    if (httpServer != null) httpServer.stop();
   }
 
   final class VoucherRequestHttpHandler implements HttpHandler {
@@ -427,7 +413,7 @@ public class MASA {
     return new RestfulVoucherResponse(voucher);
   }
 
-  private void initResources() {
+  private void initCoapResources() {
     CoapResource wellknown = new CoapResource(Constants.WELL_KNOWN);
     CoapResource brski = new CoapResource(Constants.BRSKI);
     VoucherRequestResource rv = new VoucherRequestResource();
@@ -437,7 +423,7 @@ public class MASA {
     coapServer.add(wellknown);
   }
 
-  private void initEndPoint() {
+  private void initCoapEndPoint() {
     X509Certificate[] certificateChain = new X509Certificate[] {certificate};
 
     // We currently don't authenticate a client
@@ -450,6 +436,34 @@ public class MASA {
             certificateChain,
             verifier);
     coapServer.addEndpoint(endpoint);
+  }
+
+  private void initCoapServer() {
+    coapServer = new CoapServer();
+  }
+
+  private void initHttpServer() throws GeneralSecurityException {
+    KeyManager[] keyManagers;
+    KeyManagerFactory keyManagerFactory =
+        KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+    keyManagerFactory.init(credentials.getKeyStore(), credentials.getPassword().toCharArray());
+    keyManagers = keyManagerFactory.getKeyManagers();
+
+    TrustManager[] trustManagers;
+    trustManagers = new X509TrustManager[] {new DummyTrustManager()};
+
+    SSLContext httpSsl = SSLContext.getInstance("TLS");
+    httpSsl.init(keyManagers, trustManagers, null);
+    PathHandler voucherRequestPathHandler =
+        new PathHandler()
+            .addExactPath(
+                "/.well-known/brski/requestvoucher",
+                new BlockingHandler(new VoucherRequestHttpHandler()));
+    httpServer =
+        Undertow.builder()
+            .addHttpsListener(listenPort, "localhost", httpSsl)
+            .setHandler(voucherRequestPathHandler)
+            .build();
   }
 
   private final int listenPort;

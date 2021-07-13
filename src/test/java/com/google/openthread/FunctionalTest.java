@@ -100,7 +100,8 @@ public class FunctionalTest {
             cg.masaKeyPair.getPrivate(),
             cg.masaCert,
             cg.getCredentials(CredentialGenerator.MASA_ALIAS),
-            Constants.DEFAULT_MASA_COAPS_PORT);
+            Constants.DEFAULT_MASA_HTTPS_PORT,
+            false);
     pledge =
         new Pledge(
             cg.pledgeKeyPair.getPrivate(),

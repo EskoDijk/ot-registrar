@@ -103,7 +103,9 @@ public class Constants {
   // --- URIs, ports and hostnames
   public static final int DEFAULT_REGISTRAR_COAPS_PORT = 5684;
 
-  public static final int DEFAULT_MASA_COAPS_PORT = 5685;
+  // public static final int DEFAULT_MASA_COAPS_PORT = 5685;
+
+  public static final int DEFAULT_MASA_HTTPS_PORT = 9443;
 
   public static final String DEFAULT_MASA_URI_AUTHORITY = "localhost";
 
@@ -111,7 +113,7 @@ public class Constants {
 
   // In case the MASA URI is not specified, this value will be used.
   public static final String DEFAULT_MASA_URI =
-      DEFAULT_MASA_URI_AUTHORITY + ":" + DEFAULT_MASA_URI_PORT;
+      DEFAULT_MASA_URI_AUTHORITY + ":" + DEFAULT_MASA_HTTPS_PORT;
 
   // -- Other items
   // Default Thread Domain Name per Thread 1.2 spec. Must not be changed, unless spec changes.
