@@ -35,6 +35,7 @@ import COSE.HeaderKeys;
 import COSE.OneKey;
 import COSE.Sign1Message;
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -43,6 +44,7 @@ import java.io.Reader;
 import java.io.StringWriter;
 import java.math.BigInteger;
 import java.net.InetSocketAddress;
+import java.security.GeneralSecurityException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -78,6 +80,7 @@ import org.bouncycastle.asn1.x509.GeneralNames;
 import org.bouncycastle.asn1.x509.OtherName;
 import org.bouncycastle.asn1.x509.SubjectKeyIdentifier;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.cert.CertIOException;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.X509ExtensionUtils;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
@@ -101,6 +104,7 @@ import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.bouncycastle.operator.ContentSigner;
+import org.bouncycastle.operator.OperatorException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
 import org.bouncycastle.util.Store;
@@ -115,13 +119,6 @@ import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 
 /** Provides common security-related definitions and functionalities. */
 public class SecurityUtils {
-  static {
-    BouncyCastleInitializer.init();
-    try {
-      certFactory = CertificateFactory.getInstance("X.509");
-    } catch (CertificateException ex) {;
-    }
-  }
 
   public static final String KEY_ALGORITHM = "EC";
 
@@ -131,7 +128,16 @@ public class SecurityUtils {
 
   public static final CBORObject COSE_SIGNATURE_ALGORITHM = AlgorithmID.ECDSA_256.AsCBOR();
 
-  private static CertificateFactory certFactory = null;
+  private static CertificateFactory certFactory;
+
+  static {
+    BouncyCastleInitializer.init();
+    try {
+      certFactory = CertificateFactory.getInstance("X.509");
+    } catch (CertificateException ex) {;
+      ex.printStackTrace();
+    }
+  }
 
   /**
    * Extract serialNumber from subject extension of given certificate.
@@ -271,30 +277,47 @@ public class SecurityUtils {
     return aki.getKeyIdentifier();
   }
 
+  /**
+   * Cose_sign1 encoding of the given content.
+   *
+   * @param signingKey
+   * @param signingAlg
+   * @param content
+   * @return encoded COSE object
+   * @throws CoseException
+   */
   public static byte[] genCoseSign1Message(
       PrivateKey signingKey, CBORObject signingAlg, byte[] content) throws CoseException {
-    return genCoseSign1Message(signingKey, signingAlg, content, null);
+    try {
+      return genCoseSign1Message(signingKey, signingAlg, content, null);
+    } catch (CertificateEncodingException ex) {
+      throw new RuntimeException("Should never happen");
+    }
   }
 
   /**
-   * Cose-sign1 with X509 certs included in an x5bag structure per
-   * draft-ietf-anima-constrained-voucher. TODO implement
+   * Cose-sign1 with optionally X509 certs included in an x5bag structure per
+   * draft-ietf-anima-constrained-voucher. See draft-ietf-cose-x509-08 for x5bag encoding.
    *
    * @param signingKey
-   * @param signingCert
-   * @param certs
+   * @param signingAlg
    * @param content
+   * @param certs additional certs to package into an x5bag structure into the COSE object, or null
+   *     if none.
    * @return
    * @throws CoseException
    */
   public static byte[] genCoseSign1Message(
       PrivateKey signingKey, CBORObject signingAlg, byte[] content, X509Certificate[] certs)
-      throws CoseException {
+      throws CoseException, CertificateEncodingException {
     Sign1Message msg = new Sign1Message();
     msg.addAttribute(HeaderKeys.Algorithm, signingAlg, Attribute.PROTECTED);
     msg.SetContent(content);
     msg.sign(new OneKey(null, signingKey));
-    if (certs != null) throw new CoseException("To add implementation of X5bag");
+    if (certs != null) {
+      CBORObject x5bag = SecurityUtils.createX5BagCertificates(certs);
+      msg.addAttribute(Constants.COSE_X5BAG_HEADER_KEY, x5bag, Attribute.UNPROTECTED);
+    }
     return msg.EncodeToBytes();
   }
 
@@ -393,7 +416,7 @@ public class SecurityUtils {
       String issuerName,
       boolean ca,
       List<Extension> extensions)
-      throws Exception {
+      throws GeneralSecurityException, CertIOException, OperatorException {
     PublicKey subPub = subKeyPair.getPublic();
     PrivateKey issPriv = issuerKeyPair.getPrivate();
     PublicKey issPub = issuerKeyPair.getPublic();
@@ -549,7 +572,7 @@ public class SecurityUtils {
 
   /**
    * Get the X509 certificates encoded in a COSE-Sign1 message in an 'x5bag' header attribute,
-   * either protected (tried first) or unprotected (tried last).
+   * either protected (tried first) or unprotected (tried last). Per draft-ietf-cose-x509-08.
    *
    * @param sign1Msg
    * @return List of X509Certificate, decoded from COSE-sign1 message, or null if nothing found in
@@ -559,22 +582,43 @@ public class SecurityUtils {
       throws CertificateException {
     List<X509Certificate> certs = new ArrayList<>();
     // look for header parameter
-    CBORObject x5bag =
-        sign1Msg.findAttribute(CBORObject.FromObject(Constants.COSE_X5BAG_HEADER_KEY));
+    CBORObject x5bag = sign1Msg.findAttribute(Constants.COSE_X5BAG_HEADER_KEY);
     if (x5bag == null) return null;
     // if it is an array of certs
-    if (x5bag.size() > 0) {
+    if (x5bag.getType().equals(CBORType.Array) && x5bag.size() > 0) {
       for (int idx = 0; idx < x5bag.size(); idx++) {
-        InputStream is = new ByteArrayInputStream(x5bag.get(idx).EncodeToBytes());
+        InputStream is = new ByteArrayInputStream(x5bag.get(idx).GetByteString());
         X509Certificate cert = (X509Certificate) certFactory.generateCertificate(is);
         certs.add(cert);
       }
-    } else {
+    } else if (x5bag.getType().equals(CBORType.ByteString)) {
       // single cert
-      InputStream is = new ByteArrayInputStream(x5bag.EncodeToBytes());
+      InputStream is = new ByteArrayInputStream(x5bag.GetByteString());
       X509Certificate cert = (X509Certificate) certFactory.generateCertificate(is);
+      // X509Certificate cert =
       certs.add(cert);
     }
     return certs;
+  }
+
+  /**
+   * Create an x5bag structure per draft-ietf-cose-x509-08. If one certificate, it simply encodes
+   * the cert as CBOR byte array. If multiple, it uses CBOR array of byte-arrays.
+   *
+   * @param certs
+   * @return
+   */
+  public static CBORObject createX5BagCertificates(X509Certificate[] certs)
+      throws CertificateEncodingException {
+    if (certs.length == 0) return CBORObject.NewArray();
+    if (certs.length == 1) {
+      return CBORObject.FromObject(certs[0].getEncoded()); // create CBOR byte string
+    } else {
+      CBORObject ca = CBORObject.NewArray();
+      for (int i = 0; i < certs.length; i++) {
+        ca.Add(CBORObject.FromObject(certs[i].getEncoded()));
+      }
+      return ca;
+    }
   }
 }

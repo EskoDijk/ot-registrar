@@ -28,6 +28,7 @@
 
 package com.google.openthread;
 
+import com.upokecenter.cbor.CBORObject;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.x509.KeyPurposeId;
 
@@ -70,7 +71,9 @@ public class Constants {
   public static final String HTTP_APPLICATION_VOUCHER_COSE_JSON = "application/voucher-cose+json";
 
   // --- COSE items
-  public static final int COSE_X5BAG_HEADER_KEY = 42; // FIXME is TBD4 in draft
+  public static final CBORObject COSE_X5BAG_HEADER_KEY =
+      CBORObject.FromObject(
+          32); // see https://www.iana.org/assignments/cose/cose.xhtml#header-parameters
 
   // --- COM_TOK items
   // This is not defined in Thread specs and we currently use "/.well-known/ccm".
