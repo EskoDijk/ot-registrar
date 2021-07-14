@@ -225,7 +225,7 @@ public class Pledge extends CoapClient {
     voucherRequest.serialNumber = getSerialNumber(getCertificate());
     voucherRequest.nonce = generateNonce();
 
-    // FIXME(wgtdkp): should use 'subjectPublicKeyInfo'
+    // FIXME(wgtdkp): should use 'subjectPublicKeyInfo' -> note, seems to already use this properly.
     voucherRequest.proximityRegistrarSPKI = getRegistrarCertificate().getPublicKey().getEncoded();
     if (!voucherRequest.validate()) {
       throw new PledgeException("validate voucher request failed");
@@ -235,15 +235,15 @@ public class Pledge extends CoapClient {
   }
 
   /**
-   * Request constrained voucher from registrar.
+   * Request constrained voucher from registrar using the supplied request 'req'.
    *
-   * @param req the voucher request
-   * @return the constrained voucher
+   * @param req the voucher request to send to registrar
+   * @return the constrained voucher response from the registrar
    * @throws IllegalStateException
    * @throws PledgeException
    */
   public ConstrainedVoucher requestConstrainedVoucher(ConstrainedVoucherRequest req)
-      throws PledgeException, ConnectorException, IOException {
+      throws PledgeException, ConnectorException, IOException, CoseException {
     // 0. Send to registrar
     CoapResponse response = sendRequestConstrainedVoucher(req);
 
@@ -504,10 +504,15 @@ public class Pledge extends CoapClient {
   }
 
   private CoapResponse sendRequestConstrainedVoucher(ConstrainedVoucherRequest voucherRequest)
-      throws IOException, ConnectorException {
+      throws IOException, ConnectorException, CoseException {
     setURI(getBRSKIPath() + "/" + Constants.REQUEST_VOUCHER);
-    byte[] payload = new CBORSerializer().serialize(voucherRequest);
-    return post(payload, ExtendedMediaTypeRegistry.APPLICATION_CBOR);
+    byte[] vrEncoded = new CBORSerializer().serialize(voucherRequest);
+
+    // COSE_Sign1 signing of the CBOR
+    byte[] payload =
+        SecurityUtils.genCoseSign1Message(
+            privateKey, SecurityUtils.COSE_SIGNATURE_ALGORITHM, vrEncoded);
+    return post(payload, ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
   }
 
   private CoapResponse sendRequestCSRAttributes() throws IOException, ConnectorException {
