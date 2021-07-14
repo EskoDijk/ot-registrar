@@ -374,7 +374,6 @@ public class MASA {
 
     // TODO(wgtdkp):
     // Section 5.5.5 BRSKI: MASA verification of pledge prior-signed-voucher-request
-    // Note: RFC 8995 suggests HTTP 415 for this case.
     if (req.priorSignedVoucherRequest == null) {
       final String msg = "missing priorSignedVoucherRequest";
       logger.error(msg);
@@ -417,7 +416,7 @@ public class MASA {
       // e.getMessage());
       logger.error("get encoded domain-ca-cert failed: " + e.getMessage(), e);
       return new RestfulVoucherResponse(
-          ResponseCode.BAD_REQUEST, "Get encoded domain-ca-cert failed.");
+          ResponseCode.INTERNAL_SERVER_ERROR, "Get encoded domain-ca-cert failed.");
     }
 
     if (voucher.nonce == null) {

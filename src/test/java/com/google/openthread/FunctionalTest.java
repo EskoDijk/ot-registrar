@@ -87,7 +87,7 @@ public class FunctionalTest {
   @BeforeClass
   public static void setup() throws Exception {
     cg = new CredentialGenerator();
-    cg.make(null, null, null);
+    cg.make(null, null, null, null);
   }
 
   @AfterClass

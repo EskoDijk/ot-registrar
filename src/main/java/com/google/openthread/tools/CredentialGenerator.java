@@ -290,10 +290,15 @@ public class CredentialGenerator {
    *     this key/cert
    * @param registrarCertKeyFiles filenames for Registrar cert key file and cert file, or null to
    *     generate this key/cert
+   * @param pledgeCertKeyFiles filenames for Pledge cert key file and cert file, or null to generate
+   *     this key/cert
    * @throws Exception
    */
   public void make(
-      String[] caCertKeyFiles, String[] masaCertKeyFiles, String[] registrarCertKeyFiles)
+      String[] caCertKeyFiles,
+      String[] masaCertKeyFiles,
+      String[] registrarCertKeyFiles,
+      String[] pledgeCertKeyFiles)
       throws Exception {
 
     HardwareModuleName hwModuleName =
@@ -311,15 +316,26 @@ public class CredentialGenerator {
       masaKeyPair = SecurityUtils.genKeyPair();
       masaCert = genSelfSignedCert(masaKeyPair, MASA_DNAME);
     }
-    pledgeKeyPair = SecurityUtils.genKeyPair();
-    pledgeCert =
-        genPledgeCertificate(
-            pledgeKeyPair,
-            PLEDGE_DNAME,
-            masaKeyPair,
-            masaCert.getSubjectX500Principal().getName(),
-            hwModuleName,
-            masaUri);
+
+    if (pledgeCertKeyFiles != null) {
+      try (Reader reader = new FileReader(pledgeCertKeyFiles[0])) {
+        pledgeCert = SecurityUtils.parseCertFromPem(reader);
+      }
+      try (Reader reader = new FileReader(pledgeCertKeyFiles[1])) {
+        pledgeKeyPair =
+            new KeyPair(pledgeCert.getPublicKey(), SecurityUtils.parsePrivateKeyFromPem(reader));
+      }
+    } else {
+      pledgeKeyPair = SecurityUtils.genKeyPair();
+      pledgeCert =
+          genPledgeCertificate(
+              pledgeKeyPair,
+              PLEDGE_DNAME,
+              masaKeyPair,
+              masaCert.getSubjectX500Principal().getName(),
+              hwModuleName,
+              masaUri);
+    }
 
     if (caCertKeyFiles != null) {
       try (Reader reader = new FileReader(caCertKeyFiles[0])) {
@@ -457,6 +473,14 @@ public class CredentialGenerator {
             .build();
     regOpt.setArgs(2);
 
+    Option pledgeOpt =
+        Option.builder("p")
+            .longOpt("pledge")
+            .hasArg()
+            .desc("Pledge root key & certificate file")
+            .build();
+    pledgeOpt.setArgs(2);
+
     Option masaUriOpt =
         Option.builder("u")
             .longOpt("masauri")
@@ -474,6 +498,7 @@ public class CredentialGenerator {
         .addOption(caOpt)
         .addOption(masaOpt)
         .addOption(regOpt)
+        .addOption(pledgeOpt)
         .addOption(masaUriOpt);
 
     try {
@@ -496,7 +521,11 @@ public class CredentialGenerator {
       }
 
       CredentialGenerator cg = new CredentialGenerator();
-      cg.make(cmd.getOptionValues("c"), cmd.getOptionValues("m"), cmd.getOptionValues("r"));
+      cg.make(
+          cmd.getOptionValues("c"),
+          cmd.getOptionValues("m"),
+          cmd.getOptionValues("r"),
+          cmd.getOptionValues("p"));
       cg.store(keyStoreFile);
 
       if (cmd.hasOption('d')) {

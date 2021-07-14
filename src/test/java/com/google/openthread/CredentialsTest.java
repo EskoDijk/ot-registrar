@@ -60,7 +60,7 @@ public class CredentialsTest {
   @BeforeClass
   public static void createCredentialFile() throws Exception {
     CredentialGenerator cg = new CredentialGenerator();
-    cg.make(null, null, null);
+    cg.make(null, null, null, null);
     cg.store(KEY_STORE_FILE);
   }
 
