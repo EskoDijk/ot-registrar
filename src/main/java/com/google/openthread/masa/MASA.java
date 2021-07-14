@@ -79,6 +79,9 @@ public class MASA {
     BouncyCastleInitializer.init();
   }
 
+  protected String HTTP_WELCOME_PAGE =
+      "<html><head><title>Test MASA server</title></head><body><h1>Test MASA server</h1><p>Use /.well-known/brski/requestvoucher for Voucher Requests. Formats application/voucher-cms+json and application/voucher-cose+cbor are supported for the request.</p></body></html>";
+
   protected CoapServer coapServer;
 
   protected Undertow httpServer;
@@ -119,6 +122,21 @@ public class MASA {
   public void stop() {
     if (coapServer != null) coapServer.stop();
     if (httpServer != null) httpServer.stop();
+  }
+
+  final class RootResourceHttpHandler implements HttpHandler {
+    public RootResourceHttpHandler() {}
+
+    @Override
+    public void handleRequest(HttpServerExchange exchange) throws Exception {
+      if (!exchange.getRequestMethod().equals(HttpString.tryFromString("GET"))) {
+        exchange.setStatusCode(405);
+        return;
+      }
+
+      exchange.setStatusCode(200);
+      exchange.getOutputStream().write(HTTP_WELCOME_PAGE.getBytes());
+    }
   }
 
   final class VoucherRequestHttpHandler implements HttpHandler {
@@ -456,6 +474,7 @@ public class MASA {
     httpSsl.init(keyManagers, trustManagers, null);
     PathHandler voucherRequestPathHandler =
         new PathHandler()
+            .addExactPath("/", new BlockingHandler(new RootResourceHttpHandler()))
             .addExactPath(
                 "/.well-known/brski/requestvoucher",
                 new BlockingHandler(new VoucherRequestHttpHandler()));
