@@ -336,7 +336,10 @@ public class Registrar extends CoapServer {
                   "idevid-issuer in voucher request [len=%d, %s]",
                   req.idevidIssuer.length, Hex.toHexString(req.idevidIssuer)));
         } else {
-          logger.error("missing idevid-issuer in voucher request");
+          String msg = "missing idevid-issuer in voucher request";
+          logger.error(msg);
+          exchange.respond(ResponseCode.BAD_REQUEST, msg);
+          return;
         }
 
         // SHOULD include prior-signed-voucher-request (RFC 8995) with Pledge's

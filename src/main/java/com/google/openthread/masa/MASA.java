@@ -38,6 +38,7 @@ import com.google.openthread.Constants;
 import com.google.openthread.Credentials;
 import com.google.openthread.DummyTrustManager;
 import com.google.openthread.ExtendedMediaTypeRegistry;
+import com.google.openthread.NetworkUtils;
 import com.google.openthread.RequestDumper;
 import com.google.openthread.SecurityUtils;
 import com.google.openthread.brski.CBORSerializer;
@@ -47,12 +48,17 @@ import com.google.openthread.brski.JSONSerializer;
 import com.google.openthread.brski.RestfulVoucherResponse;
 import com.google.openthread.brski.Voucher;
 import com.google.openthread.brski.VoucherRequest;
+import com.upokecenter.cbor.CBORObject;
 import io.undertow.Undertow;
+import io.undertow.UndertowLogger;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.BlockingHandler;
 import io.undertow.server.handlers.PathHandler;
 import io.undertow.util.HttpString;
+import java.net.InetAddress;
+import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
@@ -380,6 +386,40 @@ public class MASA {
       return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, msg);
     }
 
+    // recreate it
+    Sign1Message sign1Msg = null;
+    try{
+      sign1Msg = (Sign1Message) Message.DecodeFromBytes(req.priorSignedVoucherRequest, MessageTag.Sign1);
+      // validate it TODO
+    }catch(Exception ex) {
+      final String msg = "Couldn't parse priorSignedVoucherRequest COSE.";
+      logger.error(msg, ex);
+      return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, msg);      
+    }
+    ConstrainedVoucherRequest pledgeReq =
+        (ConstrainedVoucherRequest)
+            new CBORSerializer()
+                .fromCBOR(CBORObject.DecodeFromBytes(sign1Msg.GetContent()));
+    if (pledgeReq == null) {
+      final String msg = "invalid priorSignedVoucherRequest contents";
+      logger.error(msg);
+      return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, msg);
+    }
+
+    // check prox assertion
+    if (pledgeReq.assertion != Voucher.Assertion.PROXIMITY) {
+      final String msg = "priorSignedVoucherRequest: Assertion != PROXIMITY";
+      logger.error(msg);
+      return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, msg);
+    }
+    
+    // check serial is equal
+    if (!req.serialNumber.equals(pledgeReq.serialNumber)) {
+      final String msg = "priorSignedVoucherRequest.serialNumber != RegistrarRequest.serialNumber";
+      logger.error(msg);
+      return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, msg);      
+    }
+
     // TODO(wgtdkp):
     // Section 5.5.6 BRSKI: MASA pinning of registrar
 
@@ -389,14 +429,7 @@ public class MASA {
     // Section 5.6 BRSKI: MASA and Registrar Voucher Response
 
     voucher.createdOn = new Date();
-
     voucher.nonce = req.nonce;
-
-    // TODO(wgtdkp): MASA should check the priorSignedVoucherRequest, see if the
-    // assertion there
-    // is PROXIMITY, and if the proximity relation is deemed correct only then issue
-    // a Voucher
-    // with below 'PROXIMITY' assertion.
     voucher.assertion = Voucher.Assertion.PROXIMITY;
 
     voucher.idevidIssuer = req.idevidIssuer;
@@ -459,7 +492,7 @@ public class MASA {
     coapServer = new CoapServer();
   }
 
-  private void initHttpServer() throws GeneralSecurityException {
+  private void initHttpServer() throws GeneralSecurityException, UnknownHostException, SocketException {
     KeyManager[] keyManagers;
     KeyManagerFactory keyManagerFactory =
         KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
@@ -471,16 +504,20 @@ public class MASA {
 
     SSLContext httpSsl = SSLContext.getInstance("TLS");
     httpSsl.init(keyManagers, trustManagers, null);
-    PathHandler voucherRequestPathHandler =
+    PathHandler masaPathHandler =
         new PathHandler()
             .addExactPath("/", new BlockingHandler(new RootResourceHttpHandler()))
             .addExactPath(
                 "/.well-known/brski/requestvoucher",
                 new BlockingHandler(new VoucherRequestHttpHandler()));
+    // the :: binds to IPv6 addresses only.
     httpServer =
         Undertow.builder()
-            .addHttpsListener(listenPort, "::", httpSsl)
-            .setHandler(voucherRequestPathHandler)
+            //.addHttpsListener(listenPort, "::", httpSsl)
+            .addHttpsListener(listenPort, "localhost", httpSsl)
+            .addHttpsListener(listenPort, NetworkUtils.getIPv4Host(), httpSsl)
+            .addHttpsListener(listenPort, NetworkUtils.getIPv6Host(), httpSsl)
+            .setHandler(masaPathHandler)
             .build();
   }
 
