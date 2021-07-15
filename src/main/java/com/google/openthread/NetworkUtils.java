@@ -64,7 +64,24 @@ public class NetworkUtils {
     return retVal;
   }
   
-  public static String getIPv4Host() throws UnknownHostException {
-    return InetAddress.getLocalHost().getCanonicalHostName();
+  public static String getIPv4Host() throws UnknownHostException, SocketException {
+    NetworkInterface nif;
+    Enumeration<NetworkInterface> nifs; 
+    InetAddress addr;
+    String retVal = null;
+    nifs = NetworkInterface.getNetworkInterfaces();
+    
+    // look for addresses per NIF
+    while(nifs.hasMoreElements()) {
+      nif = nifs.nextElement();
+      Enumeration<InetAddress> nifAddrs = nif.getInetAddresses();
+      while(nifAddrs.hasMoreElements()) {
+        addr = nifAddrs.nextElement();
+        if ( !(addr instanceof Inet6Address) && !addr.isLinkLocalAddress() && !addr.isLoopbackAddress() ) {
+          retVal = addr.getHostAddress();
+        }
+      }
+    }
+    return retVal;
   }
 }
