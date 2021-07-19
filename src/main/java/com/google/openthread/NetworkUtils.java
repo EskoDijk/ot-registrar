@@ -28,56 +28,62 @@
 
 package com.google.openthread;
 
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
-import java.net.Inet6Address;
 import java.net.UnknownHostException;
 import java.util.Enumeration;
 
 public class NetworkUtils {
 
   /**
-   * Returns the IPv6-specific host string for a global address of the current host. For example, "[2001:db8::3]".
-   * 
+   * Returns the IPv6-specific host string for a global address of the current host. For example,
+   * "[2001:db8::3]".
+   *
    * @return IPv6-specific host string or null if not found.
    */
   public static String getIPv6Host() throws UnknownHostException, SocketException {
     NetworkInterface nif;
-    Enumeration<NetworkInterface> nifs; 
+    Enumeration<NetworkInterface> nifs;
     InetAddress addr;
     String retVal = null;
     nifs = NetworkInterface.getNetworkInterfaces();
-    
+
     // look for addresses per NIF
-    while(nifs.hasMoreElements()) {
+    while (nifs.hasMoreElements()) {
       nif = nifs.nextElement();
       Enumeration<InetAddress> nifAddrs = nif.getInetAddresses();
-      while(nifAddrs.hasMoreElements()) {
+      while (nifAddrs.hasMoreElements()) {
         addr = nifAddrs.nextElement();
-        if (addr instanceof Inet6Address && !addr.isLinkLocalAddress() && !addr.isLoopbackAddress() && !addr.isSiteLocalAddress()) {
-          //((Inet6Address) addr).getScopeId() // could check for scope id
+        if (addr instanceof Inet6Address
+            && !addr.isLinkLocalAddress()
+            && !addr.isLoopbackAddress()
+            && !addr.isSiteLocalAddress()) {
+          // ((Inet6Address) addr).getScopeId() // could check for scope id
           retVal = "[" + addr.getHostAddress() + "]";
         }
       }
     }
     return retVal;
   }
-  
+
   public static String getIPv4Host() throws UnknownHostException, SocketException {
     NetworkInterface nif;
-    Enumeration<NetworkInterface> nifs; 
+    Enumeration<NetworkInterface> nifs;
     InetAddress addr;
     String retVal = null;
     nifs = NetworkInterface.getNetworkInterfaces();
-    
+
     // look for addresses per NIF
-    while(nifs.hasMoreElements()) {
+    while (nifs.hasMoreElements()) {
       nif = nifs.nextElement();
       Enumeration<InetAddress> nifAddrs = nif.getInetAddresses();
-      while(nifAddrs.hasMoreElements()) {
+      while (nifAddrs.hasMoreElements()) {
         addr = nifAddrs.nextElement();
-        if ( !(addr instanceof Inet6Address) && !addr.isLinkLocalAddress() && !addr.isLoopbackAddress() ) {
+        if (!(addr instanceof Inet6Address)
+            && !addr.isLinkLocalAddress()
+            && !addr.isLoopbackAddress()) {
           retVal = addr.getHostAddress();
         }
       }
