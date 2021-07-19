@@ -1,0 +1,1 @@
+java -cp target/ot-registrar-0.1-SNAPSHOT-jar-with-dependencies.jar com.google.openthread.pledge.PledgeMain -f ./credentials/local-masa/test_credentials.p12 -r coaps://masa.iotconsultancy.nl
