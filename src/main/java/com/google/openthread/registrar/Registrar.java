@@ -766,8 +766,11 @@ public class Registrar extends CoapServer {
             null,
             privateKey,
             certificateChain,
-            new RegistrarCertificateVerifier(
-                trustAnchors.toArray(new X509Certificate[trustAnchors.size()])));
+            new RegistrarCertificateVerifier(null) // trust ALL - default for a testing Registrar.
+            // new RegistrarCertificateVerifier(trustAnchors.toArray(new
+            // X509Certificate[trustAnchors.size()])) // trust only my known MASA - for stricter
+            // testing.
+            );
     addEndpoint(endpoint);
   }
 

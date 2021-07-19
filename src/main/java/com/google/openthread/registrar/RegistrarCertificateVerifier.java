@@ -45,21 +45,39 @@ import org.slf4j.LoggerFactory;
 
 public class RegistrarCertificateVerifier implements CertificateVerifier {
 
+  /**
+   * Create a new RegistrarCertificateVerifier that only trusts the given rootCertificates. Use null
+   * parameter to trust everyone.
+   *
+   * @param rootCertificates trusted root certificates, or empty array to trust none, or null to
+   *     trust ALL.
+   */
   public RegistrarCertificateVerifier(X509Certificate[] rootCertificates) {
     this.trustAnchors = new HashSet<>();
     if (rootCertificates != null) {
       for (X509Certificate cert : rootCertificates) {
         trustAnchors.add(new TrustAnchor(cert, null));
       }
+    } else {
+      this.trustAnchors = null;
     }
   }
 
   @Override
   public void verifyCertificate(CertificateMessage message, DTLSSession session)
       throws HandshakeException {
-    if (trustAnchors.size() == 0) {
+    if (trustAnchors == null) {
       // Trust everyone
       return;
+    }
+    if (trustAnchors.size() == 0) {
+      // Trust no-one
+      AlertMessage alert =
+          new AlertMessage(
+              AlertMessage.AlertLevel.FATAL,
+              AlertMessage.AlertDescription.BAD_CERTIFICATE,
+              session.getPeer());
+      throw new HandshakeException("no client is trusted", alert);
     }
 
     try {
@@ -70,8 +88,7 @@ public class RegistrarCertificateVerifier implements CertificateVerifier {
       validator.validate(message.getCertificateChain(), params);
 
     } catch (GeneralSecurityException e) {
-      logger.error("handshake - certificate validation failed: " + e.getMessage());
-      e.printStackTrace();
+      logger.error("handshake - certificate validation failed: " + e.getMessage(), e);
       AlertMessage alert =
           new AlertMessage(
               AlertMessage.AlertLevel.FATAL,
