@@ -53,6 +53,7 @@ import java.util.Set;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.junit.*;
 import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
@@ -180,9 +181,12 @@ public class FunctionalTest {
   }
 
   @Test
-  public void testConnection() throws Exception {
+  public void testConnectionToRegistrar() throws Exception {
     CoapResponse response = pledge.sayHello();
     assertSame(CoAP.ResponseCode.CONTENT, response.getCode());
+    response = pledge.discoverResources();
+    assertSame(CoAP.ResponseCode.CONTENT, response.getCode());
+    assertSame(MediaTypeRegistry.APPLICATION_LINK_FORMAT, response.getOptions().getContentFormat());
   }
 
   @Test

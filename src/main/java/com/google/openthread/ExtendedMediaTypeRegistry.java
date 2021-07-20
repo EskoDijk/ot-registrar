@@ -38,10 +38,10 @@ public final class ExtendedMediaTypeRegistry extends MediaTypeRegistry {
   public static final int APPLICATION_COSE_SIGN1 = 18;
 
   // application/voucher-cose+cbor (not yet allocated TODO)
-  public static final int APPLICATION_VOUCHER_COSE_CBOR = APPLICATION_COSE_SIGN1;
+  public static final int APPLICATION_VOUCHER_COSE_CBOR = 65502;
 
   // application/voucher-cose+cbor (not yet allocated TODO)
-  public static final int APPLICATION_VOUCHER_COSE_JSON = APPLICATION_COSE_SIGN1;
+  public static final int APPLICATION_VOUCHER_COSE_JSON = 65503;
 
   // application/voucher-cms+cbor (not yet allocated TODO)
   public static final int APPLICATION_VOUCHER_CMS_CBOR = 65331;

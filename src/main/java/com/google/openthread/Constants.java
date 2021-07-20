@@ -41,9 +41,13 @@ public class Constants {
 
   public static final String BRSKI = "brski";
 
+  public static final String CORE = "core";
+
   public static final String EST_PATH = "/" + String.join("/", WELL_KNOWN, EST);
 
   public static final String BRSKI_PATH = "/" + String.join("/", WELL_KNOWN, BRSKI);
+
+  public static final String CORE_PATH = "/" + String.join("/", WELL_KNOWN, CORE);
 
   public static final String REQUEST_VOUCHER = "rv";
 
@@ -67,6 +71,8 @@ public class Constants {
   public static final String HTTP_APPLICATION_VOUCHER_CMS_JSON = "application/voucher-cms+json";
   public static final String HTTP_APPLICATION_VOUCHER_CMS_CBOR = "application/voucher-cms+cbor";
 
+  public static final String HTTP_APPLICATION_COSE_SIGN1 = "application/cose; cose-type=\"cose-sign1\"";
+  public static final String HTTP_APPLICATION_COSE = "application/cose";
   public static final String HTTP_APPLICATION_VOUCHER_COSE_CBOR = "application/voucher-cose+cbor";
   public static final String HTTP_APPLICATION_VOUCHER_COSE_JSON = "application/voucher-cose+json";
 

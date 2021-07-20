@@ -75,6 +75,7 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.auth.X509CertPath;
@@ -257,8 +258,9 @@ public class Registrar extends CoapServer {
 
         ConstrainedVoucherRequest pledgeReq = null;
 
-        if (contentFormat == ExtendedMediaTypeRegistry.APPLICATION_COSE_SIGN1) {
-          // Verify signature
+        if (contentFormat == ExtendedMediaTypeRegistry.APPLICATION_COSE_SIGN1 ||
+            contentFormat == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR) {
+          // Verify signature of COSE_Sign1 message
           Sign1Message sign1Msg =
               (Sign1Message)
                   Message.DecodeFromBytes(exchange.getRequestPayload(), MessageTag.Sign1);
@@ -690,6 +692,20 @@ public class Registrar extends CoapServer {
     }
   }
 
+  public final class WellknownCoreResource extends CoapResource {
+    public WellknownCoreResource() {
+      super(Constants.CORE);
+    }
+
+    @Override
+    public void handleGET(CoapExchange exchange) {
+      String wellknownCoreLinkFormat =
+          "</hello>;ct=0,</.well-known/brski>;rt=brski,</.well-known/est>;rt=ace.est";
+      exchange.respond(
+          ResponseCode.CONTENT, wellknownCoreLinkFormat, MediaTypeRegistry.APPLICATION_LINK_FORMAT);
+    }
+  }
+
   public static void validateComTokenReq(CBORObject req) throws RegistrarException {
     CBORObject grantType = req.get(CBORObject.FromObject(se.sics.ace.Constants.GRANT_TYPE));
     if (grantType == null) {
@@ -739,8 +755,9 @@ public class Registrar extends CoapServer {
     CrtsResource crts = new CrtsResource();
     EnrollResource enroll = new EnrollResource();
     ReenrollResource reenroll = new ReenrollResource();
+    WellknownCoreResource core = new WellknownCoreResource();
 
-    // EST and BRSKI well-known resources
+    // EST and BRSKI and CoRE well-known resources
     est.add(enroll);
     est.add(reenroll);
     est.add(att);
@@ -748,12 +765,16 @@ public class Registrar extends CoapServer {
     brski.add(rv);
     brski.add(vs);
     brski.add(es);
+    wellKnown.add(core);
     wellKnown.add(est);
     wellKnown.add(brski);
+    // Commissioning FIXME ccm not defined in IANA well-known space, can place it in
+    // /.well-known/thread/ccm/tokenrequest
+    wellKnown.add(new CommissionerTokenResource());
     this.add(wellKnown);
 
     // 'hello' test resource
-    est.add(
+    this.add(
         new CoapResource(Constants.HELLO) {
           @Override
           public void handleGET(CoapExchange exchange) {
@@ -761,8 +782,6 @@ public class Registrar extends CoapServer {
           }
         });
 
-    // Commissioning
-    wellKnown.add(new CommissionerTokenResource());
   }
 
   private void initEndpoint() {

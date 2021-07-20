@@ -185,6 +185,8 @@ public class MASA {
           break;
 
         case Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR:
+        case Constants.HTTP_APPLICATION_COSE_SIGN1:
+        case Constants.HTTP_APPLICATION_COSE:
           try {
             // Verify signature
             sign1Msg = (Sign1Message) Message.DecodeFromBytes(body, MessageTag.Sign1);
@@ -225,6 +227,8 @@ public class MASA {
           break;
 
         case Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR:
+        case Constants.HTTP_APPLICATION_COSE_SIGN1:
+        case Constants.HTTP_APPLICATION_COSE:
           try {
             req = (VoucherRequest) new CBORSerializer().deserialize(sign1Msg.GetContent());
           } catch (Exception e) {
@@ -276,7 +280,7 @@ public class MASA {
 
       int contentFormat = exchange.getRequestOptions().getContentFormat();
       if (contentFormat != ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_CBOR) {
-        // TODO(wgtdkp): support more formats
+        // TODO(wgtdkp): support more formats; see HTTP code also.
         // TODO(EskoDijk): support long URI resource names in case other formats
         // (CMS-over-HTTP)
         // supported

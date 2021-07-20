@@ -522,9 +522,8 @@ public class SecurityUtils {
           CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM,
           CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8,
           CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM);
-    else
-      config.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
-    
+    else config.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+
     config.setRetransmissionTimeout(10 * 1000);
 
     // Set Max Fragment Length to 2^10 bytes.
