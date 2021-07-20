@@ -515,7 +515,11 @@ public class SecurityUtils {
       CertificateVerifier verifier) {
     DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder();
 
-    config.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+    config.setSupportedCipherSuites(
+        CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+        CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM,
+        CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8,
+        CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM);
 
     config.setRetransmissionTimeout(10 * 1000);
 
