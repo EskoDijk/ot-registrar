@@ -26,9 +26,8 @@
  *    POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.google.openthread;
+package com.google.openthread.brski;
 
-import com.google.openthread.brski.*;
 import java.text.ParseException;
 import java.util.Arrays;
 import java.util.Date;

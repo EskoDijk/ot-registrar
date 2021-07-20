@@ -26,15 +26,12 @@
  *    POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.google.openthread;
+package com.google.openthread.brski;
 
-import com.google.openthread.brski.CBORSerializer;
-import com.google.openthread.brski.ConstrainedVoucher;
-import com.google.openthread.brski.ConstrainedVoucherRequest;
-import com.google.openthread.brski.Voucher;
-import com.google.openthread.commissioner.Commissioner;
-import com.google.openthread.pledge.Pledge;
-import com.google.openthread.registrar.CSRAttributes;
+import com.google.openthread.*;
+import com.google.openthread.commissioner.*;
+import com.google.openthread.pledge.*;
+import com.google.openthread.registrar.*;
 import com.upokecenter.cbor.CBORObject;
 import java.security.KeyPair;
 import java.util.Date;

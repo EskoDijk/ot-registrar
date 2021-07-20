@@ -26,19 +26,17 @@
  *    POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.google.openthread;
+package com.google.openthread.registrar;
 
 import static org.junit.Assert.assertSame;
 
-import com.google.openthread.brski.ConstrainedVoucher;
-import com.google.openthread.commissioner.Commissioner;
-import com.google.openthread.domainca.DomainCA;
-import com.google.openthread.masa.MASA;
-import com.google.openthread.pledge.Pledge;
-import com.google.openthread.pledge.PledgeException;
-import com.google.openthread.registrar.Registrar;
-import com.google.openthread.registrar.RegistrarBuilder;
-import com.google.openthread.tools.CredentialGenerator;
+import com.google.openthread.*;
+import com.google.openthread.brski.*;
+import com.google.openthread.commissioner.*;
+import com.google.openthread.domainca.*;
+import com.google.openthread.masa.*;
+import com.google.openthread.pledge.*;
+import com.google.openthread.tools.*;
 import java.security.cert.CertPath;
 import java.security.cert.CertPathValidator;
 import java.security.cert.Certificate;
@@ -53,13 +51,7 @@ import java.util.Set;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
