@@ -268,15 +268,13 @@ public class CredentialGenerator {
                     new KeyPurposeId[] {
                       KeyPurposeId.id_kp_serverAuth,
                       KeyPurposeId.id_kp_clientAuth,
-                      Constants.id_kp_cmcRA
+                      isIncludeExtKeyUsage ? Constants.id_kp_cmcRA : KeyPurposeId.id_kp_codeSigning
                     })
                 .getEncoded(ASN1Encoding.DER));
 
     List<Extension> extensions = new ArrayList<>();
     extensions.add(keyUsage);
-    if (isIncludeExtKeyUsage) {
-      extensions.add(extKeyUsage);
-    }
+    extensions.add(extKeyUsage);
     return SecurityUtils.genCertificate(
         subKeyPair, subName, issuerKeyPair, issuerName, false, extensions);
   }

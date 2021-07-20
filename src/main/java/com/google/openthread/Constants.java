@@ -95,10 +95,14 @@ public class Constants {
 
   public static final String THREAD_DOMAIN_NAME_OID = "1.3.6.1.4.1.44970.1"; // per Thread 1.2 spec
 
-  public static final String CMC_RA_PKIX_KEY_PURPOSE = "1.3.6.1.5.5.7.3.28"; // RFC 6402 2.10
+  public static final String CMC_RA_PKIX_KEY_PURPOSE_OID = "1.3.6.1.5.5.7.3.28"; // RFC 6402 2.10
+
+  public static final String EXTENDED_KEY_USAGE_OID = "2.5.29.37";
 
   public static final KeyPurposeId id_kp_cmcRA =
-      KeyPurposeId.getInstance(new ASN1ObjectIdentifier(CMC_RA_PKIX_KEY_PURPOSE));
+      KeyPurposeId.getInstance(new ASN1ObjectIdentifier(CMC_RA_PKIX_KEY_PURPOSE_OID));
+
+  public static final ASN1ObjectIdentifier eku = new ASN1ObjectIdentifier(EXTENDED_KEY_USAGE_OID);
 
   public static final Integer ASN1_TAG_GENERALNAME_OTHERNAME =
       Integer.valueOf(0); // RFC 5280 Section 4.2.1.6

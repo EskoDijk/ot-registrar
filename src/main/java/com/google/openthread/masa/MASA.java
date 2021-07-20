@@ -356,7 +356,7 @@ public class MASA {
       X509Certificate registrarCert = reqCerts.get(0);
       if (registrarCert.getExtendedKeyUsage() != null) {
         for (String eku : registrarCert.getExtendedKeyUsage()) {
-          if (eku.equals(Constants.CMC_RA_PKIX_KEY_PURPOSE)) {
+          if (eku.equals(Constants.CMC_RA_PKIX_KEY_PURPOSE_OID)) {
             isRA = true;
             break;
           }

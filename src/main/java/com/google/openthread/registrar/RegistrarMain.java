@@ -141,12 +141,15 @@ public final class RegistrarMain {
       builder.setPrivateKey(cred.getPrivateKey());
       builder.setCertificateChain(cred.getCertificateChain());
       builder.setMasaClientCredentials(cred);
-
       builder.setPort(Integer.parseInt(port));
 
-      // if one MASA identity defined in credentials file, use that one as trusted MASA.
-      if (masaCred.getCertificate() != null) {
-        builder.addMasaCertificate(masaCred.getCertificate());
+      if (true) {
+        // trust all MASAs by default
+        builder.setTrustAllMasas(true);
+      } else {
+        // if one MASA identity defined in credentials file, use that one as trusted MASA.
+        if (masaCred.getCertificate() != null)
+          builder.addMasaCertificate(masaCred.getCertificate());
       }
 
       registrar = builder.build();

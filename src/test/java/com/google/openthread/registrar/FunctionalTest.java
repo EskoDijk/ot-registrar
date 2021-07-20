@@ -36,7 +36,9 @@ import com.google.openthread.commissioner.*;
 import com.google.openthread.domainca.*;
 import com.google.openthread.masa.*;
 import com.google.openthread.pledge.*;
+import com.google.openthread.pledge.Pledge.CertState;
 import com.google.openthread.tools.*;
+import java.io.IOException;
 import java.security.cert.CertPath;
 import java.security.cert.CertPathValidator;
 import java.security.cert.Certificate;
@@ -143,6 +145,13 @@ public class FunctionalTest {
     Assert.assertNull(subjKeyId);
   }
 
+  private void VerifyPledge(Pledge pledge) {
+    Assert.assertNotEquals(pledge.getState(), CertState.NO_CONTACT);
+    Assert.assertNotEquals(pledge.getState(), CertState.PROVISIONALLY_ACCEPT);
+    // TODO - implement state verification of Pledge after voucher request, while enroll may or may
+    // not have happened at this point.
+  }
+
   @Test
   public void testCertificateChainValidationWithSelf() throws Exception {
     thrown.expect(Exception.class);
@@ -179,40 +188,38 @@ public class FunctionalTest {
   @Test
   public void testVoucherRequest() throws Exception {
     ConstrainedVoucher voucher = pledge.requestVoucher();
-
-    // TODO(wgtdkp): verify pledge state
+    Assert.assertTrue(voucher.validate());
+    VerifyPledge(pledge);
   }
 
   @Test
   public void testCsrAttrsRequest() throws Exception {
-    pledge.requestVoucher();
+    ConstrainedVoucher voucher = pledge.requestVoucher();
     pledge.requestCSRAttributes();
-
-    // TODO(wgtdkp): verify pledge state
+    Assert.assertTrue(voucher.validate());
+    VerifyPledge(pledge);
   }
 
   @Test
   public void testEnroll() throws Exception {
-    pledge.requestVoucher();
+    ConstrainedVoucher voucher = pledge.requestVoucher();
     pledge.requestCSRAttributes();
     pledge.enroll();
-
+    Assert.assertTrue(voucher.validate());
+    VerifyPledge(pledge);
     VerifyEnroll(pledge);
-
-    // TODO(wgtdkp): verify pledge state
   }
 
   @Test
   public void testReenroll() throws Exception {
-    pledge.requestVoucher();
+    ConstrainedVoucher voucher = pledge.requestVoucher();
     pledge.requestCSRAttributes();
     pledge.enroll();
+    Assert.assertTrue(voucher.validate());
+    VerifyPledge(pledge);
     VerifyEnroll(pledge);
-
     pledge.reenroll();
     VerifyEnroll(pledge);
-
-    // TODO(wgtdkp): verify pledge state
   }
 
   @Test
@@ -321,7 +328,7 @@ public class FunctionalTest {
         registrarBuilder
             .setPrivateKey(cg.registrarKeyPair.getPrivate())
             .setCertificateChain(certChain)
-            .addMasaCertificate(cg.masaCert)
+            .setTrustAllMasas(true)
             .setMasaClientCredentials(
                 new Credentials(
                     cg.registrarKeyPair.getPrivate(),
@@ -332,9 +339,17 @@ public class FunctionalTest {
     registrar2.setDomainCA(domainCA);
     registrar2.start();
 
-    // test connection works - our Pledge won't check for cmcRA in certificate (other
-    // implementations may do this)
-    CoapResponse response = pledge.sayHello();
+    // test connection does not work - our Pledge checks for cmcRA in certificate
+    CoapResponse response = null;
+    try {
+      response = pledge.sayHello();
+      Assert.fail("Pledge mistakenly accepted Registrar without cmcRA");
+    } catch (IOException ex) {;
+    }
+
+    // try again without checking strictly for cmcRA
+    pledge.setCmcRaCheck(false);
+    response = pledge.sayHello();
     assertSame(CoAP.ResponseCode.CONTENT, response.getCode());
 
     // test that the voucher request now fails
@@ -347,19 +362,19 @@ public class FunctionalTest {
   }
 
   @Test
-  public void testRegistrarUsingCoseVoucherRequest() throws Exception {
+  public void testRegistrarUsingCmsJsonVoucherRequest() throws Exception {
 
     registrar.stop();
 
-    // create new Registrar that uses COSE-signed requests towards MASA
+    // create new Registrar that uses only CMS-signed JSON voucher requests towards MASA
     RegistrarBuilder registrarBuilder = new RegistrarBuilder();
     registrar2 =
         registrarBuilder
+            .setTrustAllMasas(true)
             .setPrivateKey(cg.registrarKeyPair.getPrivate())
             .setCertificateChain(new X509Certificate[] {cg.registrarCert, cg.domaincaCert})
-            .addMasaCertificate(cg.masaCert)
             .setMasaClientCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
-            .setRequestFormat(Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR)
+            .setForcedRequestFormat(Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON)
             .build();
     registrar2.setDomainCA(domainCA);
     registrar2.start();
@@ -367,6 +382,6 @@ public class FunctionalTest {
     ConstrainedVoucher voucher = pledge.requestVoucher();
     pledge.enroll();
     VerifyEnroll(pledge);
-    // TODO verify voucher
+    voucher.validate();
   }
 }

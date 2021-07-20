@@ -469,6 +469,10 @@ public class Pledge extends CoapClient {
     initEndpoint(privateKey, certificateChain, certVerifier);
   }
 
+  public CertState getState() {
+    return certState;
+  }
+
   X509Certificate getCertificate() {
     return certificateChain[0];
   }
@@ -666,4 +670,8 @@ public class Pledge extends CoapClient {
   private CsrAttrs csrAttrs;
 
   private static Logger logger = LoggerFactory.getLogger(Pledge.class);
+
+  public void setCmcRaCheck(boolean b) {
+    this.certVerifier.setCmcRaCheck(b);
+  }
 }

@@ -28,8 +28,7 @@
 
 package com.google.openthread.registrar;
 
-import com.google.openthread.Constants;
-import com.google.openthread.Credentials;
+import com.google.openthread.*;
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
@@ -93,6 +92,16 @@ public class RegistrarBuilder {
     return this;
   }
 
+  /**
+   * Sets whether to trust ALL MASAs (true) or only MASAs for which certificates were added (false).
+   *
+   * @param status
+   */
+  public RegistrarBuilder setTrustAllMasas(boolean status) {
+    this.isTrustAllMasas = status;
+    return this;
+  }
+
   public RegistrarBuilder setPort(int port) {
     this.port = port;
     return this;
@@ -103,17 +112,27 @@ public class RegistrarBuilder {
     return this;
   }
 
-  public RegistrarBuilder setRequestFormat(String mediaType) {
+  /**
+   * By default the Registrar mimics the Pledge's Voucher Request format, when requesting to MASA.
+   * This method changes that to force the Registrar to use one format only.
+   *
+   * @param mediaType one of Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON or
+   *     Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR, or "" to force nothing.
+   * @return
+   */
+  public RegistrarBuilder setForcedRequestFormat(String mediaType) {
     switch (mediaType) {
+      case "":
+        this.forcedVoucherRequestFormat = -1;
       case Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON:
-        this.isCmsJsonRequests = true;
+        this.forcedVoucherRequestFormat = ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON;
         break;
       case Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR:
-        this.isCmsJsonRequests = false;
+        this.forcedVoucherRequestFormat = ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR;
         break;
       default:
         throw new IllegalArgumentException(
-            "Unsupported mediaType for RegistrarBuilder: " + mediaType);
+            "Unsupported mediaType for setForcedRequestFormat in RegistrarBuilder: " + mediaType);
     }
     return this;
   }
@@ -129,20 +148,22 @@ public class RegistrarBuilder {
   }
 
   public Registrar build() throws RegistrarException {
+    X509Certificate[] masaCerts = getMasaCertificates();
     if (privateKey == null
+        || (masaCerts.length == 0 && !isTrustAllMasas)
+        || (masaCerts.length > 0 && isTrustAllMasas)
         || certificateChain == null
-        || getMasaCertificates().length == 0
         || credentials == null) {
-      throw new RegistrarException("bad or missing registrar credentials");
+      throw new RegistrarException(
+          "bad or missing registrar credentials, or misconfiguration of builder");
     }
     return new Registrar(
         privateKey,
         certificateChain,
-        getMasaCertificates(),
+        masaCerts,
         credentials,
         port,
-        isCmsJsonRequests,
-        isCmsJsonRequests,
+        forcedVoucherRequestFormat,
         isHttpToMasa);
   }
 
@@ -155,6 +176,7 @@ public class RegistrarBuilder {
   private List<X509Certificate> masaCertificates;
   private Credentials credentials;
   private int port = Constants.DEFAULT_REGISTRAR_COAPS_PORT;
-  private boolean isCmsJsonRequests = true;
+  private int forcedVoucherRequestFormat = -1;
   private boolean isHttpToMasa = true;
+  private boolean isTrustAllMasas = false;
 }

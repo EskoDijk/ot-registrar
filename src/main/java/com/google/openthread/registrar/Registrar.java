@@ -112,11 +112,14 @@ public class Registrar extends CoapServer {
    * @param privateKey the private key used for DTLS connection from Pledge
    * @param certificateChain the certificate chain leading up to domain CA and including domain CA
    *     certificate, used for DTLS connection from Pledge.
-   * @param masaTrustAnchors pre-installed MASA trust anchors
+   * @param masaTrustAnchors pre-installed MASA trust anchors that are trusted only when given. If
+   *     null, ALL MASAs will be trusted (for interop testing).
    * @param masaClientCreds credentials to use towards MASA client in Credentials format
    * @param port the CoAP port to listen on
-   * @param isCmsSignedRequests whether to use CMS signed requests (true) or COSE (false)
-   * @param isJsonVoucherRequests whether to use JSON voucher requests (true) or CBOR (false)
+   * @param forcedVoucherRequestFormat by default <= 0 meaning no request format to MASA is forced
+   *     but rather the Pledge's request format is copied. When a content-format value from
+   *     ExtendedMediaTypeRegistry is given here, that format will be forced in the request.
+   * @param isHttpToMasa whether to use HTTP requests to MASA (true, default) or CoAP (false)
    * @throws RegistrarException
    */
   Registrar(
@@ -125,8 +128,7 @@ public class Registrar extends CoapServer {
       X509Certificate[] masaTrustAnchors,
       Credentials masaClientCreds,
       int port,
-      boolean isCmsSignedRequests,
-      boolean isJsonRequests,
+      int forcedVoucherRequestFormat,
       boolean isHttpToMasa)
       throws RegistrarException {
     if (certificateChain.length < 2) {
@@ -138,8 +140,7 @@ public class Registrar extends CoapServer {
     this.certificateChain = certificateChain;
     this.masaTrustAnchors = masaTrustAnchors;
     this.masaClientCredentials = masaClientCreds;
-    this.isCmsSignedVoucherRequests = isCmsSignedRequests;
-    this.isJsonVoucherRequests = isJsonRequests;
+    this.forcedVoucherRequestFormat = forcedVoucherRequestFormat;
     this.isHttpToMasa = isHttpToMasa;
     try {
       this.csrAttributes = new CSRAttributes(CSRAttributes.DEFAULT_FILE);
@@ -355,18 +356,27 @@ public class Registrar extends CoapServer {
         byte[] content = null;
 
         // Uses CBOR or JSON voucher request format.
-        if (isJsonVoucherRequests) content = new JSONSerializer().serialize(req);
+        boolean isJsonVR =
+            (forcedVoucherRequestFormat == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON
+                || forcedVoucherRequestFormat
+                    == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_JSON);
+        if (isJsonVR) content = new JSONSerializer().serialize(req);
         else content = new CBORSerializer().serialize(req);
 
+        // use CMS or COSE signing of the voucher request.
         byte[] payload;
-        if (isCmsSignedVoucherRequests) {
+        boolean isCms =
+            (forcedVoucherRequestFormat == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_CBOR
+                || forcedVoucherRequestFormat
+                    == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON);
+        if (isCms) {
           // CMS signing.
           requestMediaType =
-              isJsonVoucherRequests
+              isJsonVR
                   ? Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON
                   : Constants.HTTP_APPLICATION_VOUCHER_CMS_CBOR;
           requestContentFormat =
-              isJsonVoucherRequests
+              isJsonVR
                   ? ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON
                   : ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_CBOR;
           try {
@@ -401,10 +411,9 @@ public class Registrar extends CoapServer {
         // default one.
         String uri = SecurityUtils.getMasaUri(idevid);
         if (uri == null) {
-          logger.warn(
-              "pledge certificate does not include MASA uri, using default masa uri: "
-                  + Constants.DEFAULT_MASA_URI);
           uri = Constants.DEFAULT_MASA_URI;
+          logger.warn(
+              "pledge certificate does not include MASA uri, using default masa uri: " + uri);
         }
 
         RestfulVoucherResponse response = null;
@@ -788,9 +797,7 @@ public class Registrar extends CoapServer {
 
   private CSRAttributes csrAttributes;
 
-  protected boolean isCmsSignedVoucherRequests = true;
-
-  protected boolean isJsonVoucherRequests = true;
+  protected int forcedVoucherRequestFormat = -1;
 
   protected boolean isHttpToMasa = true;
 
