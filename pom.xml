@@ -9,7 +9,6 @@
   <version>0.1-SNAPSHOT</version>
 
   <name>OT Registrar</name>
-  <!-- FIXME change it to the project's website -->
   <url>https://openthread.io/</url>
 
   <properties>
