@@ -494,7 +494,7 @@ public class SecurityUtils {
       PrivateKey privateKey,
       X509Certificate[] certificateChain,
       CertificateVerifier verifier) {
-    return genCoapEndPoint(-1, trustAnchors, privateKey, certificateChain, verifier);
+    return genCoapEndPoint(-1, trustAnchors, privateKey, certificateChain, verifier, false);
   }
 
   public static final CoapEndpoint genCoapServerEndPoint(
@@ -504,7 +504,7 @@ public class SecurityUtils {
       X509Certificate[] certificateChain,
       CertificateVerifier verifier) {
     assert (port >= 0);
-    return genCoapEndPoint(port, trustAnchors, privateKey, certificateChain, verifier);
+    return genCoapEndPoint(port, trustAnchors, privateKey, certificateChain, verifier, true);
   }
 
   private static final CoapEndpoint genCoapEndPoint(
@@ -512,15 +512,19 @@ public class SecurityUtils {
       X509Certificate[] trustAnchors,
       PrivateKey privateKey,
       X509Certificate[] certificateChain,
-      CertificateVerifier verifier) {
+      CertificateVerifier verifier,
+      boolean isServerEndPoint) {
     DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder();
 
-    config.setSupportedCipherSuites(
-        CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-        CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM,
-        CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8,
-        CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM);
-
+    if (isServerEndPoint)
+      config.setSupportedCipherSuites(
+          CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+          CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM,
+          CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8,
+          CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM);
+    else
+      config.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+    
     config.setRetransmissionTimeout(10 * 1000);
 
     // Set Max Fragment Length to 2^10 bytes.
