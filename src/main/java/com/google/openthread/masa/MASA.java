@@ -313,13 +313,16 @@ public class MASA {
               ResponseCode.CHANGED,
               payload,
               ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
+          return;
         } catch (CoseException e) {
           logger.error("COSE signing voucher request failed: " + e.getMessage(), e);
           exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
+          return;
         }
       } else {
         // send the error response and diagnostic msg.
         exchange.respond(resp.getCoapCode(), resp.getMessage());
+        return;
       }
     }
   }

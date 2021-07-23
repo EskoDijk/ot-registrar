@@ -258,8 +258,8 @@ public class Registrar extends CoapServer {
 
         ConstrainedVoucherRequest pledgeReq = null;
 
-        if (contentFormat == ExtendedMediaTypeRegistry.APPLICATION_COSE_SIGN1 ||
-            contentFormat == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR) {
+        if (contentFormat == ExtendedMediaTypeRegistry.APPLICATION_COSE_SIGN1
+            || contentFormat == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR) {
           // Verify signature of COSE_Sign1 message
           Sign1Message sign1Msg =
               (Sign1Message)
@@ -278,6 +278,7 @@ public class Registrar extends CoapServer {
         } else {
           logger.error("unsupported voucher request format: " + contentFormat);
           exchange.respond(ResponseCode.UNSUPPORTED_CONTENT_FORMAT);
+          return;
         }
 
         // Validate pledge's voucher request
@@ -462,9 +463,12 @@ public class Registrar extends CoapServer {
             response.getCoapCode(),
             response.getPayload(),
             ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
+        return;
+
       } catch (Exception e) {
         logger.warn("handle voucher request failed: " + e.getMessage(), e);
         exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
+        return;
       }
     }
   }
@@ -781,7 +785,6 @@ public class Registrar extends CoapServer {
             exchange.respond(ResponseCode.CONTENT, "hello CoAP");
           }
         });
-
   }
 
   private void initEndpoint() {

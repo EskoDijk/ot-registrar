@@ -71,7 +71,8 @@ public class Constants {
   public static final String HTTP_APPLICATION_VOUCHER_CMS_JSON = "application/voucher-cms+json";
   public static final String HTTP_APPLICATION_VOUCHER_CMS_CBOR = "application/voucher-cms+cbor";
 
-  public static final String HTTP_APPLICATION_COSE_SIGN1 = "application/cose; cose-type=\"cose-sign1\"";
+  public static final String HTTP_APPLICATION_COSE_SIGN1 =
+      "application/cose; cose-type=\"cose-sign1\"";
   public static final String HTTP_APPLICATION_COSE = "application/cose";
   public static final String HTTP_APPLICATION_VOUCHER_COSE_CBOR = "application/voucher-cose+cbor";
   public static final String HTTP_APPLICATION_VOUCHER_COSE_JSON = "application/voucher-cose+json";
