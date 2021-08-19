@@ -175,7 +175,7 @@ public class Commissioner extends CoapClient {
   private void initEndpoint() {
     CoapEndpoint endpoint =
         SecurityUtils.genCoapClientEndPoint(
-            new X509Certificate[] {}, privateKey, certificateChain, certVerifier);
+            new X509Certificate[] {}, privateKey, certificateChain, certVerifier, false);
     setEndpoint(endpoint);
   }
 

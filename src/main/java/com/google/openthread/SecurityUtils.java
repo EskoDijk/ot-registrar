@@ -485,16 +485,13 @@ public class SecurityUtils {
   }
 
   public static final CoapEndpoint genCoapClientEndPoint(
-      X509Certificate[] trustAnchors, PrivateKey privateKey, X509Certificate[] certificateChain) {
-    return genCoapClientEndPoint(trustAnchors, privateKey, certificateChain, null);
-  }
-
-  public static final CoapEndpoint genCoapClientEndPoint(
       X509Certificate[] trustAnchors,
       PrivateKey privateKey,
       X509Certificate[] certificateChain,
-      CertificateVerifier verifier) {
-    return genCoapEndPoint(-1, trustAnchors, privateKey, certificateChain, verifier, false);
+      CertificateVerifier verifier,
+      boolean isSniEnabled) {
+    return genCoapEndPoint(
+        -1, trustAnchors, privateKey, certificateChain, verifier, false, isSniEnabled);
   }
 
   public static final CoapEndpoint genCoapServerEndPoint(
@@ -504,7 +501,7 @@ public class SecurityUtils {
       X509Certificate[] certificateChain,
       CertificateVerifier verifier) {
     assert (port >= 0);
-    return genCoapEndPoint(port, trustAnchors, privateKey, certificateChain, verifier, true);
+    return genCoapEndPoint(port, trustAnchors, privateKey, certificateChain, verifier, true, true);
   }
 
   private static final CoapEndpoint genCoapEndPoint(
@@ -513,7 +510,8 @@ public class SecurityUtils {
       PrivateKey privateKey,
       X509Certificate[] certificateChain,
       CertificateVerifier verifier,
-      boolean isServerEndPoint) {
+      boolean isServerEndPoint,
+      boolean isSniEnabled) {
     DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder();
 
     if (isServerEndPoint)
@@ -532,12 +530,13 @@ public class SecurityUtils {
     // OpenThread CoAP doesn't handle fragments, so it still fails
     config.setMaxTransmissionUnit(1024);
 
+    config.setSniEnabled(isSniEnabled);
     if (port >= 0) {
       // Server
       config.setServerOnly(true).setAddress(new InetSocketAddress(port));
     } else {
       // Client
-      config.setClientOnly().setSniEnabled(false);
+      config.setClientOnly();
     }
 
     if (verifier != null) config.setCertificateVerifier(verifier);

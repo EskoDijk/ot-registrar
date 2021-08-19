@@ -506,7 +506,8 @@ public class Registrar extends CoapServer {
 
     private void initEndPoint(X509Certificate[] trustAnchors) {
       CoapEndpoint endpoint =
-          SecurityUtils.genCoapClientEndPoint(trustAnchors, privateKey, certificateChain);
+          SecurityUtils.genCoapClientEndPoint(
+              trustAnchors, privateKey, certificateChain, null, true);
       setEndpoint(endpoint);
     }
   }

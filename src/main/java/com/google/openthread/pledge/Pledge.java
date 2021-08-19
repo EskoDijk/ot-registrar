@@ -607,7 +607,7 @@ public class Pledge extends CoapClient {
       PrivateKey privateKey, X509Certificate[] certificateChain, CertificateVerifier verifier) {
     CoapEndpoint endpoint =
         SecurityUtils.genCoapClientEndPoint(
-            new X509Certificate[] {}, privateKey, certificateChain, verifier);
+            new X509Certificate[] {}, privateKey, certificateChain, verifier, false);
     setEndpoint(endpoint);
   }
 
