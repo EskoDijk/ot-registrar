@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2019, The OpenThread Registrar Authors.
+ *    Copyright (c) 2021, The OpenThread Registrar Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without

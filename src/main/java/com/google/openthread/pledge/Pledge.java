@@ -98,6 +98,10 @@ import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * The Pledge (i.e., CCM Joiner) is the new device which is to securely bootstrap into the network
+ * domain using the Constrained BRSKI protocol.
+ */
 public class Pledge extends CoapClient {
 
   protected static final ASN1ObjectIdentifier THREAD_DOMAIN_NAME_OID_ASN1 =
