@@ -209,9 +209,10 @@ public class PledgeHardware {
       }
     }
   }
-  
+
   /**
    * returns the Pledge log, built during the session of using this Pledge.
+   *
    * @return
    */
   public String getLog() {
