@@ -138,6 +138,19 @@ public class RegistrarBuilder {
   }
 
   /**
+   * Override the MASA URI encoded in a Pledge's IDevID certificate, by setting a forced MASA-URI
+   * that is always applied. Used typically for testing, or a deployment-specific override of the
+   * MASA-URI.
+   *
+   * @param uri new MASA URI to always use.
+   * @return
+   */
+  public RegistrarBuilder setForcedMasaUri(String uri) {
+    this.setForcedMasaUri = uri;
+    return this;
+  }
+
+  /**
    * return the number of supported/trusted MASA servers. Use addMasaCertificate() to add more
    * trusted MASA servers.
    *
@@ -164,7 +177,8 @@ public class RegistrarBuilder {
         credentials,
         port,
         forcedVoucherRequestFormat,
-        isHttpToMasa);
+        isHttpToMasa,
+        setForcedMasaUri);
   }
 
   private X509Certificate[] getMasaCertificates() {
@@ -179,4 +193,5 @@ public class RegistrarBuilder {
   private int forcedVoucherRequestFormat = -1;
   private boolean isHttpToMasa = true;
   private boolean isTrustAllMasas = false;
+  private String setForcedMasaUri = null;
 }

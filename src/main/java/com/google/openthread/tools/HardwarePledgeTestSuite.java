@@ -40,21 +40,22 @@ import java.security.cert.X509Certificate;
 import org.junit.*;
 import org.slf4j.*;
 
-/** 
- * A tool to test a Hardware Pledge (OpenThread CLI device) against the Registrar/MASA. The 
- * specific setup of Thread Network so that the Pledge can reach the Registrar, is up to the user 
- * and out of scope of this tool. 
+/**
+ * A tool to test a Hardware Pledge (OpenThread CLI device) against the Registrar/MASA. The specific
+ * setup of Thread Network so that the Pledge can reach the Registrar, is up to the user and out of
+ * scope of this tool.
  */
 // @Ignore("The PledgeHw* tests can only be run with hardware Pledge and network setup, skipping.")
 public class HardwarePledgeTestSuite {
 
   public static final String DEFAULT_DOMAIN_NAME = "Thread-Test";
+  public static final int IEEE_802154_CHANNEL = 19;
 
   private DomainCA domainCA;
   private Registrar registrar;
   private Commissioner commissioner;
-  private PledgeHardware pledge;
   private MASA masa;
+  private static PledgeHardware pledge;
 
   private static CredentialGenerator cg;
 
@@ -64,10 +65,18 @@ public class HardwarePledgeTestSuite {
   public static void setup() throws Exception {
     cg = new CredentialGenerator();
     cg.make(null, null, null, null);
+    pledge = new PledgeHardware();
+    Assert.assertTrue(pledge.factoryReset());
+    Assert.assertTrue(pledge.execCommandDone("channel " + IEEE_802154_CHANNEL));
   }
 
   @AfterClass
-  public static void tearDown() {}
+  public static void tearDown() {
+    if (pledge != null) {
+      logger.info(pledge.getLog());
+      pledge.shutdown();
+    }
+  }
 
   @Before
   public void init() throws Exception {
@@ -78,7 +87,6 @@ public class HardwarePledgeTestSuite {
             cg.getCredentials(CredentialGenerator.MASA_ALIAS),
             Constants.DEFAULT_MASA_HTTPS_PORT,
             false);
-    pledge = new PledgeHardware();
 
     domainCA = new DomainCA(DEFAULT_DOMAIN_NAME, cg.domaincaKeyPair.getPrivate(), cg.domaincaCert);
 
@@ -89,6 +97,7 @@ public class HardwarePledgeTestSuite {
             .setCertificateChain(new X509Certificate[] {cg.registrarCert, cg.domaincaCert})
             .addMasaCertificate(cg.masaCert)
             .setMasaClientCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
+            .setForcedMasaUri(Constants.DEFAULT_MASA_URI)
             .build();
     registrar.setDomainCA(domainCA);
 
@@ -103,7 +112,6 @@ public class HardwarePledgeTestSuite {
 
   @After
   public void finalize() {
-    pledge.shutdown();
     commissioner.shutdown();
     registrar.stop();
     masa.stop();
@@ -116,5 +124,23 @@ public class HardwarePledgeTestSuite {
   @Test
   public void testBasicResponses() throws Exception {
     Assert.assertEquals("1.2", pledge.execCommand("thread version"));
+    Assert.assertTrue(pledge.execCommandDone("ifconfig up"));
+    Assert.assertTrue(pledge.execCommandDone("ifconfig down"));
+    String nkey = pledge.execCommand("masterkey");
+    Assert.assertTrue(nkey.length() == 32);
+  }
+
+  /**
+   * Regular BRSKI + EST enrollment
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testEnrollment() throws Exception {
+    Assert.assertTrue(pledge.execCommandDone("ifconfig up"));
+    Assert.assertTrue(pledge.execCommandDone("joiner startae"));
+    String[] aM = pledge.waitForMessage();
+    Assert.assertTrue(aM.length > 0);
+    Assert.assertEquals("done", aM[0]);
   }
 }

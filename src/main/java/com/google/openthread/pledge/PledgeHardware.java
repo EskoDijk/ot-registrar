@@ -29,6 +29,7 @@
 package com.google.openthread.pledge;
 
 import com.fazecast.jSerialComm.*;
+import com.google.openthread.OpenThreadUtils;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -47,6 +48,7 @@ public class PledgeHardware {
   protected SerialPort serPort = null;
   protected PrintWriter serialWriter = null;
   protected InputStreamReader serialReader = null;
+  protected StringBuilder pledgeLog = null;
 
   private static Logger logger = LoggerFactory.getLogger(PledgeHardware.class);
 
@@ -78,18 +80,16 @@ public class PledgeHardware {
     boolean isOpen = serPort.openPort();
     if (!isOpen) throw new IOException("Serial port " + serPort + " couldn't be opened.");
 
+    pledgeLog = new StringBuilder();
     serialWriter = new PrintWriter(serPort.getOutputStream());
     serialReader = new InputStreamReader(serPort.getInputStream());
-    // flush the reader. (Old console chars may come in)
-    while (serialReader.ready()) serialReader.read();
+    readSerialLines();
     // reset the CLI to known state (of receiving input)
     serialWriter.write("\n\n");
     serialWriter.flush();
   }
 
-  /**
-   * shutdown the Pledge, stopping the radio and closing the serial connection.
-   */
+  /** shutdown the Pledge, stopping the radio and closing the serial connection. */
   public void shutdown() {
     if (serPort == null) return;
     try {
@@ -103,15 +103,42 @@ public class PledgeHardware {
   }
 
   /**
-   * execute an OpenThread CLI command and return only a single-line response with
-   * result of the command.
-   * 
+   * execute an OpenThread CLI command and check result for the 'Done' response.
+   *
+   * @param consoleCmd command to execute in OpenThread CLI e.g. 'ifconfig up'
+   * @return true if 'Done' was responsed by the OT CLI, false otherwise.
+   * @throws IOException
+   */
+  public boolean execCommandDone(String consoleCmd) throws IOException {
+    if (execCommand(consoleCmd).equals("Done")) return true;
+    return false;
+  }
+
+  /**
+   * execute an OpenThread CLI command and return only a single-line response with result of the
+   * command.
+   *
    * @param consoleCmd command to execute in OpenThread CLI e.g. 'thread version'
-   * @return result of command
+   * @return result of command, only first line is used.
    * @throws IOException
    */
   public String execCommand(String consoleCmd) throws IOException {
-    return execCommand(consoleCmd, DEFAULT_SERIAL_CMD_WAIT_MS, true);
+    String[] aRes = execCommand(consoleCmd, DEFAULT_SERIAL_CMD_WAIT_MS, true);
+    if (aRes.length == 0) throw new IOException("No result returned");
+    return aRes[0];
+  }
+
+  /**
+   * read all available serial input from OT device, and store it in the log without further
+   * processing.
+   *
+   * @throws IOException
+   */
+  protected void readSerialLines() throws IOException {
+    while (serialReader.ready()) {
+      // flush the CLI command mirroring, logs, etc.
+      pledgeLog.append((char) serialReader.read());
+    }
   }
 
   /**
@@ -119,24 +146,23 @@ public class PledgeHardware {
    *
    * @param consoleCmd the command
    * @param msWait milliseconds to wait after sending command, to try reading result over serial.
-   * @param keepFirstResponseLine if true, keeps only the first-line response of the command result. If false, keeps all.
-   * @return result of command, or empty string "" if nothing was returned after the wait time.
+   * @param filterOutLogLines if true, filters out any log/empty/prompt lines from result.
+   * @return result of command as lines, or empty array if nothing was returned after the wait time.
    * @throws IOException
    */
-  public String execCommand(String consoleCmd, int msWait, boolean keepFirstResponseLine)
+  public String[] execCommand(String consoleCmd, int msWait, boolean filterOutLogLines)
       throws IOException {
     if (serPort == null || !serPort.isOpen())
       throw new IOException("error in serial port state: not open");
-    serialWriter.print("\n" + consoleCmd);
+    if (consoleCmd.length() > 0) serialWriter.print("\n" + consoleCmd);
     serialWriter.flush();
     try {
-      Thread.sleep(1 + consoleCmd.length() * 8 / COM_BAUD_RATE);
+      Thread.sleep(1 + consoleCmd.length() * 8 * 1000 / COM_BAUD_RATE);
     } catch (InterruptedException ex) {;
     }
-    while (serialReader.ready()) // flush the CLI command mirroring.
-    serialReader.read();
+    readSerialLines();
     // send CR
-    serialWriter.print('\n');
+    if (consoleCmd.length() > 0) serialWriter.print('\n');
     serialWriter.flush();
     // wait for processing to happen
     try {
@@ -145,15 +171,50 @@ public class PledgeHardware {
     }
 
     // if nothing outputed, return empty string
-    if (!serialReader.ready()) return "";
+    if (!serialReader.ready()) return new String[] {};
 
     // create result string.
-    String s = "";
-    while (serialReader.ready()) s += Character.toString((char) serialReader.read());
-    s = s.trim();
+    StringBuilder s = new StringBuilder();
+    while (serialReader.ready()) {
+      s.append((char) serialReader.read());
+    }
+    String res = s.toString();
+    pledgeLog.append(res);
+    String[] aRes = res.split("\n");
 
-    if (keepFirstResponseLine && s.length() > 0) s = s.split("\n")[0].trim();
-    logger.trace("Serial-read: " + s);
-    return s;
+    if (filterOutLogLines && res.length() > 0) {
+      String[] aF = OpenThreadUtils.filterOutLogLines(aRes);
+      return aF;
+    }
+    return aRes;
+  }
+
+  /**
+   * Factory-reset the Pledge and verify that it responds.
+   *
+   * @return true if factory reset was successfully done and Pledge responds after it.
+   */
+  public boolean factoryReset() throws IOException {
+    execCommand("factoryreset", 250, false);
+    String v = execCommand("thread version");
+    if (v.equals("1.2")) return true;
+    else return false;
+  }
+
+  public String[] waitForMessage() throws IOException {
+    while (true) {
+      String[] aR = execCommand("", 100, true);
+      if (aR.length > 0 && aR[0].length() > 0) {
+        return aR;
+      }
+    }
+  }
+  
+  /**
+   * returns the Pledge log, built during the session of using this Pledge.
+   * @return
+   */
+  public String getLog() {
+    return pledgeLog.toString();
   }
 }

@@ -121,6 +121,8 @@ public class Registrar extends CoapServer {
    *     but rather the Pledge's request format is copied. When a content-format value from
    *     ExtendedMediaTypeRegistry is given here, that format will be forced in the request.
    * @param isHttpToMasa whether to use HTTP requests to MASA (true, default) or CoAP (false)
+   * @param setForcedMasaUri if null, no MASA-URI is forced, while if a non-null string, the
+   *     Registrar is forced to use this MASA-URI always.
    * @throws RegistrarException
    */
   Registrar(
@@ -130,7 +132,8 @@ public class Registrar extends CoapServer {
       Credentials masaClientCreds,
       int port,
       int forcedVoucherRequestFormat,
-      boolean isHttpToMasa)
+      boolean isHttpToMasa,
+      String setForcedMasaUri)
       throws RegistrarException {
     if (certificateChain.length < 2) {
       throw new RegistrarException("bad certificate chain");
@@ -142,6 +145,7 @@ public class Registrar extends CoapServer {
     this.masaTrustAnchors = masaTrustAnchors;
     this.masaClientCredentials = masaClientCreds;
     this.forcedVoucherRequestFormat = forcedVoucherRequestFormat;
+    this.setForcedMasaUri = setForcedMasaUri;
     this.isHttpToMasa = isHttpToMasa;
     try {
       this.csrAttributes = new CSRAttributes(CSRAttributes.DEFAULT_FILE);
@@ -413,10 +417,15 @@ public class Registrar extends CoapServer {
         // Request voucher from MASA server indicated in IDevID cert, or else the
         // default one.
         String uri = SecurityUtils.getMasaUri(idevid);
-        if (uri == null) {
+        if ((uri == null || uri.length() == 0) && setForcedMasaUri == null) {
           uri = Constants.DEFAULT_MASA_URI;
           logger.warn(
               "pledge certificate does not include MASA uri, using default masa uri: " + uri);
+        } else if (uri != null && setForcedMasaUri == null) {
+          logger.info("Constructing Registrar Voucher Req to MASA: " + uri);
+        } else {
+          uri = setForcedMasaUri;
+          logger.info("Using forced MASA URI to send Registrar Voucher Req: " + uri);
         }
 
         RestfulVoucherResponse response = null;
@@ -823,6 +832,8 @@ public class Registrar extends CoapServer {
   protected int forcedVoucherRequestFormat = -1;
 
   protected boolean isHttpToMasa = true;
+
+  protected String setForcedMasaUri = null;
 
   private static Logger logger = LoggerFactory.getLogger(Registrar.class);
 }
