@@ -26,7 +26,7 @@
  *    POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.google.openthread.pledge.hw;
+package com.google.openthread.tools;
 
 import com.google.openthread.*;
 import com.google.openthread.brski.*;
@@ -36,14 +36,17 @@ import com.google.openthread.masa.*;
 import com.google.openthread.pledge.Pledge.*;
 import com.google.openthread.pledge.PledgeHardware;
 import com.google.openthread.registrar.*;
-import com.google.openthread.tools.*;
 import java.security.cert.X509Certificate;
 import org.junit.*;
 import org.slf4j.*;
 
-/** Perform basic integration tests using a hardware Pledge vs Registrar/MASA. */
-@Ignore("The PledgeHw* tests can only be run with hardware Pledge and network setup, skipping.")
-public class PledgeHwBasicTest {
+/** 
+ * A tool to test a Hardware Pledge (OpenThread CLI device) against the Registrar/MASA. The 
+ * specific setup of Thread Network so that the Pledge can reach the Registrar, is up to the user 
+ * and out of scope of this tool. 
+ */
+// @Ignore("The PledgeHw* tests can only be run with hardware Pledge and network setup, skipping.")
+public class HardwarePledgeTestSuite {
 
   public static final String DEFAULT_DOMAIN_NAME = "Thread-Test";
 
@@ -55,7 +58,7 @@ public class PledgeHwBasicTest {
 
   private static CredentialGenerator cg;
 
-  private static Logger logger = LoggerFactory.getLogger(FunctionalTest.class);
+  private static Logger logger = LoggerFactory.getLogger(HardwarePledgeTestSuite.class);
 
   @BeforeClass
   public static void setup() throws Exception {

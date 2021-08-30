@@ -36,17 +36,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A Java proxy object connecting to a hardware Pledge (e.g., CCM OpenThread Joiner) over a serial
+ * A Java proxy object connecting to a hardware Pledge (CCM OpenThread CLI Joiner) over a serial
  * interface on the local computer.
  */
 public class PledgeHardware {
 
-  public static final int DEFAULT_SERIAL_CMD_WAIT_MS = 20;
-  public static final int COM_BAUD_RATE = 115200;
+  protected static final int DEFAULT_SERIAL_CMD_WAIT_MS = 20;
+  protected static final int COM_BAUD_RATE = 115200;
 
-  SerialPort serPort = null;
-  PrintWriter serialWriter = null;
-  InputStreamReader serialReader = null;
+  protected SerialPort serPort = null;
+  protected PrintWriter serialWriter = null;
+  protected InputStreamReader serialReader = null;
 
   private static Logger logger = LoggerFactory.getLogger(PledgeHardware.class);
 
@@ -87,6 +87,9 @@ public class PledgeHardware {
     serialWriter.flush();
   }
 
+  /**
+   * shutdown the Pledge, stopping the radio and closing the serial connection.
+   */
   public void shutdown() {
     if (serPort == null) return;
     try {
@@ -99,6 +102,14 @@ public class PledgeHardware {
     serPort = null;
   }
 
+  /**
+   * execute an OpenThread CLI command and return only a single-line response with
+   * result of the command.
+   * 
+   * @param consoleCmd command to execute in OpenThread CLI e.g. 'thread version'
+   * @return result of command
+   * @throws IOException
+   */
   public String execCommand(String consoleCmd) throws IOException {
     return execCommand(consoleCmd, DEFAULT_SERIAL_CMD_WAIT_MS, true);
   }
@@ -106,8 +117,10 @@ public class PledgeHardware {
   /**
    * Execute a command (sent over serial to the hw Pledge) and return the response line(s).
    *
-   * @param consoleCmd
-   * @return
+   * @param consoleCmd the command
+   * @param msWait milliseconds to wait after sending command, to try reading result over serial.
+   * @param keepFirstResponseLine if true, keeps only the first-line response of the command result. If false, keeps all.
+   * @return result of command, or empty string "" if nothing was returned after the wait time.
    * @throws IOException
    */
   public String execCommand(String consoleCmd, int msWait, boolean keepFirstResponseLine)
