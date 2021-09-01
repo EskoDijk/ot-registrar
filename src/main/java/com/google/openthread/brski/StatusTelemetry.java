@@ -37,13 +37,28 @@ import com.upokecenter.cbor.CBORObject;
  */
 public class StatusTelemetry {
 
-  /** status field of telemetry report, success (true) or failure (false) */
+  /** single instance representing an 'undefined' status telemetry, e.g. a not-yet-parsed one. */
+  public static final StatusTelemetry UNDEFINED = new StatusTelemetry();
+
+  /** status field of telemetry report by Pledge, success (true) or failure (false) */
   public boolean status;
 
-  /** in case of failure (status==false), contains the reason for failure given, if any. */
+  /**
+   * in case of failure (status==false), contains the reason for failure given by Pledge, if any
+   * given.
+   */
   public String reason = "";
 
-  /** stores the CBOR object as sent by the Pledge, for reference. */
+  /** keep track of whether the telemetry report was in 100% valid format, or not. */
+  public boolean isValidFormat = false;
+
+  /** store message on result of parsing of telemetry message by this class */
+  public String parseResultStatus = "";
+
+  /**
+   * stores the CBOR object as sent by the Pledge, for reference. Null if couldn't be parsed as
+   * CBOR.
+   */
   public CBORObject cbor = null;
 
   protected StatusTelemetry() {
@@ -51,36 +66,51 @@ public class StatusTelemetry {
   }
 
   /**
-   * Deserialize a status telemetry report from CBOR bytes.
+   * Deserialize a status telemetry report from CBOR bytes. In case of invalid 'data', i.e. invalid
+   * CBOR format or invalid report format, flags in the StatusTelemetry object are set to indicate
+   * this.
    *
    * @param data CBOR bytes
    * @return new StatusTelemetry object
-   * @throws CBORException if CBOR cannot be parsed from data
-   * @throws IllegalArgumentException if CBOR object is missing required fields
    */
-  public static StatusTelemetry deserialize(byte[] data) throws CBORException {
-    CBORObject stCbor = CBORObject.DecodeFromBytes(data);
-    if (stCbor == null || stCbor.size() == 0) {
-      throw new IllegalArgumentException(
-          "CBOR object is not in status telemetry report format; must be a map");
-    }
-    if (!stCbor.ContainsKey("status")
-        || (!stCbor.get("status").isTrue() && !stCbor.get("status").isFalse())) {
-      throw new IllegalArgumentException(
-          "'status' field missing or not boolean in status telemetry report");
-    }
+  public static StatusTelemetry deserialize(byte[] data) {
     StatusTelemetry st = new StatusTelemetry();
-    st.status = stCbor.get("status").isTrue();
-    st.cbor = stCbor;
-    if (stCbor.ContainsKey("reason")) {
-      String r;
-      try {
-        r = stCbor.get("reason").AsString();
-      } catch (IllegalStateException ex) {
-        r = stCbor.get("reason").toString();
+    boolean isValidFormat = true;
+    try {
+      CBORObject stCbor = CBORObject.DecodeFromBytes(data);
+      if (stCbor == null || stCbor.size() == 0) {
+        isValidFormat = false;
+        st.parseResultStatus =
+            "CBOR object is not in status telemetry report format; it should be a map";
+        return st;
       }
-      st.reason = r;
+      if (!stCbor.ContainsKey("status")
+          || (!stCbor.get("status").isTrue() && !stCbor.get("status").isFalse())) {
+        isValidFormat = false;
+        st.parseResultStatus = "'status' field missing or not boolean in status telemetry report";
+      }
+
+      st.status = stCbor.get("status").isTrue();
+      st.cbor = stCbor;
+      if (stCbor.ContainsKey("reason")) {
+        String r;
+        try {
+          r = stCbor.get("reason").AsString();
+        } catch (IllegalStateException ex) {
+          r = stCbor.get("reason").toString();
+          isValidFormat = false;
+        }
+        st.reason = r;
+      }
+    } catch (CBORException ex) {
+      st.parseResultStatus = "Not a valid CBOR object";
+      isValidFormat = false;
     }
+
+    // evaluate cases of valid format.
+    if (!isValidFormat && ((st.status == false && st.reason.length() > 0) || (st.status == true)))
+      st.isValidFormat = true;
+
     return st;
   }
 }

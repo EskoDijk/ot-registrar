@@ -50,6 +50,8 @@ public class PledgeHardware {
   protected InputStreamReader serialReader = null;
   protected StringBuilder pledgeLog = null;
 
+  protected boolean statusIsEnrolled = false;
+
   private static Logger logger = LoggerFactory.getLogger(PledgeHardware.class);
 
   public PledgeHardware() throws IOException {
@@ -129,19 +131,6 @@ public class PledgeHardware {
   }
 
   /**
-   * read all available serial input from OT device, and store it in the log without further
-   * processing.
-   *
-   * @throws IOException
-   */
-  protected void readSerialLines() throws IOException {
-    while (serialReader.ready()) {
-      // flush the CLI command mirroring, logs, etc.
-      pledgeLog.append((char) serialReader.read());
-    }
-  }
-
-  /**
    * Execute a command (sent over serial to the hw Pledge) and return the response line(s).
    *
    * @param consoleCmd the command
@@ -179,7 +168,7 @@ public class PledgeHardware {
       s.append((char) serialReader.read());
     }
     String res = s.toString();
-    pledgeLog.append(res);
+    addToPledgeLog(res);
     String[] aRes = res.split("\n");
 
     if (filterOutLogLines && res.length() > 0) {
@@ -206,19 +195,27 @@ public class PledgeHardware {
    * to get a first message i.e. set of line(s), but does not block to get additional lines.
    *
    * @param maxWaitTimeMs milliseconds time to wait, at most.
-   * @return lines of the response message received, or empty array if nothing received within
+   * @return lines of the response message received, or null if nothing received within
    *     maxWaitTimeMs.
    * @throws IOException
    */
   public String[] waitForMessage(int maxWaitTimeMs) throws IOException {
     long t0 = System.currentTimeMillis();
-    while (System.currentTimeMillis() < t0 + maxWaitTimeMs) {
+    do {
       String[] aR = execCommand("", 100, true);
       if (aR.length > 0 && aR[0].length() > 0) {
         return aR;
       }
+    } while (System.currentTimeMillis() < t0 + maxWaitTimeMs);
+    return null;
+  }
+
+  public boolean isEnrolled() {
+    try {
+      while (waitForMessage(0) != null) ;
+    } catch (IOException ex) {;
     }
-    return new String[] {};
+    return statusIsEnrolled;
   }
 
   /**
@@ -228,5 +225,29 @@ public class PledgeHardware {
    */
   public String getLog() {
     return pledgeLog.toString();
+  }
+
+  /**
+   * read all available serial input from OT device, and store it in the log without further
+   * processing.
+   *
+   * @throws IOException
+   */
+  protected void readSerialLines() throws IOException {
+    StringBuilder s = new StringBuilder();
+    while (serialReader.ready()) {
+      // flush the CLI command mirroring, logs, etc.
+      s.append((char) serialReader.read());
+    }
+    if (s.length() > 0) {
+      // add new data to the Pledge log
+      addToPledgeLog(s.toString());
+    }
+  }
+
+  protected void addToPledgeLog(String log) {
+    pledgeLog.append(log);
+    statusIsEnrolled =
+        OpenThreadUtils.detectEnrollSuccess(log) && !OpenThreadUtils.detectEnrollFailure(log);
   }
 }

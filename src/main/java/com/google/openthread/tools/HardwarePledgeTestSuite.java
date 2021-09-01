@@ -38,7 +38,6 @@ import com.google.openthread.pledge.PledgeHardware;
 import com.google.openthread.registrar.*;
 import java.security.Principal;
 import java.security.cert.X509Certificate;
-import java.util.List;
 import org.junit.*;
 import org.slf4j.*;
 
@@ -130,6 +129,7 @@ public class HardwarePledgeTestSuite {
     Assert.assertTrue(pledge.execCommandDone("ifconfig down"));
     String nkey = pledge.execCommand("masterkey");
     Assert.assertTrue(nkey.length() == 32);
+    Assert.assertFalse(pledge.isEnrolled());
   }
 
   /**
@@ -139,20 +139,23 @@ public class HardwarePledgeTestSuite {
    */
   @Test
   public void testEnrollment() throws Exception {
+
     Assert.assertTrue(pledge.execCommandDone("ifconfig up"));
+    Assert.assertFalse(pledge.isEnrolled());
     Assert.assertTrue(pledge.execCommandDone("joiner startae"));
-    String[] aM = pledge.waitForMessage(20000);
+    pledge.waitForMessage(20000);
 
     // verify on registrar side that enrollment completed.
-    List<Principal> lClients = registrar.getKnownClients();
-    Assert.assertEquals(1, lClients.size());
-    StatusTelemetry voucherStatus = registrar.getVoucherStatusLogEntry(lClients.get(0));
-    StatusTelemetry enrollStatus = registrar.getEnrollStatusLogEntry(lClients.get(0));
+    Principal[] lClients = registrar.getKnownClients();
+    Assert.assertEquals(1, lClients.length);
+    StatusTelemetry voucherStatus = registrar.getVoucherStatusLogEntry(lClients[0]);
+    StatusTelemetry enrollStatus = registrar.getEnrollStatusLogEntry(lClients[0]);
+    Assert.assertNotNull(voucherStatus);
+    Assert.assertNotNull(enrollStatus);
     Assert.assertTrue(voucherStatus.status);
     Assert.assertTrue(enrollStatus.status);
 
     // verify same on pledge side.
-    Assert.assertTrue(aM.length > 0);
-    Assert.assertEquals("done", aM[0]);
+    Assert.assertTrue(pledge.isEnrolled());
   }
 }

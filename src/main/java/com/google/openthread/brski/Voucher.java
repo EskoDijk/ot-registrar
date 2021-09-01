@@ -35,6 +35,9 @@ import java.util.Date;
 
 public class Voucher {
 
+  /** single Voucher object representing an 'undefined' Voucher */
+  public static final Voucher UNDEFINED = new Voucher();
+
   public static final class Assertion {
 
     public static Assertion VERIFIED = new Assertion(0);

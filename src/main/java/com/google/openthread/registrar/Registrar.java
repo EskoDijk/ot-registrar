@@ -64,6 +64,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import javax.net.ssl.HttpsURLConnection;
@@ -193,7 +194,7 @@ public class Registrar extends CoapServer {
         RequestDumper.dump(logger, getURI(), exchange.getRequestPayload());
 
         Principal clientId = exchange.advanced().getRequest().getSourceContext().getPeerIdentity();
-        voucherStatusLog.put(clientId, null); // log the access by client
+        voucherStatusLog.put(clientId, StatusTelemetry.UNDEFINED); // log the access by client
 
         // TODO: check latest draft to see if JSON support is mandatory here.
         if (contentFormat != ExtendedMediaTypeRegistry.APPLICATION_CBOR) {
@@ -204,11 +205,9 @@ public class Registrar extends CoapServer {
           return;
         }
 
-        StatusTelemetry voucherStatus = null;
-        try {
-          voucherStatus = StatusTelemetry.deserialize(exchange.getRequestPayload());
-        } catch (Exception ex) {
-          logger.warn("decoding CBOR payload failed for voucher status report", ex);
+        StatusTelemetry voucherStatus = StatusTelemetry.deserialize(exchange.getRequestPayload());
+        if (voucherStatus.cbor == null) {
+          logger.warn("decoding CBOR payload failed for voucher status report");
           exchange.respond(ResponseCode.BAD_REQUEST);
           return;
         }
@@ -246,7 +245,7 @@ public class Registrar extends CoapServer {
         RequestDumper.dump(logger, getURI(), exchange.getRequestPayload());
 
         Principal clientId = exchange.advanced().getRequest().getSourceContext().getPeerIdentity();
-        enrollStatusLog.put(clientId, null); // log the access by client
+        enrollStatusLog.put(clientId, StatusTelemetry.UNDEFINED); // log the access by client
 
         // TODO: check latest draft if JSON mandatory here too.
         if (contentFormat != ExtendedMediaTypeRegistry.APPLICATION_CBOR) {
@@ -257,11 +256,9 @@ public class Registrar extends CoapServer {
           return;
         }
 
-        StatusTelemetry enrollStatus = null;
-        try {
-          enrollStatus = StatusTelemetry.deserialize(exchange.getRequestPayload());
-        } catch (Exception ex) {
-          logger.warn("decoding CBOR payload failed for enroll status report", ex);
+        StatusTelemetry enrollStatus = StatusTelemetry.deserialize(exchange.getRequestPayload());
+        if (enrollStatus.cbor == null) {
+          logger.warn("decoding CBOR payload failed for enroll status report");
           exchange.respond(ResponseCode.BAD_REQUEST);
           return;
         }
@@ -305,7 +302,7 @@ public class Registrar extends CoapServer {
           return;
         }
         X509Certificate idevid = ((X509CertPath) clientId).getTarget();
-        voucherLog.put(clientId, null); // log access by this client
+        voucherLog.put(clientId, Voucher.UNDEFINED); // log access by this client
 
         ConstrainedVoucherRequest pledgeReq = null;
 
@@ -515,7 +512,9 @@ public class Registrar extends CoapServer {
         }
 
         // verify CBOR/COSE voucher
-        Voucher v = new CBORSerializer().deserialize(response.getPayload());
+        Sign1Message sign1Msg =
+            (Sign1Message) Message.DecodeFromBytes(response.getPayload(), MessageTag.Sign1);
+        Voucher v = new CBORSerializer().deserialize(sign1Msg.GetContent());
 
         // voucher is ok, log it
         voucherLog.put(clientId, v);
@@ -807,12 +806,12 @@ public class Registrar extends CoapServer {
    *
    * @return
    */
-  public List<Principal> getKnownClients() {
-    List<Principal> l = new ArrayList<Principal>();
+  public Principal[] getKnownClients() {
+    HashSet<Principal> l = new HashSet<Principal>();
     l.addAll(voucherLog.keySet());
     l.addAll(voucherStatusLog.keySet());
     l.addAll(enrollStatusLog.keySet());
-    return l;
+    return l.toArray(new Principal[] {});
   }
 
   public StatusTelemetry getVoucherStatusLogEntry(Principal client) {

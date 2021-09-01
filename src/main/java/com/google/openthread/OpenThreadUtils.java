@@ -58,4 +58,22 @@ public class OpenThreadUtils {
     }
     return res.toArray(new String[] {});
   }
+
+  public static boolean detectEnrollSuccess(String log) {
+    if (log.length() == 0) return false;
+    String[] aL = log.split("\n");
+    for (String l : aL) {
+      if (l.trim().startsWith("Join success")) return true;
+    }
+    return false;
+  }
+
+  public static boolean detectEnrollFailure(String log) {
+    if (log.length() == 0) return false;
+    String[] aL = log.split("\n");
+    for (String l : aL) {
+      if (l.trim().startsWith("Join failed [")) return true;
+    }
+    return false;
+  }
 }
