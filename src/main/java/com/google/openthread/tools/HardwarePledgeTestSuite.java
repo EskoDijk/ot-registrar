@@ -36,7 +36,9 @@ import com.google.openthread.masa.*;
 import com.google.openthread.pledge.Pledge.*;
 import com.google.openthread.pledge.PledgeHardware;
 import com.google.openthread.registrar.*;
+import java.security.Principal;
 import java.security.cert.X509Certificate;
+import java.util.List;
 import org.junit.*;
 import org.slf4j.*;
 
@@ -139,7 +141,17 @@ public class HardwarePledgeTestSuite {
   public void testEnrollment() throws Exception {
     Assert.assertTrue(pledge.execCommandDone("ifconfig up"));
     Assert.assertTrue(pledge.execCommandDone("joiner startae"));
-    String[] aM = pledge.waitForMessage();
+    String[] aM = pledge.waitForMessage(20000);
+    
+    // verify on registrar side that enrollment completed.
+    List<Principal> lClients = registrar.getKnownClients();
+    Assert.assertEquals(1, lClients.size());
+    StatusTelemetry voucherStatus = registrar.getVoucherStatusLogEntry(lClients.get(0));
+    StatusTelemetry enrollStatus = registrar.getEnrollStatusLogEntry(lClients.get(0));
+    Assert.assertTrue(voucherStatus.status);
+    Assert.assertTrue(enrollStatus.status);
+    
+    // verify same on pledge side.
     Assert.assertTrue(aM.length > 0);
     Assert.assertEquals("done", aM[0]);
   }

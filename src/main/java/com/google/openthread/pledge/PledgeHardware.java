@@ -201,13 +201,24 @@ public class PledgeHardware {
     else return false;
   }
 
-  public String[] waitForMessage() throws IOException {
-    while (true) {
+  /**
+   * Wait for any (non-Log) message or response from the Pledge.
+   * It blocks for at most maxWaitTimeMs to get a first message i.e. set of line(s), but
+   * does not block to get additional lines.
+   * 
+   * @param maxWaitTimeMs milliseconds time to wait, at most.
+   * @return lines of the response message received, or empty array if nothing received within maxWaitTimeMs.
+   * @throws IOException
+   */
+  public String[] waitForMessage(int maxWaitTimeMs) throws IOException {
+    long t0 = System.currentTimeMillis();
+    while (System.currentTimeMillis() < t0 + maxWaitTimeMs ) {
       String[] aR = execCommand("", 100, true);
       if (aR.length > 0 && aR[0].length() > 0) {
         return aR;
       }
     }
+    return new String[] { };
   }
 
   /**

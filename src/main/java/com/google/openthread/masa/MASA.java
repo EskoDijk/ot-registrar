@@ -268,6 +268,9 @@ public class MASA {
     }
   }
 
+  /**
+   * TODO: should be removed, not-maintained CoAP support for MASA.
+   */
   final class VoucherRequestResource extends CoapResource {
     VoucherRequestResource() {
       super(Constants.REQUEST_VOUCHER);

@@ -204,6 +204,7 @@ public class SecurityUtils {
       String sUri = DERIA5String.fromByteArray(masaUri.getExtnValue().getOctets()).toString();
       return sUri;
     } catch (IOException e) {
+      // TODO throw exception from this method, remove the prints.
       e.printStackTrace();
       return null;
     } catch (CertificateEncodingException e) {
@@ -363,8 +364,7 @@ public class SecurityUtils {
     SignerInformationStore signers = signedData.getSignerInfos();
 
     for (SignerInformation signerInfo : signers.getSigners()) {
-      X509CertificateHolder holder =
-          (X509CertificateHolder) certs.getMatches(signerInfo.getSID()).iterator().next();
+      X509CertificateHolder holder = (X509CertificateHolder) certs.getMatches(signerInfo.getSID()).iterator().next();
 
       SignerInformationVerifier verifier = new JcaSimpleSignerInfoVerifierBuilder().build(holder);
       return signerInfo.verify(verifier);

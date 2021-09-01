@@ -45,6 +45,7 @@ import com.google.openthread.brski.CBORSerializer;
 import com.google.openthread.brski.ConstrainedVoucherRequest;
 import com.google.openthread.brski.JSONSerializer;
 import com.google.openthread.brski.RestfulVoucherResponse;
+import com.google.openthread.brski.StatusTelemetry;
 import com.google.openthread.brski.Voucher;
 import com.google.openthread.brski.VoucherRequest;
 import com.google.openthread.domainca.DomainCA;
@@ -62,7 +63,10 @@ import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.Dictionary;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -77,6 +81,7 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.exception.ConnectorException;
@@ -178,6 +183,7 @@ public class Registrar extends CoapServer {
   }
 
   public final class VoucherStatusResource extends CoapResource {
+
     public VoucherStatusResource() {
       super(Constants.VOUCHER_STATUS);
     }
@@ -188,27 +194,44 @@ public class Registrar extends CoapServer {
         int contentFormat = exchange.getRequestOptions().getContentFormat();
         RequestDumper.dump(logger, getURI(), exchange.getRequestPayload());
 
+        Principal clientId = exchange.advanced().getRequest().getSourceContext().getPeerIdentity();
+        voucherStatusLog.put(clientId, null);  // log the access by client
+
+        // TODO: check latest draft to see if JSON support is mandatory here.
         if (contentFormat != ExtendedMediaTypeRegistry.APPLICATION_CBOR) {
-          throw new Exception(
-              "unexpected content format for voucher status report: content-format="
-                  + contentFormat);
+          logger.warn("unsupported content-format for voucher status report: content-format=" + contentFormat);
+          exchange.respond(ResponseCode.UNSUPPORTED_CONTENT_FORMAT);
+          return;
         }
 
-        CBORObject voucherStatus = CBORObject.DecodeFromBytes(exchange.getRequestPayload());
-        if (voucherStatus == null) {
-          throw new Exception("decoding CBOR payload failed for voucher status report");
+        StatusTelemetry voucherStatus = null;
+        try{
+          voucherStatus = StatusTelemetry.deserialize(exchange.getRequestPayload());
         }
+        catch(Exception ex) {
+          logger.warn("decoding CBOR payload failed for voucher status report", ex);
+          exchange.respond(ResponseCode.BAD_REQUEST);
+          return;          
+        }
+        
+        logger.info("received voucher status report; status="+voucherStatus.status+": " + voucherStatus.toString());
 
-        logger.info("received voucher status report: " + voucherStatus.toString());
+        // log the result for this Pledge
+        voucherStatusLog.put(clientId, voucherStatus);
+        
       } catch (Exception e) {
-        logger.warn("handle voucher status report failed: " + e.getMessage(), e);
-      } finally {
-        exchange.respond(ResponseCode.CHANGED);
+        logger.warn("handle voucher status report failed with exception: " + e.getMessage(), e);
+        exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
+        return;
       }
+      
+      // success response
+      exchange.respond(ResponseCode.CHANGED);
     }
   }
 
   public final class EnrollStatusResource extends CoapResource {
+    
     public EnrollStatusResource() {
       super(Constants.ENROLL_STATUS);
     }
@@ -219,27 +242,42 @@ public class Registrar extends CoapServer {
         int contentFormat = exchange.getRequestOptions().getContentFormat();
         RequestDumper.dump(logger, getURI(), exchange.getRequestPayload());
 
+        Principal clientId = exchange.advanced().getRequest().getSourceContext().getPeerIdentity();
+        enrollStatusLog.put(clientId, null);  // log the access by client
+
+        // TODO: check latest draft if JSON mandatory here too.
         if (contentFormat != ExtendedMediaTypeRegistry.APPLICATION_CBOR) {
-          throw new Exception(
-              "unexpected content format for enroll status report: content-format="
-                  + contentFormat);
+          logger.warn("unexpected content format for enroll status report: content-format=" + contentFormat);
+          exchange.respond(ResponseCode.UNSUPPORTED_CONTENT_FORMAT);
+          return;
         }
 
-        CBORObject enrollStatus = CBORObject.DecodeFromBytes(exchange.getRequestPayload());
-        if (enrollStatus == null) {
-          throw new Exception("decoding CBOR payload failed for enroll status report");
+        StatusTelemetry enrollStatus = null;
+        try{
+          enrollStatus = StatusTelemetry.deserialize(exchange.getRequestPayload());
+        }
+        catch(Exception ex) {
+          logger.warn("decoding CBOR payload failed for enroll status report", ex);
+          exchange.respond(ResponseCode.BAD_REQUEST);
+          return;
         }
 
-        logger.info("received enroll status report: " + enrollStatus.toString());
+        logger.info("received enroll status report; status="+enrollStatus.status+": " + enrollStatus.toString());
+
+        // log the result for this Pledge
+        voucherStatusLog.put(clientId, enrollStatus);
+        
       } catch (Exception e) {
-        logger.warn("handle enroll status report failed: " + e.getMessage(), e);
-      } finally {
-        exchange.respond(ResponseCode.CHANGED);
-      }
+        logger.warn("handle enroll status report failed with exception: " + e.getMessage(), e);
+        exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
+        return;
+      } 
+      exchange.respond(ResponseCode.CHANGED);
     }
   }
 
   public final class VoucherRequestResource extends CoapResource {
+    
     public VoucherRequestResource() {
       super(Constants.REQUEST_VOUCHER);
     }
@@ -259,6 +297,7 @@ public class Registrar extends CoapServer {
           return;
         }
         X509Certificate idevid = ((X509CertPath) clientId).getTarget();
+        voucherLog.put(clientId, null); // log access by this client
 
         ConstrainedVoucherRequest pledgeReq = null;
 
@@ -372,10 +411,8 @@ public class Registrar extends CoapServer {
 
         // use CMS or COSE signing of the voucher request.
         byte[] payload;
-        boolean isCms =
-            (forcedVoucherRequestFormat == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_CBOR
-                || forcedVoucherRequestFormat
-                    == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON);
+        boolean isCms = (forcedVoucherRequestFormat == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_CBOR
+                        || forcedVoucherRequestFormat == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON);
         if (isCms) {
           // CMS signing.
           requestMediaType =
@@ -404,8 +441,7 @@ public class Registrar extends CoapServer {
           requestMediaType = Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR;
           requestContentFormat = ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR;
           try {
-            payload =
-                SecurityUtils.genCoseSign1Message(
+            payload = SecurityUtils.genCoseSign1Message(
                     privateKey, SecurityUtils.COSE_SIGNATURE_ALGORITHM, content, certificateChain);
           } catch (Exception e) {
             logger.warn("COSE signing voucher request failed: " + e.getMessage(), e);
@@ -467,6 +503,12 @@ public class Registrar extends CoapServer {
           return;
         }
 
+        // verify CBOR/COSE voucher
+        Voucher v = new CBORSerializer().deserialize(response.getPayload());
+        
+        // voucher is ok, log it
+        voucherLog.put(clientId, v); 
+        
         // Registrar forwards MASA's success response without modification
         exchange.respond(
             response.getCoapCode(),
@@ -749,6 +791,30 @@ public class Registrar extends CoapServer {
     }
   }
 
+  /**
+   * return a List of all clients that ever used this Registrar.
+   * @return
+   */
+  public List<Principal> getKnownClients() {
+    List<Principal> l = new ArrayList<Principal>();
+    l.addAll(voucherLog.keySet());
+    l.addAll(voucherStatusLog.keySet());
+    l.addAll(enrollStatusLog.keySet());
+    return l;
+  }
+  
+  public StatusTelemetry getVoucherStatusLogEntry(Principal client) {
+    if (voucherStatusLog.containsKey(client))
+      return voucherStatusLog.get(client);
+    return null;
+  }
+  
+  public StatusTelemetry getEnrollStatusLogEntry(Principal client) {
+    if (enrollStatusLog.containsKey(client))
+      return enrollStatusLog.get(client);
+    return null;
+  }
+  
   X509Certificate getCertificate() {
     return certificateChain[0];
   }
@@ -809,9 +875,8 @@ public class Registrar extends CoapServer {
             certificateChain,
             new RegistrarCertificateVerifier(null) // trust ALL - default for a testing Registrar.
             // new RegistrarCertificateVerifier(trustAnchors.toArray(new
-            // X509Certificate[trustAnchors.size()])) // trust only my known MASA - for stricter
-            // testing.
-            );
+            // X509Certificate[trustAnchors.size()])) // trust only my known MASA - for stricter testing.
+        );
     addEndpoint(endpoint);
   }
 
@@ -835,5 +900,11 @@ public class Registrar extends CoapServer {
 
   protected String setForcedMasaUri = null;
 
+  protected Map<Principal,StatusTelemetry> enrollStatusLog = new HashMap<Principal,StatusTelemetry>();
+  
+  protected Map<Principal,StatusTelemetry> voucherStatusLog = new HashMap<Principal,StatusTelemetry>();
+  
+  protected Map<Principal,Voucher> voucherLog = new HashMap<Principal,Voucher>();
+  
   private static Logger logger = LoggerFactory.getLogger(Registrar.class);
 }

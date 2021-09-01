@@ -68,14 +68,12 @@ public final class ExtendedMediaTypeRegistry extends MediaTypeRegistry {
   private static final HashMap<Integer, String[]> extRegistry = new HashMap<Integer, String[]>();
 
   static {
+    add(APPLICATION_COSE_SIGN1, "application/cose; cose-type=\"cose-sign1\"", "cose");
     add(APPLICATION_VOUCHER_COSE_CBOR, "application/voucher-cose+cbor", "cose");
     add(APPLICATION_VOUCHER_CMS_CBOR, "application/voucher-cms+cbor", "cms");
     add(APPLICATION_VOUCHER_CMS_JSON, "application/voucher-cms+json", "cms");
     add(APPLICATION_CWT, "application/cwt", "cwt");
-    add(
-        APPLICATION_PKCS7_MIME_CERTS_ONLY,
-        "application/pkcs7-mime; smime-type=certs-only",
-        "pkcs7");
+    add(APPLICATION_PKCS7_MIME_CERTS_ONLY, "application/pkcs7-mime; smime-type=certs-only", "pkcs7");
     add(APPLICATION_CSRATTRS, "application/csrattrs", "csrattrs");
     add(APPLICATION_PKCS10, "application/pkcs10", "pkcs10");
     add(APPLICATION_PKIX_CERT, "application/pkix-cert", "crt");
