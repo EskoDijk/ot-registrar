@@ -32,32 +32,27 @@ import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
 
 /**
- * Represents a status telemetry message as received from a Pledge; either 
- * enrollment status telemetry or voucher status telemetry. 
+ * Represents a status telemetry message as received from a Pledge; either enrollment status
+ * telemetry or voucher status telemetry.
  */
 public class StatusTelemetry {
 
-  /**
-   * status field of telemetry report, success (true) or failure (false)
-   */
-  public boolean status ;
-  
-  /**
-   * in case of failure (status==false), contains the reason for failure given, if any.
-   */
+  /** status field of telemetry report, success (true) or failure (false) */
+  public boolean status;
+
+  /** in case of failure (status==false), contains the reason for failure given, if any. */
   public String reason = "";
-  
-  /**
-   * stores the CBOR object as sent by the Pledge, for reference.
-   */
+
+  /** stores the CBOR object as sent by the Pledge, for reference. */
   public CBORObject cbor = null;
-  
+
   protected StatusTelemetry() {
     ;
   }
-  
+
   /**
    * Deserialize a status telemetry report from CBOR bytes.
+   *
    * @param data CBOR bytes
    * @return new StatusTelemetry object
    * @throws CBORException if CBOR cannot be parsed from data
@@ -65,20 +60,23 @@ public class StatusTelemetry {
    */
   public static StatusTelemetry deserialize(byte[] data) throws CBORException {
     CBORObject stCbor = CBORObject.DecodeFromBytes(data);
-    if (stCbor==null || stCbor.size() == 0) {
-      throw new IllegalArgumentException("CBOR object is not in status telemetry report format; must be a map");
+    if (stCbor == null || stCbor.size() == 0) {
+      throw new IllegalArgumentException(
+          "CBOR object is not in status telemetry report format; must be a map");
     }
-    if (!stCbor.ContainsKey("status") || ( !stCbor.get("status").isTrue() && !stCbor.get("status").isFalse() )) {
-      throw new IllegalArgumentException("'status' field missing or not boolean in status telemetry report");
+    if (!stCbor.ContainsKey("status")
+        || (!stCbor.get("status").isTrue() && !stCbor.get("status").isFalse())) {
+      throw new IllegalArgumentException(
+          "'status' field missing or not boolean in status telemetry report");
     }
     StatusTelemetry st = new StatusTelemetry();
     st.status = stCbor.get("status").isTrue();
     st.cbor = stCbor;
-    if(stCbor.ContainsKey("reason")) {
+    if (stCbor.ContainsKey("reason")) {
       String r;
-      try{
-        r = stCbor.get("reason").AsString();        
-      }catch(IllegalStateException ex) {
+      try {
+        r = stCbor.get("reason").AsString();
+      } catch (IllegalStateException ex) {
         r = stCbor.get("reason").toString();
       }
       st.reason = r;
@@ -86,4 +84,3 @@ public class StatusTelemetry {
     return st;
   }
 }
-

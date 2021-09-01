@@ -142,7 +142,7 @@ public class HardwarePledgeTestSuite {
     Assert.assertTrue(pledge.execCommandDone("ifconfig up"));
     Assert.assertTrue(pledge.execCommandDone("joiner startae"));
     String[] aM = pledge.waitForMessage(20000);
-    
+
     // verify on registrar side that enrollment completed.
     List<Principal> lClients = registrar.getKnownClients();
     Assert.assertEquals(1, lClients.size());
@@ -150,7 +150,7 @@ public class HardwarePledgeTestSuite {
     StatusTelemetry enrollStatus = registrar.getEnrollStatusLogEntry(lClients.get(0));
     Assert.assertTrue(voucherStatus.status);
     Assert.assertTrue(enrollStatus.status);
-    
+
     // verify same on pledge side.
     Assert.assertTrue(aM.length > 0);
     Assert.assertEquals("done", aM[0]);

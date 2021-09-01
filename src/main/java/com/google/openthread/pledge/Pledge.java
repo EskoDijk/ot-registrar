@@ -259,7 +259,8 @@ public class Pledge extends CoapClient {
       throw new PledgeException(
           "voucher request failed: " + response.getCode().toString(), response.getCode());
     }
-    if (response.getOptions().getContentFormat() != ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR) {
+    if (response.getOptions().getContentFormat()
+        != ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR) {
       throw new PledgeException(
           String.format(
               "expect voucher in format[%d], but got [%d]",
@@ -281,16 +282,19 @@ public class Pledge extends CoapClient {
       }
 
       // 2.1 verify the voucher
-      ConstrainedVoucher voucher = (ConstrainedVoucher) new CBORSerializer().deserialize(msg.GetContent());
+      ConstrainedVoucher voucher =
+          (ConstrainedVoucher) new CBORSerializer().deserialize(msg.GetContent());
       if (!voucher.validate()) {
         throw new PledgeException("voucher validation failed");
       }
 
       if (!voucher.serialNumber.equals(req.serialNumber)
-          || !Arrays.equals(voucher.idevidIssuer, SecurityUtils.getAuthorityKeyId(getCertificate()))) {
+          || !Arrays.equals(
+              voucher.idevidIssuer, SecurityUtils.getAuthorityKeyId(getCertificate()))) {
         throw new PledgeException("serial number or idevid-issuer not matched");
       }
-      if (req.nonce != null && (voucher.nonce == null || !Arrays.equals(req.nonce, voucher.nonce))) {
+      if (req.nonce != null
+          && (voucher.nonce == null || !Arrays.equals(req.nonce, voucher.nonce))) {
         throw new PledgeException("nonce not matched");
       }
       // TODO(wgtdkp): if nonce is not presented, make sure that the voucher is not expired
@@ -299,7 +303,8 @@ public class Pledge extends CoapClient {
         SubjectPublicKeyInfo spki = SubjectPublicKeyInfo.getInstance(voucher.pinnedDomainSPKI);
         X509EncodedKeySpec xspec = new X509EncodedKeySpec(spki.getEncoded());
         AlgorithmIdentifier keyAlg = spki.getAlgorithm();
-        domainPublicKey = KeyFactory.getInstance(keyAlg.getAlgorithm().getId()).generatePublic(xspec);
+        domainPublicKey =
+            KeyFactory.getInstance(keyAlg.getAlgorithm().getId()).generatePublic(xspec);
       } else {
         CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
         Certificate domainCert =

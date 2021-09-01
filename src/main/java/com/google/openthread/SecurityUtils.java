@@ -364,7 +364,8 @@ public class SecurityUtils {
     SignerInformationStore signers = signedData.getSignerInfos();
 
     for (SignerInformation signerInfo : signers.getSigners()) {
-      X509CertificateHolder holder = (X509CertificateHolder) certs.getMatches(signerInfo.getSID()).iterator().next();
+      X509CertificateHolder holder =
+          (X509CertificateHolder) certs.getMatches(signerInfo.getSID()).iterator().next();
 
       SignerInformationVerifier verifier = new JcaSimpleSignerInfoVerifierBuilder().build(holder);
       return signerInfo.verify(verifier);
