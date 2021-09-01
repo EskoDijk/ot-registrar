@@ -814,20 +814,46 @@ public class Registrar extends CoapServer {
     return l.toArray(new Principal[] {});
   }
 
+  /**
+   * get the last voucher-status telemetry that was sent by a specific client.
+   *
+   * @param client the secure client identifier
+   * @returns If available, the last voucher-status telemetry. If client did not send any
+   *     voucher-status telemetry, it returns null. If client did send voucher-status telemetry, but
+   *     in an unrecognized format, it returns StatusTelemetry.UNDEFINED.
+   */
   public StatusTelemetry getVoucherStatusLogEntry(Principal client) {
     if (voucherStatusLog.containsKey(client)) return voucherStatusLog.get(client);
     return null;
   }
 
+  /**
+   * get the last enroll-status telemetry that was sent by a specific client.
+   *
+   * @param client the secure client identifier
+   * @returns If available, the last enroll-status telemetry. If client did not send any
+   *     enroll-status telemetry, it returns null. If client did send enroll-status telemetry, but
+   *     in an unrecognized format, it returns StatusTelemetry.UNDEFINED.
+   */
   public StatusTelemetry getEnrollStatusLogEntry(Principal client) {
     if (enrollStatusLog.containsKey(client)) return enrollStatusLog.get(client);
     return null;
   }
 
+  /**
+   * get the Registrar's EE certificate
+   *
+   * @return
+   */
   X509Certificate getCertificate() {
     return certificateChain[0];
   }
 
+  /**
+   * get the Registrar's Domain (CA) certificate, i.e. the top-level certificate in the chain.
+   *
+   * @return
+   */
   X509Certificate getDomainCertificate() {
     return certificateChain[certificateChain.length - 1];
   }

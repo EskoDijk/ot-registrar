@@ -150,10 +150,18 @@ public class HardwarePledgeTestSuite {
     Assert.assertEquals(1, lClients.length);
     StatusTelemetry voucherStatus = registrar.getVoucherStatusLogEntry(lClients[0]);
     StatusTelemetry enrollStatus = registrar.getEnrollStatusLogEntry(lClients[0]);
+
+    // verify voucherStatus aspects
     Assert.assertNotNull(voucherStatus);
-    Assert.assertNotNull(enrollStatus);
+    Assert.assertNotEquals(StatusTelemetry.UNDEFINED, voucherStatus);
     Assert.assertTrue(voucherStatus.status);
+    Assert.assertTrue(voucherStatus.isValidFormat);
+
+    // verify enrollStatus aspects
+    Assert.assertNotNull(enrollStatus);
+    Assert.assertNotEquals(StatusTelemetry.UNDEFINED, enrollStatus);
     Assert.assertTrue(enrollStatus.status);
+    Assert.assertTrue(enrollStatus.isValidFormat);
 
     // verify same on pledge side.
     Assert.assertTrue(pledge.isEnrolled());
