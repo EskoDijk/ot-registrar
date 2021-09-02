@@ -270,7 +270,7 @@ public class Registrar extends CoapServer {
                 + enrollStatus.toString());
 
         // log the result for this Pledge
-        voucherStatusLog.put(clientId, enrollStatus);
+        enrollStatusLog.put(clientId, enrollStatus);
 
       } catch (Exception e) {
         logger.warn("handle enroll status report failed with exception: " + e.getMessage(), e);
