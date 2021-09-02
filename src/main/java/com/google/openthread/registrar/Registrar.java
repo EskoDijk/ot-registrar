@@ -303,6 +303,7 @@ public class Registrar extends CoapServer {
         }
         X509Certificate idevid = ((X509CertPath) clientId).getTarget();
         voucherLog.put(clientId, Voucher.UNDEFINED); // log access by this client
+        logger.debug("Public key of current client: " + Hex.toHexString(idevid.getPublicKey().getEncoded()));
 
         ConstrainedVoucherRequest pledgeReq = null;
 
