@@ -42,7 +42,6 @@ public class NetworkUtilsTest {
     InetAddress ia = Inet6Address.getByName(host);
     Assert.assertNotNull(ia);
     Assert.assertFalse(ia.isLinkLocalAddress());
-    Assert.assertFalse(ia.isLoopbackAddress());
     Assert.assertFalse(ia.isMulticastAddress());
   }
 

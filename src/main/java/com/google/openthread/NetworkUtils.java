@@ -39,15 +39,16 @@ public class NetworkUtils {
 
   /**
    * Returns the IPv6-specific host string for a global address of the current host. For example,
-   * "[2001:db8::3]".
+   * "[2001:db8::3]". If no global IPv6 available it returns "[::1]". It will try to find an address
+   * over all interfaces.
    *
-   * @return IPv6-specific host string or null if not found.
+   * @return IPv6-specific host string or "[::1]" if no global address available.
    */
   public static String getIPv6Host() throws UnknownHostException, SocketException {
     NetworkInterface nif;
     Enumeration<NetworkInterface> nifs;
     InetAddress addr;
-    String retVal = null;
+    String retVal = "[::1]";
     nifs = NetworkInterface.getNetworkInterfaces();
 
     // look for addresses per NIF
