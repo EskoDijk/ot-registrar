@@ -57,7 +57,10 @@ public class HardwarePledgeTestSuite {
 
   public static final String DEFAULT_DOMAIN_NAME = "Thread-Test";
   public static final int IEEE_802154_CHANNEL = 19;
-
+  public static final String[] MASA_CREDENTIAL_FILES =
+      new String[] {
+        "./credentials/local-masa/masa_cert.pem", "./credentials/local-masa/masa_private.pem"
+      };
   private DomainCA domainCA;
   private Registrar registrar;
   private Commissioner commissioner;
@@ -71,7 +74,7 @@ public class HardwarePledgeTestSuite {
   @BeforeClass
   public static void setup() throws Exception {
     cg = new CredentialGenerator();
-    cg.make(null, null, null, null);
+    cg.make(null, MASA_CREDENTIAL_FILES, null, null);
     pledge = new PledgeHardware();
     Assert.assertTrue(pledge.factoryReset());
     Assert.assertTrue(pledge.execCommandDone("channel " + IEEE_802154_CHANNEL));
@@ -158,14 +161,14 @@ public class HardwarePledgeTestSuite {
     // verify voucherStatus aspects
     Assert.assertNotNull(voucherStatus);
     Assert.assertNotEquals(StatusTelemetry.UNDEFINED, voucherStatus);
-    Assert.assertTrue(voucherStatus.status);
-    Assert.assertTrue(voucherStatus.isValidFormat);
+    Assert.assertEquals(true, voucherStatus.status);
+    Assert.assertEquals(true, voucherStatus.isValidFormat);
 
     // verify enrollStatus aspects
     Assert.assertNotNull(enrollStatus);
     Assert.assertNotEquals(StatusTelemetry.UNDEFINED, enrollStatus);
-    Assert.assertTrue(enrollStatus.status);
-    Assert.assertTrue(enrollStatus.isValidFormat);
+    Assert.assertEquals(true, enrollStatus.status);
+    Assert.assertEquals(true, enrollStatus.isValidFormat);
 
     // verify same on pledge side.
     Assert.assertTrue(pledge.isEnrolled());
