@@ -39,14 +39,20 @@ import com.google.openthread.registrar.*;
 import java.security.Principal;
 import java.security.cert.X509Certificate;
 import org.junit.*;
+import org.junit.runners.*;
 import org.slf4j.*;
 
 /**
  * A tool to test a Hardware Pledge (OpenThread CLI device) against the Registrar/MASA. The specific
  * setup of Thread Network so that the Pledge can reach the Registrar, is up to the user and out of
- * scope of this tool.
+ * scope of this tool. It uses JUnit framework for easy GUI usage e.g. in Eclipse; consider these as
+ * integration tests of the hardware Pledge.
+ *
+ * <p>Using Maven, this test suite is NOT executed during Maven test phase unit testing. So, it
+ * needs to be explicitly invoked.
  */
 // @Ignore("The PledgeHw* tests can only be run with hardware Pledge and network setup, skipping.")
+@FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class HardwarePledgeTestSuite {
 
   public static final String DEFAULT_DOMAIN_NAME = "Thread-Test";
@@ -118,12 +124,8 @@ public class HardwarePledgeTestSuite {
     masa.stop();
   }
 
-  private void VerifyEnroll(PledgeHardware pledge) throws Exception {}
-
-  private void VerifyPledge(PledgeHardware pledge) {}
-
   @Test
-  public void testBasicResponses() throws Exception {
+  public void test01_BasicResponses() throws Exception {
     Assert.assertEquals("1.2", pledge.execCommand("thread version"));
     Assert.assertTrue(pledge.execCommandDone("ifconfig up"));
     Assert.assertTrue(pledge.execCommandDone("ifconfig down"));
@@ -138,7 +140,9 @@ public class HardwarePledgeTestSuite {
    * @throws Exception
    */
   @Test
-  public void testEnrollment() throws Exception {
+  public void test02_Enrollment() throws Exception {
+
+    if (pledge.isEnrolled()) pledge.factoryReset();
 
     Assert.assertTrue(pledge.execCommandDone("ifconfig up"));
     Assert.assertFalse(pledge.isEnrolled());
@@ -165,5 +169,31 @@ public class HardwarePledgeTestSuite {
 
     // verify same on pledge side.
     Assert.assertTrue(pledge.isEnrolled());
+  }
+
+  /**
+   * Network Key Provisioning (NKP) after enrollment.
+   *
+   * @throws Exception
+   */
+  @Test
+  public void test03_NetworkKeyProvisioning() throws Exception {
+
+    // Need to be enrolled to do NKP.
+    if (!pledge.isEnrolled()) test02_Enrollment();
+
+    String oldkey = pledge.execCommand("masterkey");
+    Assert.assertTrue(pledge.isEnrolled());
+    Assert.assertTrue(pledge.execCommandDone("joiner startnmkp"));
+    pledge.waitForMessage(15000);
+    String newkey = pledge.execCommand("masterkey");
+    Assert.assertNotEquals(oldkey, newkey);
+
+    // join Thread network
+    Assert.assertEquals("disabled", pledge.execCommand("state"));
+    Assert.assertTrue(pledge.execCommandDone("thread start"));
+    Thread.sleep(3000);
+    Assert.assertNotEquals("disabled", pledge.execCommand("state")); // verify thread is started
+    Assert.assertEquals("false", pledge.execCommand("singleton")); // verify I joined with BR.
   }
 }
