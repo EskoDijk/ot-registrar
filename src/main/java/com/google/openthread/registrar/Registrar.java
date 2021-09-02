@@ -313,12 +313,13 @@ public class Registrar extends CoapServer {
               (Sign1Message)
                   Message.DecodeFromBytes(exchange.getRequestPayload(), MessageTag.Sign1);
           if (!sign1Msg.validate(new OneKey(idevid.getPublicKey(), null))) {
-            throw new CoseException("COSE-sign1 voucher validation failed");
+            logger.error("COSE-sign1 voucher-request validation failed");
+            exchange.respond(ResponseCode.NOT_FOUND, "COSE-Sign1 validation failed");
+            return;
           }
 
           // 2.1 verify the voucher
-          pledgeReq =
-              (ConstrainedVoucherRequest) new CBORSerializer().deserialize(sign1Msg.GetContent());
+          pledgeReq = (ConstrainedVoucherRequest) new CBORSerializer().deserialize(sign1Msg.GetContent());
         } else if (contentFormat == ExtendedMediaTypeRegistry.APPLICATION_CBOR) {
           pledgeReq =
               (ConstrainedVoucherRequest)
