@@ -33,9 +33,9 @@ import com.google.openthread.brski.*;
 import com.google.openthread.commissioner.*;
 import com.google.openthread.domainca.*;
 import com.google.openthread.masa.*;
-import com.google.openthread.pledge.Pledge.*;
-import com.google.openthread.pledge.PledgeHardware;
+import com.google.openthread.pledge.*;
 import com.google.openthread.registrar.*;
+import static org.junit.Assert.*;
 import java.security.Principal;
 import java.security.cert.X509Certificate;
 import org.junit.*;
@@ -43,15 +43,17 @@ import org.junit.runners.*;
 import org.slf4j.*;
 
 /**
- * A tool to test a Hardware Pledge (OpenThread CLI device) against the Registrar/MASA. The specific
- * setup of Thread Network so that the Pledge can reach the Registrar, is up to the user and out of
+ * A tool to test a Hardware Pledge DUT (OpenThread CLI device) against the Registrar/MASA. The specific
+ * network setup so that the Pledge can reach the Registrar, is to be done by the user and out of
  * scope of this tool. It uses JUnit framework for easy GUI usage e.g. in Eclipse; consider these as
  * integration tests of the hardware Pledge.
  *
  * <p>Using Maven, this test suite is NOT executed during Maven test phase unit testing. So, it
  * needs to be explicitly invoked.
  */
+// One can enable this line to let Eclipse JUnit ignore this test when running all unit tests from the GUI.
 // @Ignore("The PledgeHw* tests can only be run with hardware Pledge and network setup, skipping.")
+// Below test order is not mandatory, but saves time if executed in order.
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class HardwarePledgeTestSuite {
 
@@ -66,25 +68,23 @@ public class HardwarePledgeTestSuite {
   private Commissioner commissioner;
   private MASA masa;
   private static PledgeHardware pledge;
-
-  private static CredentialGenerator cg;
-
+  private static CredentialGenerator credGen;
   private static Logger logger = LoggerFactory.getLogger(HardwarePledgeTestSuite.class);
 
   @BeforeClass
   public static void setup() throws Exception {
-    cg = new CredentialGenerator();
-    cg.make(null, MASA_CREDENTIAL_FILES, null, null);
+    credGen = new CredentialGenerator();
+    credGen.make(null, MASA_CREDENTIAL_FILES, null, null);
     pledge = new PledgeHardware();
-    Assert.assertTrue(pledge.factoryReset());
-    Assert.assertTrue(pledge.execCommandDone("channel " + IEEE_802154_CHANNEL));
+    assertTrue(pledge.factoryReset());
+    assertTrue(pledge.execCommandDone("channel " + IEEE_802154_CHANNEL));
   }
 
   @AfterClass
   public static void tearDown() {
     if (pledge != null) {
-      logger.info(pledge.getLog());
       pledge.shutdown();
+      logger.info(pledge.getLog()); // dump the Pledge's log, to aid troubleshooting.
     }
   }
 
@@ -92,29 +92,29 @@ public class HardwarePledgeTestSuite {
   public void init() throws Exception {
     masa =
         new MASA(
-            cg.masaKeyPair.getPrivate(),
-            cg.masaCert,
-            cg.getCredentials(CredentialGenerator.MASA_ALIAS),
+            credGen.masaKeyPair.getPrivate(),
+            credGen.masaCert,
+            credGen.getCredentials(CredentialGenerator.MASA_ALIAS),
             Constants.DEFAULT_MASA_HTTPS_PORT,
             false);
 
-    domainCA = new DomainCA(DEFAULT_DOMAIN_NAME, cg.domaincaKeyPair.getPrivate(), cg.domaincaCert);
+    domainCA = new DomainCA(DEFAULT_DOMAIN_NAME, credGen.domaincaKeyPair.getPrivate(), credGen.domaincaCert);
 
     RegistrarBuilder registrarBuilder = new RegistrarBuilder();
     registrar =
         registrarBuilder
-            .setPrivateKey(cg.registrarKeyPair.getPrivate())
-            .setCertificateChain(new X509Certificate[] {cg.registrarCert, cg.domaincaCert})
-            .addMasaCertificate(cg.masaCert)
-            .setMasaClientCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
+            .setPrivateKey(credGen.registrarKeyPair.getPrivate())
+            .setCertificateChain(new X509Certificate[] {credGen.registrarCert, credGen.domaincaCert})
+            .addMasaCertificate(credGen.masaCert)
+            .setMasaClientCredentials(credGen.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
             .setForcedMasaUri(Constants.DEFAULT_MASA_URI)
             .build();
     registrar.setDomainCA(domainCA);
 
     commissioner =
         new Commissioner(
-            cg.commissionerKeyPair.getPrivate(),
-            new X509Certificate[] {cg.commissionerCert, cg.domaincaCert});
+            credGen.commissionerKeyPair.getPrivate(),
+            new X509Certificate[] {credGen.commissionerCert, credGen.domaincaCert});
 
     masa.start();
     registrar.start();
@@ -127,76 +127,119 @@ public class HardwarePledgeTestSuite {
     masa.stop();
   }
 
+  /**
+   * Basic test for DUT Pledge response
+   */
   @Test
-  public void test01_BasicResponses() throws Exception {
-    Assert.assertEquals("1.2", pledge.execCommand("thread version"));
-    Assert.assertTrue(pledge.execCommandDone("ifconfig up"));
-    Assert.assertTrue(pledge.execCommandDone("ifconfig down"));
+  public void testDUT_responds() throws Exception {
+    assertEquals(PledgeHardware.THREAD_VERSION_PLEDGE, pledge.execCommand("thread version"));
+    assertTrue(pledge.execCommandDone("ifconfig down"));
+    assertTrue(pledge.execCommandDone("ifconfig up"));
     String nkey = pledge.execCommand("masterkey");
-    Assert.assertTrue(nkey.length() == 32);
-    Assert.assertFalse(pledge.isEnrolled());
+    assertTrue(nkey.length() == 32);
   }
 
   /**
-   * Regular BRSKI + EST enrollment
-   *
-   * @throws Exception
+   * DISC-TC-01:
    */
   @Test
-  public void test02_Enrollment() throws Exception {
+  public void test_5_02_DISC_TC_01() throws Exception {
+    if (pledge.isEnrolled()) pledge.factoryReset();
+    assertFalse(pledge.isEnrolled());
+    assertTrue(pledge.execCommandDone("joiner startae"));
+    String[] aResp = pledge.waitForMessage(20000);
+    assertNotNull(aResp);
+    for(String r : aResp) {
+      assertFalse(r.contains("[NotFound]"));
+    }        
+  }
+  
+  /**
+   * DISC-TC-02:
+   */
+  @Test
+  public void test_5_02_DISC_TC_02() throws Exception {
+    if (!pledge.isEnrolled())
+      pledge.enroll();
+    // TBD
+  }
+  
+  /**
+   * AE-TC-01: Regular BRSKI + EST enrollment
+   */
+  @Test
+  public void test_5_05_AE_TC_01() throws Exception {
 
     if (pledge.isEnrolled()) pledge.factoryReset();
 
-    Assert.assertTrue(pledge.execCommandDone("ifconfig up"));
-    Assert.assertFalse(pledge.isEnrolled());
-    Assert.assertTrue(pledge.execCommandDone("joiner startae"));
+    assertFalse(pledge.isEnrolled());
+    assertTrue(pledge.execCommandDone("joiner startae"));
     pledge.waitForMessage(20000);
 
     // verify on registrar side that enrollment completed.
     Principal[] lClients = registrar.getKnownClients();
-    Assert.assertEquals(1, lClients.length);
+    assertEquals(1, lClients.length);
     StatusTelemetry voucherStatus = registrar.getVoucherStatusLogEntry(lClients[0]);
     StatusTelemetry enrollStatus = registrar.getEnrollStatusLogEntry(lClients[0]);
 
     // verify voucherStatus aspects
-    Assert.assertNotNull(voucherStatus);
-    Assert.assertNotEquals(StatusTelemetry.UNDEFINED, voucherStatus);
-    Assert.assertEquals(true, voucherStatus.status);
-    Assert.assertEquals(true, voucherStatus.isValidFormat);
+    assertNotNull(voucherStatus);
+    assertNotEquals(StatusTelemetry.UNDEFINED, voucherStatus);
+    assertEquals(true, voucherStatus.status);
+    assertEquals(true, voucherStatus.isValidFormat);
 
     // verify enrollStatus aspects
-    Assert.assertNotNull(enrollStatus);
-    Assert.assertNotEquals(StatusTelemetry.UNDEFINED, enrollStatus);
-    Assert.assertEquals(true, enrollStatus.status);
-    Assert.assertEquals(true, enrollStatus.isValidFormat);
+    assertNotNull(enrollStatus);
+    assertNotEquals(StatusTelemetry.UNDEFINED, enrollStatus);
+    assertEquals(true, enrollStatus.status);
+    assertEquals(true, enrollStatus.isValidFormat);
 
     // verify same on pledge side.
-    Assert.assertTrue(pledge.isEnrolled());
+    assertTrue(pledge.isEnrolled());
   }
 
   /**
-   * Network Key Provisioning (NKP) after enrollment.
-   *
-   * @throws Exception
+   * NMKP-TC-01:
    */
   @Test
-  public void test03_NetworkKeyProvisioning() throws Exception {
+  public void test_5_06_NMKP_TC_01() throws Exception {
+    // see test_NMKP_TC_02()
+  }
+
+  /**
+   * NMKP-TC-02: Network Key Provisioning (NKP) after enrollment.
+   */
+  @Test
+  public void test_5_06_NMKP_TC_02() throws Exception {
 
     // Need to be enrolled to do NKP.
-    if (!pledge.isEnrolled()) test02_Enrollment();
+    if (!pledge.isEnrolled()) pledge.enroll();
 
     String oldkey = pledge.execCommand("masterkey");
-    Assert.assertTrue(pledge.isEnrolled());
-    Assert.assertTrue(pledge.execCommandDone("joiner startnmkp"));
+    assertTrue(pledge.isEnrolled());
+    assertTrue(pledge.execCommandDone("joiner startnmkp"));
     pledge.waitForMessage(15000);
     String newkey = pledge.execCommand("masterkey");
-    Assert.assertNotEquals(oldkey, newkey);
+    assertNotEquals(oldkey, newkey);
 
     // join Thread network
-    Assert.assertEquals("disabled", pledge.execCommand("state"));
-    Assert.assertTrue(pledge.execCommandDone("thread start"));
+    assertEquals("disabled", pledge.execCommand("state"));
+    assertTrue(pledge.execCommandDone("thread start"));
     Thread.sleep(3000);
-    Assert.assertNotEquals("disabled", pledge.execCommand("state")); // verify thread is started
-    Assert.assertEquals("false", pledge.execCommand("singleton")); // verify I joined with BR.
+    assertNotEquals("disabled", pledge.execCommand("state")); // verify thread is started
+    assertEquals("false", pledge.execCommand("singleton")); // verify I joined with BR.
+  }
+  
+  /**
+   * RE-TC-01:
+   */
+  @Test
+  public void test_5_07_RE_TC_01() throws Exception {
+    assertTrue(false);
+  }
+   
+  @Test
+  public void test_5_12_COMM_TC_01() throws Exception {
+    assertTrue(false);
   }
 }

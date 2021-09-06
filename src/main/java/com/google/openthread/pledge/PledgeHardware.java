@@ -30,9 +30,16 @@ package com.google.openthread.pledge;
 
 import com.fazecast.jSerialComm.*;
 import com.google.openthread.OpenThreadUtils;
+import com.google.openthread.brski.StatusTelemetry;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.security.Principal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,22 +49,30 @@ import org.slf4j.LoggerFactory;
  */
 public class PledgeHardware {
 
-  protected static final int DEFAULT_SERIAL_CMD_WAIT_MS = 20;
-  protected static final int COM_BAUD_RATE = 115200;
-
+  /** default wait time in ms after sending a serial command, to allow time for command execution */
+  public static final int DEFAULT_SERIAL_CMD_WAIT_MS = 20;
+  
+  /** COM port baud rate */
+  public static final int COM_BAUD_RATE = 115200;
+  
+  /** Expected Thread version of DUT Pledge */
+  public static final String THREAD_VERSION_PLEDGE = "1.2";
+  
   protected SerialPort serPort = null;
   protected PrintWriter serialWriter = null;
   protected InputStreamReader serialReader = null;
   protected StringBuilder pledgeLog = null;
-
   protected boolean statusIsEnrolled = false;
 
   private static Logger logger = LoggerFactory.getLogger(PledgeHardware.class);
 
   public PledgeHardware() throws IOException {
     init();
+    if (!execCommandDone("ifconfig up"))
+      throw new IOException("Pledge initialization with 'ifconfig up' failed.");
   }
 
+  /** select COM port to Pledge and open it */
   protected void init() throws IOException {
     SerialPort[] comPorts = SerialPort.getCommPorts();
     if (comPorts.length == 0)
@@ -74,7 +89,6 @@ public class PledgeHardware {
       throw new IOException(
           "Serial ports were found, but no compatible port to connect to hardware Pledge");
 
-    // serPort.setBaudRate(115200);
     serPort.setComPortParameters(COM_BAUD_RATE, 8, SerialPort.ONE_STOP_BIT, SerialPort.NO_PARITY);
     serPort.setFlowControl(SerialPort.FLOW_CONTROL_DISABLED);
     serPort.setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING, 2500, 2500);
@@ -89,6 +103,8 @@ public class PledgeHardware {
     // reset the CLI to known state (of receiving input)
     serialWriter.write("\n\n");
     serialWriter.flush();
+    try { Thread.sleep(10); } catch (InterruptedException ex) {;}
+    readSerialLines();
   }
 
   /** shutdown the Pledge, stopping the radio and closing the serial connection. */
@@ -97,11 +113,14 @@ public class PledgeHardware {
     try {
       execCommand("thread stop");
       execCommand("ifconfig down");
+      waitForMessage(10);
     } catch (IOException ex) {
       logger.warn("shutdown() had an exception", ex);
     }
-    serPort.closePort();
-    serPort = null;
+    finally{
+      serPort.closePort();
+      serPort = null;
+    }    
   }
 
   /**
@@ -122,7 +141,7 @@ public class PledgeHardware {
    *
    * @param consoleCmd command to execute in OpenThread CLI e.g. 'thread version'
    * @return result of command, only first line is used.
-   * @throws IOException
+   * @throws IOException if no response was returned by Pledge, or another IO error occurred.
    */
   public String execCommand(String consoleCmd) throws IOException {
     String[] aRes = execCommand(consoleCmd, DEFAULT_SERIAL_CMD_WAIT_MS, true);
@@ -131,7 +150,7 @@ public class PledgeHardware {
   }
 
   /**
-   * Execute a command (sent over serial to the hw Pledge) and return the response line(s).
+   * Execute a command (sent over serial to the hw Pledge) and return the response line(s) if any.
    *
    * @param consoleCmd the command
    * @param msWait milliseconds to wait after sending command, to try reading result over serial.
@@ -150,7 +169,7 @@ public class PledgeHardware {
     } catch (InterruptedException ex) {;
     }
     readSerialLines();
-    // send CR
+    // send CR to execute the command in CLI
     if (consoleCmd.length() > 0) serialWriter.print('\n');
     serialWriter.flush();
     // wait for processing to happen
@@ -179,14 +198,14 @@ public class PledgeHardware {
   }
 
   /**
-   * Factory-reset the Pledge and verify that it responds.
+   * Factory-reset the Pledge and verify that it responds afterwards.
    *
    * @return true if factory reset was successfully done and Pledge responds after it.
    */
   public boolean factoryReset() throws IOException {
     execCommand("factoryreset", 250, false);
     String v = execCommand("thread version");
-    if (v.equals("1.2")) return true;
+    if (v.equals(THREAD_VERSION_PLEDGE)) return true;
     else return false;
   }
 
@@ -210,6 +229,7 @@ public class PledgeHardware {
     return null;
   }
 
+  /** check whether this Pledge is enrolled (true), or not (false). Based on log analysis. */
   public boolean isEnrolled() {
     try {
       while (waitForMessage(0) != null) ;
@@ -218,17 +238,27 @@ public class PledgeHardware {
     return statusIsEnrolled;
   }
 
+  public void enroll() throws IOException {
+    execCommandDone("joiner startae");
+    waitForMessage(20000);
+
+    // verify same on pledge side.
+    if(!isEnrolled())
+      throw new IOException("enroll() failed");
+
+  }
+  
   /**
    * returns the Pledge log, built during the session of using this Pledge.
    *
-   * @return
+   * @return complete Pledge log output
    */
   public String getLog() {
     return pledgeLog.toString();
   }
 
   /**
-   * read all available serial input from OT device, and store it in the log without further
+   * helper method to read all available serial input from OT device, and store it in the log without further
    * processing.
    *
    * @throws IOException
@@ -236,7 +266,6 @@ public class PledgeHardware {
   protected void readSerialLines() throws IOException {
     StringBuilder s = new StringBuilder();
     while (serialReader.ready()) {
-      // flush the CLI command mirroring, logs, etc.
       s.append((char) serialReader.read());
     }
     if (s.length() > 0) {
@@ -245,9 +274,11 @@ public class PledgeHardware {
     }
   }
 
+  /** helper method to add string 'log' to the Pledge log. It will perform log analysis functions on the input. */
   protected void addToPledgeLog(String log) {
     pledgeLog.append(log);
     statusIsEnrolled =
         OpenThreadUtils.detectEnrollSuccess(log) && !OpenThreadUtils.detectEnrollFailure(log);
   }
+  
 }
