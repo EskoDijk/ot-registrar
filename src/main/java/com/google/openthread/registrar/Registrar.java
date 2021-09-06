@@ -42,7 +42,6 @@ import com.google.openthread.ExtendedMediaTypeRegistry;
 import com.google.openthread.RequestDumper;
 import com.google.openthread.SecurityUtils;
 import com.google.openthread.brski.CBORSerializer;
-import com.google.openthread.brski.ConstrainedVoucherRequest;
 import com.google.openthread.brski.JSONSerializer;
 import com.google.openthread.brski.RestfulVoucherResponse;
 import com.google.openthread.brski.StatusTelemetry;
@@ -305,7 +304,7 @@ public class Registrar extends CoapServer {
         voucherLog.put(clientId, Voucher.UNDEFINED); // log access by this client
         logger.debug("Public key of current client: " + Hex.toHexString(idevid.getPublicKey().getEncoded()));
 
-        ConstrainedVoucherRequest pledgeReq = null;
+        VoucherRequest pledgeReq = null;
 
         if (contentFormat == ExtendedMediaTypeRegistry.APPLICATION_COSE_SIGN1
             || contentFormat == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR) {
@@ -320,10 +319,10 @@ public class Registrar extends CoapServer {
           }
 
           // 2.1 verify the voucher
-          pledgeReq = (ConstrainedVoucherRequest) new CBORSerializer().deserialize(sign1Msg.GetContent());
+          pledgeReq = (VoucherRequest) new CBORSerializer().deserialize(sign1Msg.GetContent());
         } else if (contentFormat == ExtendedMediaTypeRegistry.APPLICATION_CBOR) {
           pledgeReq =
-              (ConstrainedVoucherRequest)
+              (VoucherRequest)
                   new CBORSerializer().deserialize(exchange.getRequestPayload());
         } else {
           logger.error("unsupported voucher request format: " + contentFormat);

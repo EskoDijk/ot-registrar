@@ -42,8 +42,6 @@ import com.google.openthread.NetworkUtils;
 import com.google.openthread.RequestDumper;
 import com.google.openthread.SecurityUtils;
 import com.google.openthread.brski.CBORSerializer;
-import com.google.openthread.brski.ConstrainedVoucher;
-import com.google.openthread.brski.ConstrainedVoucherRequest;
 import com.google.openthread.brski.JSONSerializer;
 import com.google.openthread.brski.RestfulVoucherResponse;
 import com.google.openthread.brski.Voucher;
@@ -103,15 +101,7 @@ public class MASA {
     this.certificate = certificate;
     this.credentials = credentials;
     this.listenPort = port;
-
-    // choice between coap and http server
-    if (isCoapServer) {
-      initCoapServer();
-      initCoapResources();
-      initCoapEndPoint();
-    } else {
-      initHttpServer();
-    }
+    initHttpServer();
   }
 
   public int getListenPort() {
@@ -166,7 +156,7 @@ public class MASA {
       final String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
       List<X509Certificate> reqCerts = new ArrayList<>();
       byte[] reqContent = null;
-      VoucherRequest req = null;
+      Voucher req = null;
       Sign1Message sign1Msg = null;
 
       switch (contentType) {
@@ -242,8 +232,10 @@ public class MASA {
           throw new RuntimeException("Internal MASA error");
       }
 
+      Voucher voucher = new Voucher();
+      voucher.setConstrained(true);
       final RestfulVoucherResponse resp =
-          processVoucherRequest(req, new ConstrainedVoucher(), reqCerts);
+          processVoucherRequest(req, voucher, reqCerts);
 
       // Generate and send response
       if (resp.isSuccess()) {
@@ -268,66 +260,6 @@ public class MASA {
     }
   }
 
-  /** TODO: should be removed, not-maintained CoAP support for MASA. */
-  final class VoucherRequestResource extends CoapResource {
-    VoucherRequestResource() {
-      super(Constants.REQUEST_VOUCHER);
-    }
-
-    @Override
-    public void handlePOST(CoapExchange exchange) {
-
-      RequestDumper.dump(logger, getURI(), exchange.getRequestPayload());
-
-      int contentFormat = exchange.getRequestOptions().getContentFormat();
-      if (contentFormat != ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_CBOR) {
-        // TODO(wgtdkp): support more formats; see HTTP code also.
-        // TODO(EskoDijk): support long URI resource names in case other formats
-        // (CMS-over-HTTP)
-        // supported
-        exchange.respond(ResponseCode.UNSUPPORTED_CONTENT_FORMAT);
-        return;
-      }
-
-      byte[] reqContent;
-      List<X509Certificate> reqCerts = new ArrayList<>();
-      try {
-        reqContent = SecurityUtils.decodeCMSSignedMessage(exchange.getRequestPayload(), reqCerts);
-      } catch (Exception e) {
-        logger.error("CMS signed voucher request error: " + e.getMessage(), e);
-        exchange.respond(ResponseCode.FORBIDDEN, "CMS signature could not be decoded.");
-        return;
-      }
-
-      ConstrainedVoucherRequest req =
-          (ConstrainedVoucherRequest) new CBORSerializer().deserialize(reqContent);
-      RestfulVoucherResponse resp = processVoucherRequest(req, new ConstrainedVoucher(), reqCerts);
-
-      // Generate and send response
-      if (resp.isSuccess()) {
-        try {
-          byte[] content = new CBORSerializer().serialize(resp.getVoucher());
-          byte[] payload =
-              SecurityUtils.genCoseSign1Message(
-                  privateKey, SecurityUtils.COSE_SIGNATURE_ALGORITHM, content);
-          exchange.respond(
-              ResponseCode.CHANGED,
-              payload,
-              ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
-          return;
-        } catch (CoseException e) {
-          logger.error("COSE signing voucher request failed: " + e.getMessage(), e);
-          exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
-          return;
-        }
-      } else {
-        // send the error response and diagnostic msg.
-        exchange.respond(resp.getCoapCode(), resp.getMessage());
-        return;
-      }
-    }
-  }
-
   /**
    * Process incoming Voucher Request (and accompanying certificates of Registrar) and evaluate into
    * a generic RESTful response. This response can be an error, or success, and can then be served
@@ -344,9 +276,9 @@ public class MASA {
       Voucher req, Voucher voucher, List<X509Certificate> reqCerts) {
 
     if (!req.validate() || reqCerts.isEmpty()) {
-      logger.error("invalid voucher request");
+      logger.error("invalid fields in the voucher request");
       return new RestfulVoucherResponse(
-          ResponseCode.BAD_REQUEST, "Voucher Request validation error.");
+          ResponseCode.BAD_REQUEST, "invalid fields in the voucher request");
     }
 
     // TODO(wgtdkp):
@@ -403,8 +335,8 @@ public class MASA {
       logger.error(msg, ex);
       return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, msg);
     }
-    ConstrainedVoucherRequest pledgeReq =
-        (ConstrainedVoucherRequest)
+    VoucherRequest pledgeReq =
+        (VoucherRequest)
             new CBORSerializer().fromCBOR(CBORObject.DecodeFromBytes(sign1Msg.GetContent()));
     if (pledgeReq == null) {
       final String msg = "invalid priorSignedVoucherRequest contents";
@@ -467,35 +399,6 @@ public class MASA {
 
     // Generate and send response
     return new RestfulVoucherResponse(voucher);
-  }
-
-  private void initCoapResources() {
-    CoapResource wellknown = new CoapResource(Constants.WELL_KNOWN);
-    CoapResource brski = new CoapResource(Constants.BRSKI);
-    VoucherRequestResource rv = new VoucherRequestResource();
-
-    brski.add(rv);
-    wellknown.add(brski);
-    coapServer.add(wellknown);
-  }
-
-  private void initCoapEndPoint() {
-    X509Certificate[] certificateChain = new X509Certificate[] {certificate};
-
-    // We currently don't authenticate a client
-    CertificateVerifier verifier = new SecurityUtils.DoNothingVerifier(certificateChain);
-    CoapEndpoint endpoint =
-        SecurityUtils.genCoapServerEndPoint(
-            listenPort,
-            null /* with verifier, no trust store can be given */,
-            privateKey,
-            certificateChain,
-            verifier);
-    coapServer.addEndpoint(endpoint);
-  }
-
-  private void initCoapServer() {
-    coapServer = new CoapServer();
   }
 
   private void initHttpServer()

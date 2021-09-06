@@ -32,8 +32,31 @@ import com.strategicgains.util.date.DateAdapter;
 import com.strategicgains.util.date.TimestampAdapter;
 import java.text.ParseException;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Voucher {
+
+  public static final int VOUCHER_SID = 2451;
+
+  @SuppressWarnings("serial")
+  protected static final Map<String, Integer> voucherSIDMap =
+      new HashMap<String, Integer>() {
+        {
+          put(VOUCHER, VOUCHER_SID);
+          put(ASSERTION, VOUCHER_SID + 1);
+          put(CREATED_ON, VOUCHER_SID + 2);
+          put(DOMAIN_CERT_REVOCATION_CHECKS, VOUCHER_SID + 3);
+          put(EXPIRES_ON, VOUCHER_SID + 4);
+          put(IDEVID_ISSUER, VOUCHER_SID + 5);
+          put(LAST_RENEWAL_DATE, VOUCHER_SID + 6);
+          put(NONCE, VOUCHER_SID + 7);
+          put(PINNED_DOMAIN_CERT, VOUCHER_SID + 8);
+          put(PINNED_DOMAIN_SPKI, VOUCHER_SID + 9);
+          put(PINNED_SHA256_DOMAIN_SPKI, VOUCHER_SID + 10);
+          put(SERIAL_NUMBER, VOUCHER_SID + 11);
+        }
+      };
 
   /** single Voucher object representing an 'undefined' Voucher */
   public static final Voucher UNDEFINED = new Voucher();
@@ -227,6 +250,17 @@ public class Voucher {
 
   public static final String SERIAL_NUMBER = "serial-number";
 
+  protected Map<String, Integer> sidMap;
+
+  protected int baseSid;
+
+  protected boolean isConstr = false;
+  
+  public Voucher() {
+    baseSid = VOUCHER_SID;
+    sidMap = voucherSIDMap;
+  }
+  
   /**
    * Validates this Voucher, if the right fields are present/absent.
    *
@@ -236,7 +270,7 @@ public class Voucher {
     if (assertion == null
         || createdOn == null
         || serialNumber == null
-        || pinnedDomainCert == null) {
+        || (pinnedDomainSPKI == null && pinnedDomainCert == null)) {
       return false;
     }
     if (expiresOn != null && nonce != null) {
@@ -245,23 +279,26 @@ public class Voucher {
     if (lastRenewalDate != null && expiresOn == null) {
       return false;
     }
+    if (proximityRegistrarCert != null || proximityRegistrarSPKI != null)
+      return false;
+    
     return true;
-  }
-
-  public String getName() {
-    return VOUCHER;
   }
 
   /**
    * Get the key-object from the specific named field, that is valid for the current voucher
-   * (request) type. Subclasses of Voucher may implement compression on key names.
+   * (request) type. Subclasses of Voucher may implement other compression on key names.
    *
    * @param item
    * @return corresponding key-object for 'item' ; or null if 'item' is not valid/existing in
    *     context of current voucher type.
    */
   public Object getKey(String item) {
-    return item;
+    if (!isConstrained()) return item;
+    Integer sid = sidMap.get(item);
+    // if no SID found return the item key in full.
+    if (sid == null) return item;
+    return sid;
   }
 
   /** The Internet Date/Time Format (ref: ISO8601, section 5.6 RFC 3339) */
@@ -274,4 +311,18 @@ public class Voucher {
     DateAdapter adapter = new TimestampAdapter();
     return adapter.parse(young);
   }
+  
+  public boolean isConstrained() {
+    return isConstr;
+  }
+
+  public void setConstrained(boolean isConstrained) {
+    isConstr = isConstrained;
+  }
+  
+  public String getName() {
+    return VOUCHER;
+  }
+
+
 }

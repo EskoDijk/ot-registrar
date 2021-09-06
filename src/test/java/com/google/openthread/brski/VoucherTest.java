@@ -109,7 +109,7 @@ public class VoucherTest {
 
   @Test
   public void testSimpleConstrained() {
-    Voucher cv1 = new ConstrainedVoucher();
+    Voucher cv1 = new Voucher();
     cv1.assertion = Voucher.Assertion.LOGGED;
     cv1.serialNumber = "12345";
     cv1.createdOn = new Date();
@@ -129,7 +129,8 @@ public class VoucherTest {
 
   @Test
   public void testSimpleConstrainedRequest() {
-    Voucher cvr1 = new ConstrainedVoucherRequest();
+    Voucher cvr1 = new VoucherRequest();
+    cvr1.setConstrained(true);
     cvr1.assertion = Voucher.Assertion.PROXIMITY;
     cvr1.serialNumber = "123";
 
@@ -139,7 +140,8 @@ public class VoucherTest {
 
     byte[] data = new CBORSerializer().serialize(cvr1);
     Voucher cvr2 = new CBORSerializer().deserialize(data);
-    Assert.assertTrue(cvr2.validate());
+    Assert.assertTrue(cvr2.isConstrained());
+    Assert.assertTrue(cvr2.validate());   
 
     Assert.assertTrue(cvr1.assertion.equals(cvr2.assertion));
     Assert.assertTrue(cvr1.serialNumber.equals(cvr2.serialNumber));

@@ -54,6 +54,7 @@ public class CBORSerializer implements VoucherSerializer {
     this.voucher = voucher;
     Object keyObj = voucher.getKey(voucher.getName());
     if (keyObj instanceof Integer) {
+      voucher.setConstrained(true);
       parentSid = (Integer) keyObj;
     }
     CBORObject cbor = CBORObject.NewMap();
@@ -98,25 +99,29 @@ public class CBORSerializer implements VoucherSerializer {
       for (CBORObject key : cbor.getKeys()) {
         CBORObject ku = key.Untag();
         if (ku.isNumber()) {
-          if (ku.AsInt32() == ConstrainedVoucher.VOUCHER_SID) {
-            voucher = new ConstrainedVoucher();
-            parentSid = ConstrainedVoucher.VOUCHER_SID;
-          } else if (ku.AsInt32() == ConstrainedVoucherRequest.VOUCHER_REQUEST_SID) {
-            voucher = new ConstrainedVoucherRequest();
-            parentSid = ConstrainedVoucherRequest.VOUCHER_REQUEST_SID;
+          if (ku.AsInt32() == Voucher.VOUCHER_SID) {
+            voucher = new Voucher();
+            voucher.setConstrained(true);
+            parentSid = Voucher.VOUCHER_SID;
+          } else if (ku.AsInt32() == VoucherRequest.VOUCHER_REQUEST_SID) {
+            voucher = new VoucherRequest();
+            voucher.setConstrained(true);
+            parentSid = VoucherRequest.VOUCHER_REQUEST_SID;
           } else {
             String msg =
                 String.format(
                     "wrong voucher sid: %d, expecting %d for voucher or %d for voucher request",
                     ku.AsInt32(),
-                    ConstrainedVoucher.VOUCHER_SID,
-                    ConstrainedVoucherRequest.VOUCHER_REQUEST_SID);
+                    Voucher.VOUCHER_SID,
+                    VoucherRequest.VOUCHER_REQUEST_SID);
             throw new IllegalArgumentException(msg);
           }
         } else if (key.AsString().equals(Voucher.VOUCHER)) {
           voucher = new Voucher();
+          voucher.setConstrained(false);
         } else if (key.AsString().equals(Voucher.VOUCHER_REQUEST)) {
           voucher = new VoucherRequest();
+          voucher.setConstrained(false);
         } else {
           String msg =
               String.format(

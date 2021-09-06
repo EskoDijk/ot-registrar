@@ -185,14 +185,14 @@ public class FunctionalTest {
 
   @Test
   public void testVoucherRequest() throws Exception {
-    ConstrainedVoucher voucher = pledge.requestVoucher();
+    Voucher voucher = pledge.requestVoucher();
     Assert.assertTrue(voucher.validate());
     VerifyPledge(pledge);
   }
 
   @Test
   public void testCsrAttrsRequest() throws Exception {
-    ConstrainedVoucher voucher = pledge.requestVoucher();
+    Voucher voucher = pledge.requestVoucher();
     pledge.requestCSRAttributes();
     Assert.assertTrue(voucher.validate());
     VerifyPledge(pledge);
@@ -200,7 +200,7 @@ public class FunctionalTest {
 
   @Test
   public void testEnroll() throws Exception {
-    ConstrainedVoucher voucher = pledge.requestVoucher();
+    Voucher voucher = pledge.requestVoucher();
     pledge.requestCSRAttributes();
     pledge.enroll();
     Assert.assertTrue(voucher.validate());
@@ -210,7 +210,7 @@ public class FunctionalTest {
 
   @Test
   public void testReenroll() throws Exception {
-    ConstrainedVoucher voucher = pledge.requestVoucher();
+    Voucher voucher = pledge.requestVoucher();
     pledge.requestCSRAttributes();
     pledge.enroll();
     Assert.assertTrue(voucher.validate());
@@ -379,7 +379,7 @@ public class FunctionalTest {
     registrar2.setDomainCA(domainCA);
     registrar2.start();
 
-    ConstrainedVoucher voucher = pledge.requestVoucher();
+    Voucher voucher = pledge.requestVoucher();
     pledge.enroll();
     VerifyEnroll(pledge);
     voucher.validate();

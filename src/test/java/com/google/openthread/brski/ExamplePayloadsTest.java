@@ -49,7 +49,8 @@ public class ExamplePayloadsTest {
   
   @Test
   public void voucherExamplePayload() throws Exception {
-    ConstrainedVoucherRequest cvr = new ConstrainedVoucherRequest();
+    VoucherRequest cvr = new VoucherRequest();
+    cvr.setConstrained(true);
     cvr.assertion = Voucher.Assertion.PROXIMITY;
     cvr.serialNumber = "123";
     cvr.nonce = Pledge.generateNonce();
@@ -62,7 +63,8 @@ public class ExamplePayloadsTest {
     logger.info("example constrained voucher request payload:");
     logger.info(new CBORSerializer().toCBOR(cvr).toString());
 
-    ConstrainedVoucher cv = new ConstrainedVoucher();
+    Voucher cv = new Voucher();
+    cv.setConstrained(true);
     cv.assertion = Voucher.Assertion.PROXIMITY;
     cv.createdOn = new Date();
     cv.serialNumber = "123";
