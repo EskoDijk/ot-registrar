@@ -35,6 +35,7 @@ import com.google.openthread.domainca.*;
 import com.google.openthread.masa.*;
 import com.google.openthread.pledge.*;
 import com.google.openthread.registrar.*;
+import se.sics.ace.cwt.CWT;
 import static org.junit.Assert.*;
 import java.security.Principal;
 import java.security.cert.X509Certificate;
@@ -63,6 +64,9 @@ public class HardwarePledgeTestSuite {
       new String[] {
         "./credentials/local-masa/masa_cert.pem", "./credentials/local-masa/masa_private.pem"
       };
+  public static final String BORDER_ROUTER_HOSTNAME = "raspberrypi.local";
+  
+  private static final String REGISTRAR_URI = "[::1]:" + Constants.DEFAULT_REGISTRAR_COAPS_PORT ;  
   private DomainCA domainCA;
   private Registrar registrar;
   private Commissioner commissioner;
@@ -240,6 +244,10 @@ public class HardwarePledgeTestSuite {
    
   @Test
   public void test_5_12_COMM_TC_01() throws Exception {
-    assertTrue(false);
+    
+    CWT token = commissioner.requestToken(DEFAULT_DOMAIN_NAME, REGISTRAR_URI);
+    assertTrue(token.getClaims().size()>0);
+    
+    //commissioner.start(BORDER_ROUTER_HOSTNAME);
   }
 }

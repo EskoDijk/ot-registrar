@@ -40,9 +40,13 @@ import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.util.encoders.Hex;
 import org.junit.Assert;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ExamplePayloadsTest {
 
+  private static Logger logger = LoggerFactory.getLogger(ExamplePayloadsTest.class);
+  
   @Test
   public void voucherExamplePayload() throws Exception {
     ConstrainedVoucherRequest cvr = new ConstrainedVoucherRequest();
@@ -55,8 +59,8 @@ public class ExamplePayloadsTest {
         SubjectPublicKeyInfo.getInstance(kp.getPublic().getEncoded()).getEncoded();
     Assert.assertTrue(cvr.validate());
 
-    System.out.println("example constrained voucher request payload:");
-    System.out.println(new CBORSerializer().toCBOR(cvr));
+    logger.info("example constrained voucher request payload:");
+    logger.info(new CBORSerializer().toCBOR(cvr).toString());
 
     ConstrainedVoucher cv = new ConstrainedVoucher();
     cv.assertion = Voucher.Assertion.PROXIMITY;
@@ -69,8 +73,8 @@ public class ExamplePayloadsTest {
         SubjectPublicKeyInfo.getInstance(kp.getPublic().getEncoded()).getEncoded();
     Assert.assertTrue(cv.validate());
 
-    System.out.println("example constrained voucher payload:");
-    System.out.println(new CBORSerializer().toCBOR(cv));
+    logger.info("example constrained voucher payload:");
+    logger.info(new CBORSerializer().toCBOR(cv).toString());
   }
 
   @Test
@@ -79,17 +83,17 @@ public class ExamplePayloadsTest {
 
     CsrAttrs csrAttrs = new CsrAttrs(attrs.getAttrAndOids());
     CBORObject resp = CBORObject.FromObject(csrAttrs.getEncoded());
-    System.out.println("example CSR attributes response:");
-    System.out.println(resp);
-    System.out.println("the cbor encoeded:");
-    System.out.println(Hex.toHexString(resp.EncodeToBytes()));
+    logger.info("example CSR attributes response:");
+    logger.info(resp.toString());
+    logger.info("the CBOR encoded:");
+    logger.info(Hex.toHexString(resp.EncodeToBytes()));
   }
 
   @Test
   public void comTokenExamplePayload() throws Exception {
     KeyPair kp = SecurityUtils.genKeyPair();
     CBORObject req = Commissioner.genTokenRequest("OpenThread-TCE-TEST", kp.getPublic());
-    System.out.println("exmaple COM_TOK.req payload:");
-    System.out.println(req);
+    logger.info("example COM_TOK.req payload:");
+    logger.info(req.toString());
   }
 }
