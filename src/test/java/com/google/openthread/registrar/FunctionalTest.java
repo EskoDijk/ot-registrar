@@ -242,9 +242,11 @@ public class FunctionalTest {
   }
 
   @Test
-  public void testSimpleCommissioning() throws Exception {
+  public void testCommissionerTokenRequest() throws Exception {
     CWT comTok = commissioner.requestToken("TestDomainTCE", REGISTRAR_URI);
-    // TODO check result
+    // TODO check result more; try 'bad commissioner' cases.
+    Assert.assertTrue(comTok.getClaims().size() > 0);
+    Assert.assertTrue(comTok.isValid(System.currentTimeMillis() + 500000));
   }
 
   @Test

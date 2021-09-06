@@ -28,6 +28,8 @@
 
 package com.google.openthread.tools;
 
+import static org.junit.Assert.*;
+
 import com.google.openthread.*;
 import com.google.openthread.brski.*;
 import com.google.openthread.commissioner.*;
@@ -36,7 +38,6 @@ import com.google.openthread.masa.*;
 import com.google.openthread.pledge.*;
 import com.google.openthread.registrar.*;
 import se.sics.ace.cwt.CWT;
-import static org.junit.Assert.*;
 import java.security.Principal;
 import java.security.cert.X509Certificate;
 import org.junit.*;
@@ -58,13 +59,15 @@ import org.slf4j.*;
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class HardwarePledgeTestSuite {
 
-  public static final String DEFAULT_DOMAIN_NAME = "Thread-Test";
+  public static final String THREAD_DOMAIN_NAME = "TestDomainTCE";
   public static final int IEEE_802154_CHANNEL = 19;
-  public static final String[] MASA_CREDENTIAL_FILES =
-      new String[] {
+  public static final String[] MASA_CREDENTIAL_FILES = new String[] {
         "./credentials/local-masa/masa_cert.pem", "./credentials/local-masa/masa_private.pem"
       };
-  public static final String BORDER_ROUTER_HOSTNAME = "raspberrypi.local";
+  public static final String[] DOMAIN_CREDENTIAL_FILES = new String[] {
+        "./credentials/local-masa/domainca_cert.pem", "./credentials/local-masa/domainca_private.pem"
+      };
+  public static final String BORDER_ROUTER_AUTHORITY = "[fd00:910b::3285:1958:d0c9:d06]:49191";
   
   private static final String REGISTRAR_URI = "[::1]:" + Constants.DEFAULT_REGISTRAR_COAPS_PORT ;  
   private DomainCA domainCA;
@@ -78,7 +81,7 @@ public class HardwarePledgeTestSuite {
   @BeforeClass
   public static void setup() throws Exception {
     credGen = new CredentialGenerator();
-    credGen.make(null, MASA_CREDENTIAL_FILES, null, null);
+    credGen.make(DOMAIN_CREDENTIAL_FILES, MASA_CREDENTIAL_FILES, null, null);
     pledge = new PledgeHardware();
     assertTrue(pledge.factoryReset());
     assertTrue(pledge.execCommandDone("channel " + IEEE_802154_CHANNEL));
@@ -102,7 +105,7 @@ public class HardwarePledgeTestSuite {
             Constants.DEFAULT_MASA_HTTPS_PORT,
             false);
 
-    domainCA = new DomainCA(DEFAULT_DOMAIN_NAME, credGen.domaincaKeyPair.getPrivate(), credGen.domaincaCert);
+    domainCA = new DomainCA(THREAD_DOMAIN_NAME, credGen.domaincaKeyPair.getPrivate(), credGen.domaincaCert);
 
     RegistrarBuilder registrarBuilder = new RegistrarBuilder();
     registrar =
@@ -245,9 +248,8 @@ public class HardwarePledgeTestSuite {
   @Test
   public void test_5_12_COMM_TC_01() throws Exception {
     
-    CWT token = commissioner.requestToken(DEFAULT_DOMAIN_NAME, REGISTRAR_URI);
-    assertTrue(token.getClaims().size()>0);
-    
-    //commissioner.start(BORDER_ROUTER_HOSTNAME);
+    CWT token = commissioner.requestToken(THREAD_DOMAIN_NAME, REGISTRAR_URI);
+    assertTrue(token.getClaims().size()>0);    
+    assertTrue(commissioner.start(BORDER_ROUTER_AUTHORITY));
   }
 }

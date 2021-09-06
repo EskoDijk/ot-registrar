@@ -30,9 +30,8 @@ package com.google.openthread.commissioner;
 
 import COSE.CoseException;
 import COSE.OneKey;
-import com.google.openthread.Constants;
-import com.google.openthread.ExtendedMediaTypeRegistry;
-import com.google.openthread.SecurityUtils;
+import com.google.openthread.*;
+import com.google.openthread.registrar.*;
 import com.upokecenter.cbor.CBORObject;
 import java.io.IOException;
 import java.math.BigInteger;
@@ -44,10 +43,12 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
-public class Commissioner extends CoapClient {
+public class Commissioner {
 
   /**
    * Constructing commissioner with credentials
@@ -66,12 +67,30 @@ public class Commissioner extends CoapClient {
     // TODO(wgtdkp): verify public and private key are match
     this.privateKey = privateKey;
     this.certificateChain = certificateChain;
-
-    this.certVerifier = new CommissionerCertificateVerifier(getDomainCertificate());
-
+    this.certVerifier = new CommissionerCertificateVerifier(getDomainCertificate());    
+    this.client = new CoapClient();
     initEndpoint();
   }
 
+  public boolean start(String borderAgentHost) {
+    baClient = new ThreadCoapClient(borderAgentHost, comTok );
+    try{
+      CoapResponse resp = baClient.sendCOMM_PET_req("JavaCommissioner" + allocateClientId());
+      if (resp == null || !resp.isSuccess()) {
+        logger.warn("Petitioning unsuccessfull: " + resp);
+        return false;
+      }
+    }catch(Exception ex) {
+      logger.warn("Petitioning error to " + borderAgentHost , ex);
+      return false;
+    }
+    return true;
+  }
+  
+  public void shutdown() {
+    client.shutdown();
+  }
+  
   public CWT requestToken(String domainName, String registrarURI)
       throws CommissionerException, IOException, ConnectorException {
     // 0. build COM_TOK.req
@@ -111,6 +130,7 @@ public class Commissioner extends CoapClient {
     }
     // TODO(wgtdkp): extract and verify other claims
 
+    this.comTok = comTok;
     return comTok;
   }
 
@@ -137,8 +157,8 @@ public class Commissioner extends CoapClient {
 
   public CoapResponse sendTokenRequest(CBORObject req, String registrarURI)
       throws IOException, ConnectorException {
-    setURI(registrarURI + Constants.CCM_PATH);
-    return post(req.EncodeToBytes(), ExtendedMediaTypeRegistry.APPLICATION_CWT);
+    client.setURI(registrarURI + Constants.CCM_PATH);
+    return client.post(req.EncodeToBytes(), ExtendedMediaTypeRegistry.APPLICATION_CWT);
   }
 
   public CWT verifyToken(byte[] rawToken) throws Exception {
@@ -176,14 +196,16 @@ public class Commissioner extends CoapClient {
     CoapEndpoint endpoint =
         SecurityUtils.genCoapClientEndPoint(
             new X509Certificate[] {}, privateKey, certificateChain, certVerifier, false);
-    setEndpoint(endpoint);
+    client.setEndpoint(endpoint);
   }
 
+  protected ThreadCoapClient baClient = null;
+  protected CoapClient client = null;
+  protected CWT comTok = null;
   private static BigInteger clientId = BigInteger.ZERO;
-
   private PrivateKey privateKey;
-
   private X509Certificate[] certificateChain;
-
   private CommissionerCertificateVerifier certVerifier;
+  private static Logger logger = LoggerFactory.getLogger(Commissioner.class);
+  
 }

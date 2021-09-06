@@ -32,7 +32,6 @@ import COSE.OneKey;
 import com.google.openthread.BouncyCastleInitializer;
 import com.google.openthread.Constants;
 import com.google.openthread.SecurityUtils;
-import com.google.openthread.brski.Voucher;
 import com.upokecenter.cbor.CBORObject;
 import java.math.BigInteger;
 import java.security.GeneralSecurityException;
@@ -225,9 +224,9 @@ public class DomainCA {
     String keyId = new String(subjectKeyId);
     claims.put(se.sics.ace.Constants.ISS, CBORObject.FromObject(keyId));
 
-    Date expire =
-        new Date(System.currentTimeMillis() + 3600 * 24 * 1000 * Constants.COM_TOK_VALIDITY);
-    claims.put(se.sics.ace.Constants.EXP, CBORObject.FromObject(Voucher.dateToYoungFormat(expire)));
+    // see rfc8392 NumericDate format
+    Date expire = new Date(System.currentTimeMillis() + 3600 * 24 * 1000 * Constants.COM_TOK_VALIDITY);
+    claims.put(se.sics.ace.Constants.EXP, CBORObject.FromObject(expire.getTime()));
 
     OneKey oneKey = new OneKey(null, signingKey);
     CwtCryptoCtx ctx = CwtCryptoCtx.sign1Create(oneKey, signingAlg);
