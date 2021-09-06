@@ -199,18 +199,18 @@ public class HardwarePledgeTestSuite {
   }
 
   /**
-   * NMKP-TC-01:
+   * NKP-TC-01:
    */
   @Test
-  public void test_5_06_NMKP_TC_01() throws Exception {
-    // see test_NMKP_TC_02()
+  public void test_5_06_NKP_TC_01() throws Exception {
+     assertTrue(false);
   }
 
   /**
-   * NMKP-TC-02: Network Key Provisioning (NKP) after enrollment.
+   * NKP-TC-02: Network Key Provisioning (NKP) after enrollment.
    */
   @Test
-  public void test_5_06_NMKP_TC_02() throws Exception {
+  public void test_5_06_NKP_TC_02() throws Exception {
 
     // Need to be enrolled to do NKP.
     if (!pledge.isEnrolled()) pledge.enroll();
