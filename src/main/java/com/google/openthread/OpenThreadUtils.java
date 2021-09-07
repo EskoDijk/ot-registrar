@@ -28,9 +28,6 @@
 
 package com.google.openthread;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * Utilities for dealing with an OpenThread CLI dongle/device. Used when testing an OpenThread CLI
  * Pledge against the Registrar.
@@ -41,12 +38,13 @@ public class OpenThreadUtils {
    * From a set of OT CLI output lines, filter out all lines containing info/debug log messages, all
    * empty lines, and prompt ("> ") chars/lines.
    *
-   * @param log
-   * @return
+   * @param log string of log lines or multiple lines, separated by CRLF or CR.
+   * @return filtered log lines
    */
-  public static String[] filterOutLogLines(String[] logLines) {
-    List<String> res = new ArrayList<String>();
-    for (String l : logLines) {
+  public static String filterOutLogLines(String logLines) {
+    StringBuilder res = new StringBuilder();
+    String[] aLogLines = logLines.split("\n");
+    for (String l : aLogLines) {
       l = l.trim();
       if (l.startsWith("> ")) l = l.substring(2);
       if (l.length() == 0) continue;
@@ -54,9 +52,9 @@ public class OpenThreadUtils {
       if (l.startsWith("[CRIT]")) continue;
       if (l.startsWith("[WARN]")) continue;
       if (l.startsWith("[[WARN]")) continue;
-      res.add(l);
+      res.append(l);
     }
-    return res.toArray(new String[] {});
+    return res.toString();
   }
 
   public static boolean detectEnrollSuccess(String log) {
@@ -73,7 +71,18 @@ public class OpenThreadUtils {
     String[] aL = log.split("\n");
     for (String l : aL) {
       if (l.trim().startsWith("Join failed [")) return true;
+      if (l.trim().startsWith("Error ")) return true;
     }
     return false;
   }
+
+  public static boolean detectNkpFailure(String log) {
+    if (log.length() == 0) return false;
+    String[] aL = log.split("\n");
+    for (String l : aL) {
+      if (l.trim().startsWith("Error ")) return true;
+    }
+    return false;
+  }
+
 }

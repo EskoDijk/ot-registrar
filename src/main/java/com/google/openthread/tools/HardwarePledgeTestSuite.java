@@ -128,7 +128,8 @@ public class HardwarePledgeTestSuite {
   }
 
   @After
-  public void finalize() {
+  public void finalize() throws Exception {
+    assertTrue(pledge.execCommandDone("thread stop"));
     commissioner.shutdown();
     registrar.stop();
     masa.stop();
@@ -154,11 +155,10 @@ public class HardwarePledgeTestSuite {
     if (pledge.isEnrolled()) pledge.factoryReset();
     assertFalse(pledge.isEnrolled());
     assertTrue(pledge.execCommandDone("joiner startae"));
-    String[] aResp = pledge.waitForMessage(20000);
-    assertNotNull(aResp);
-    for(String r : aResp) {
-      assertFalse(r.contains("[NotFound]"));
-    }        
+    String res = pledge.waitForMessage(20000);
+    assertNotNull(res);
+    // only check that handshake went well.
+    assertFalse(OpenThreadUtils.detectEnrollFailure(res));
   }
   
   /**
@@ -168,7 +168,12 @@ public class HardwarePledgeTestSuite {
   public void test_5_02_DISC_TC_02() throws Exception {
     if (!pledge.isEnrolled())
       pledge.enroll();
-    // TBD
+    assertTrue(pledge.isEnrolled());
+    assertTrue(pledge.execCommandDone("joiner startae"));
+    String res = pledge.waitForMessage(20000);
+    assertNotNull(res);
+    assertFalse(OpenThreadUtils.detectNkpFailure(res));
+    //assertTrue(OpenThreadUtils.detectNkpSuccess(res));
   }
   
   /**
@@ -214,6 +219,18 @@ public class HardwarePledgeTestSuite {
   }
 
   /**
+   * NKP-TC-01a:
+   */
+  @Test
+  public void test_5_06_NKP_TC_01a() throws Exception {
+    // Need to be enrolled to do NKP.
+    if (!pledge.isEnrolled()) pledge.enroll();
+    assertTrue(pledge.isEnrolled());
+    assertTrue(pledge.execCommandDone("joiner startnmkp"));
+    String[] resp = pledge.waitForMessage(15000);
+  }
+
+  /**
    * NKP-TC-02: Network Key Provisioning (NKP) after enrollment.
    */
   @Test
@@ -222,6 +239,7 @@ public class HardwarePledgeTestSuite {
     // Need to be enrolled to do NKP.
     if (!pledge.isEnrolled()) pledge.enroll();
 
+    assertTrue(pledge.execCommandDone("masterkey 33112233445566118899aabbccddeeff"));
     String oldkey = pledge.execCommand("masterkey");
     assertTrue(pledge.isEnrolled());
     assertTrue(pledge.execCommandDone("joiner startnmkp"));

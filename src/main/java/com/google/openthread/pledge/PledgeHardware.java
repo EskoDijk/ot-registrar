@@ -144,9 +144,9 @@ public class PledgeHardware {
    * @throws IOException if no response was returned by Pledge, or another IO error occurred.
    */
   public String execCommand(String consoleCmd) throws IOException {
-    String[] aRes = execCommand(consoleCmd, DEFAULT_SERIAL_CMD_WAIT_MS, true);
-    if (aRes.length == 0) throw new IOException("No result returned");
-    return aRes[0];
+    String res = execCommand(consoleCmd, DEFAULT_SERIAL_CMD_WAIT_MS, true);
+    if (res == null || res.length() == 0) throw new IOException("No result returned");
+    return res;
   }
 
   /**
@@ -155,10 +155,10 @@ public class PledgeHardware {
    * @param consoleCmd the command
    * @param msWait milliseconds to wait after sending command, to try reading result over serial.
    * @param filterOutLogLines if true, filters out any log/empty/prompt lines from result.
-   * @return result of command as lines, or empty array if nothing was returned after the wait time.
+   * @return result of command as lines, or empty string if nothing was returned after the wait time.
    * @throws IOException
    */
-  public String[] execCommand(String consoleCmd, int msWait, boolean filterOutLogLines)
+  public String execCommand(String consoleCmd, int msWait, boolean filterOutLogLines)
       throws IOException {
     if (serPort == null || !serPort.isOpen())
       throw new IOException("error in serial port state: not open");
@@ -179,7 +179,7 @@ public class PledgeHardware {
     }
 
     // if nothing outputed, return empty string
-    if (!serialReader.ready()) return new String[] {};
+    if (!serialReader.ready()) return "";
 
     // create result string.
     StringBuilder s = new StringBuilder();
@@ -188,13 +188,11 @@ public class PledgeHardware {
     }
     String res = s.toString();
     addToPledgeLog(res);
-    String[] aRes = res.split("\n");
 
     if (filterOutLogLines && res.length() > 0) {
-      String[] aF = OpenThreadUtils.filterOutLogLines(aRes);
-      return aF;
+      return OpenThreadUtils.filterOutLogLines(res);
     }
-    return aRes;
+    return res;
   }
 
   /**
@@ -204,6 +202,8 @@ public class PledgeHardware {
    */
   public boolean factoryReset() throws IOException {
     execCommand("factoryreset", 250, false);
+    pledgeLog.append("\n----------------[Factory Reset by HardwarePledgeTestSuite]------------------");
+    statusIsEnrolled = false;
     String v = execCommand("thread version");
     if (v.equals(THREAD_VERSION_PLEDGE)) return true;
     else return false;
@@ -218,12 +218,13 @@ public class PledgeHardware {
    *     maxWaitTimeMs.
    * @throws IOException
    */
-  public String[] waitForMessage(int maxWaitTimeMs) throws IOException {
+  public String waitForMessage(int maxWaitTimeMs) throws IOException {
     long t0 = System.currentTimeMillis();
     do {
-      String[] aR = execCommand("", 100, true);
-      if (aR.length > 0 && aR[0].length() > 0) {
-        return aR;
+      String res = execCommand("", 100, true);
+      String[] aR = res.split("\n");
+      if (res.length() > 0 && aR[0].length() > 0) {
+        return res;
       }
     } while (System.currentTimeMillis() < t0 + maxWaitTimeMs);
     return null;
@@ -277,8 +278,8 @@ public class PledgeHardware {
   /** helper method to add string 'log' to the Pledge log. It will perform log analysis functions on the input. */
   protected void addToPledgeLog(String log) {
     pledgeLog.append(log);
-    statusIsEnrolled =
-        OpenThreadUtils.detectEnrollSuccess(log) && !OpenThreadUtils.detectEnrollFailure(log);
+    if (!statusIsEnrolled)
+      statusIsEnrolled = OpenThreadUtils.detectEnrollSuccess(log) && !OpenThreadUtils.detectEnrollFailure(log);
   }
   
 }
