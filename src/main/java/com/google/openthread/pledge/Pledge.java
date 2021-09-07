@@ -289,8 +289,8 @@ public class Pledge extends CoapClient {
       }
 
       if (!voucher.serialNumber.equals(req.serialNumber)
-          || !Arrays.equals(
-              voucher.idevidIssuer, SecurityUtils.getAuthorityKeyId(getCertificate()))) {
+          || (voucher.idevidIssuer != null && !Arrays.equals(
+              voucher.idevidIssuer, SecurityUtils.getAuthorityKeyId(getCertificate())))) {
         throw new PledgeException("serial number or idevid-issuer not matched");
       }
       if (req.nonce != null

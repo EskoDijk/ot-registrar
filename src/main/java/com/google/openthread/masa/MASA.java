@@ -369,7 +369,8 @@ public class MASA {
     voucher.nonce = req.nonce;
     voucher.assertion = Voucher.Assertion.PROXIMITY;
 
-    voucher.idevidIssuer = req.idevidIssuer;
+    // don't include idevidIssuer - optional field and only needed in case of serial number clashes.
+    // TODO make idevidissuer configurable! During tests it is needed.
     voucher.serialNumber = req.serialNumber;
     voucher.domainCertRevocationChecks = false;
 
