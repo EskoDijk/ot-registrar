@@ -340,11 +340,9 @@ public class Registrar extends CoapServer {
 
         // Constructing new voucher request for MASA
         // ref: section 5.5 BRSKI RFC8995
-        // Voucher req = new ConstrainedVoucherRequest();
-        Voucher req = new VoucherRequest();
-        // req.assertion = pledgeReq.assertion; // no assertion is made; only Pledge
-        // makes
-        // assertion.
+        VoucherRequest req = new VoucherRequest();
+        req.assertion = pledgeReq.assertion; // assertion is copied from Pledge. Section 3.3 example.
+        // Note, section 5.5: assertion MAY be omitted.
 
         // OPTIONAL (RFC 8995), but mandatory for Thread 1.2
         req.nonce = pledgeReq.nonce;

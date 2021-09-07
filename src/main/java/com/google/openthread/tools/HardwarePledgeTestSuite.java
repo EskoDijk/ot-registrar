@@ -227,7 +227,8 @@ public class HardwarePledgeTestSuite {
     if (!pledge.isEnrolled()) pledge.enroll();
     assertTrue(pledge.isEnrolled());
     assertTrue(pledge.execCommandDone("joiner startnmkp"));
-    String[] resp = pledge.waitForMessage(15000);
+    String resp = pledge.waitForMessage(15000);
+    assertTrue(false);
   }
 
   /**

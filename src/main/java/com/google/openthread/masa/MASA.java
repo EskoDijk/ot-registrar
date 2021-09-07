@@ -234,8 +234,7 @@ public class MASA {
 
       Voucher voucher = new Voucher();
       voucher.setConstrained(true);
-      final RestfulVoucherResponse resp =
-          processVoucherRequest(req, voucher, reqCerts);
+      final RestfulVoucherResponse resp = processVoucherRequest(req, voucher, reqCerts);
 
       // Generate and send response
       if (resp.isSuccess()) {
