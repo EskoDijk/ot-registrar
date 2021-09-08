@@ -102,8 +102,7 @@ public class HardwarePledgeTestSuite {
             credGen.masaKeyPair.getPrivate(),
             credGen.masaCert,
             credGen.getCredentials(CredentialGenerator.MASA_ALIAS),
-            Constants.DEFAULT_MASA_HTTPS_PORT,
-            false);
+            Constants.DEFAULT_MASA_HTTPS_PORT);
 
     domainCA = new DomainCA(THREAD_DOMAIN_NAME, credGen.domaincaKeyPair.getPrivate(), credGen.domaincaCert);
 

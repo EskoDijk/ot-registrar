@@ -75,26 +75,17 @@ public class MASAMain {
     Option optHelp =
         Option.builder("h").longOpt("help").hasArg(false).desc("print this message").build();
 
-    Option optCoap =
-        Option.builder("c")
-            .longOpt("coaps")
-            .hasArg(false)
-            .desc("coaps MASA server mode (otherwise, HTTPS)")
-            .build();
-
     options
         .addOption(fileOpt)
         .addOption(optPort)
         .addOption(optVerbose)
-        .addOption(optHelp)
-        .addOption(optCoap);
+        .addOption(optHelp);
 
     MASA masa;
 
     try {
       CommandLineParser parser = new DefaultParser();
       CommandLine cmd = parser.parse(options, args);
-      boolean isCoapServer = false;
 
       if (cmd.hasOption('h')) {
         helper.printHelp(HELP_FORMAT, options);
@@ -110,10 +101,6 @@ public class MASAMain {
         throw new IllegalArgumentException("need port!");
       }
 
-      if (cmd.hasOption('c')) {
-        isCoapServer = true;
-      }
-
       LoggerInitializer.Init(cmd.hasOption('v'));
 
       System.out.println("using keystore: " + keyStoreFile);
@@ -125,13 +112,11 @@ public class MASAMain {
         throw new KeyStoreException("can't find MASA key or certificate");
       }
 
-      masa =
-          new MASA(
+      masa = new MASA(
               cred.getPrivateKey(),
               cred.getCertificate(),
               cred,
-              Integer.parseInt(port),
-              isCoapServer);
+              Integer.parseInt(port));
     } catch (Exception e) {
       System.err.println("error: " + e.getMessage());
       helper.printHelp(HELP_FORMAT, options);

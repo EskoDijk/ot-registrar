@@ -66,12 +66,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
-import org.eclipse.californium.core.CoapResource;
-import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,8 +79,6 @@ public class MASA {
   protected String HTTP_WELCOME_PAGE =
       "<html><head><title>Test MASA server</title></head><body><h1>Test MASA server</h1><p>Use /.well-known/brski/requestvoucher for Voucher Requests. Formats application/voucher-cms+json and application/voucher-cose+cbor are supported for the request.</p></body></html>";
 
-  protected CoapServer coapServer;
-
   protected Undertow httpServer;
 
   protected Credentials credentials;
@@ -94,8 +87,7 @@ public class MASA {
       PrivateKey privateKey,
       X509Certificate certificate,
       Credentials credentials,
-      int port,
-      boolean isCoapServer)
+      int port)
       throws Exception {
     this.privateKey = privateKey;
     this.certificate = certificate;
@@ -109,12 +101,10 @@ public class MASA {
   }
 
   public void start() {
-    if (coapServer != null) coapServer.start();
     if (httpServer != null) httpServer.start();
   }
 
   public void stop() {
-    if (coapServer != null) coapServer.stop();
     if (httpServer != null) httpServer.stop();
   }
 
