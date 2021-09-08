@@ -268,17 +268,16 @@ public class SecurityUtils {
   }
 
   /**
-   * get the entire Authority Key Identifier ASN.1 SEQUENCE from the certificate.
+   * get the entire Authority Key Identifier OCTET STRING from the certificate.
+   * This is an octet string that contains an embedded SEQUENCE that defines the AKI
+   * extension structure.
    * See RFC 5280.
    * 
    * @param cert 
    * @return the entire Authority Key Identifier ASN.1 SEQUENCE, or null if not present.
    */
   public static byte[] getAuthorityKeyIdentifier(X509Certificate cert) {
-    ASN1OctetString octets =
-        DEROctetString.getInstance(
-            cert.getExtensionValue(Extension.authorityKeyIdentifier.getId()));
-    return octets.getOctets();
+    return cert.getExtensionValue(Extension.authorityKeyIdentifier.getId());
   }
 
   /**
