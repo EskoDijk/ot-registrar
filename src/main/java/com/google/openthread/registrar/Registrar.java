@@ -379,15 +379,16 @@ public class Registrar extends CoapServer {
         // Optional, could be null, but MUST be included for nonceful Voucher Request
         // (RFC 8995).
         // Settting idevid-issuer as authority key identifier of pledge certificate.
-        // Mandatory for Thread 1.2.
-        req.idevidIssuer = SecurityUtils.getAuthorityKeyId(idevid);
+        // Mandatory for Thread 1.2. Note: this currently uses a working assumption
+        // that the right format is complete AKI SEQUENCE. (Not just KeyIdentifier OCTET STRING).
+        req.idevidIssuer = SecurityUtils.getAuthorityKeyIdentifier(idevid);
         if (req.idevidIssuer != null) {
           logger.info(
               String.format(
-                  "idevid-issuer in voucher request [len=%d, %s]",
+                  "idevid-issuer inserted in Registrar voucher request [len=%d, %s]",
                   req.idevidIssuer.length, Hex.toHexString(req.idevidIssuer)));
         } else {
-          String msg = "missing idevid-issuer in voucher request";
+          String msg = "missing AKI in Pledge IDevID certificate";
           logger.error(msg);
           exchange.respond(ResponseCode.BAD_REQUEST, msg);
           return;

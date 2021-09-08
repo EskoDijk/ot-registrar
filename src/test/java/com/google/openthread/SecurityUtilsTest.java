@@ -30,6 +30,7 @@ package com.google.openthread;
 
 import COSE.OneKey;
 import COSE.Sign1Message;
+import com.google.openthread.tools.CredentialGenerator;
 import com.upokecenter.cbor.CBORObject;
 import java.security.*;
 import java.security.cert.X509Certificate;
@@ -142,5 +143,13 @@ public class SecurityUtilsTest {
     Assert.assertTrue(certList.size() == 2);
     Assert.assertEquals(certList.get(0), cert);
     Assert.assertEquals(certList.get(1), cert2);
+  }
+  
+  @Test
+  public void testAuthorityKeyIdentifier() throws Exception {
+    CredentialGenerator cg = new CredentialGenerator();
+    cg.make(null, null, null, null);    
+    Assert.assertTrue(SecurityUtils.getAuthorityKeyIdentifier(cg.pledgeCert).length == 24);
+    Assert.assertTrue(SecurityUtils.getAuthorityKeyIdentifierKeyId(cg.pledgeCert).length == 20);
   }
 }

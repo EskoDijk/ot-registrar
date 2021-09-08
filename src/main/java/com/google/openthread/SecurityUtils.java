@@ -267,13 +267,33 @@ public class SecurityUtils {
     }
   }
 
-  public static byte[] getAuthorityKeyId(X509Certificate cert) {
+  /**
+   * get the entire Authority Key Identifier ASN.1 SEQUENCE from the certificate.
+   * See RFC 5280.
+   * 
+   * @param cert 
+   * @return the entire Authority Key Identifier ASN.1 SEQUENCE, or null if not present.
+   */
+  public static byte[] getAuthorityKeyIdentifier(X509Certificate cert) {
     ASN1OctetString octets =
         DEROctetString.getInstance(
             cert.getExtensionValue(Extension.authorityKeyIdentifier.getId()));
-    if (octets == null) {
+    return octets.getOctets();
+  }
+
+  /**
+   * get only the KeyIdentifier sub-field (OCTET STRING) from the Authority Key Identifier of the
+   * certificate. See RFC 5280.
+   *
+   * @param cert
+   * @return only the KeyIdentifier OCTET STRING bytes part of the AKI of the certificate, or null if not found.
+   */
+  public static byte[] getAuthorityKeyIdentifierKeyId(X509Certificate cert) {
+    ASN1OctetString octets =
+        DEROctetString.getInstance(
+            cert.getExtensionValue(Extension.authorityKeyIdentifier.getId()));
+    if (octets == null)
       return null;
-    }
     AuthorityKeyIdentifier aki = AuthorityKeyIdentifier.getInstance(octets.getOctets());
     return aki.getKeyIdentifier();
   }
