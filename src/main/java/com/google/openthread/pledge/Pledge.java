@@ -285,7 +285,7 @@ public class Pledge extends CoapClient {
       Voucher voucher =
           (Voucher) new CBORSerializer().deserialize(msg.GetContent());
       if (!voucher.validate()) {
-        throw new PledgeException("voucher validation failed");
+        throw new PledgeException("unexpected combination of fields in the Voucher");
       }
 
       if (!voucher.serialNumber.equals(req.serialNumber)
