@@ -34,6 +34,7 @@ import com.google.openthread.tools.CredentialGenerator;
 import com.upokecenter.cbor.CBORObject;
 import java.security.*;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.List;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -153,5 +154,10 @@ public class SecurityUtilsTest {
     byte[] keyId = SecurityUtils.getAuthorityKeyIdentifierKeyId(cg.pledgeCert);
     Assert.assertTrue(akiOctetString.length == 26);
     Assert.assertTrue(keyId.length == 20);
+    
+    // verify that the last part of akiOctetString in fact contains the keyId.
+    byte[] akiOctetStringLastPart = new byte[20];
+    System.arraycopy(akiOctetString, 6, akiOctetStringLastPart, 0, 20);
+    Assert.assertTrue(Arrays.equals(keyId, akiOctetStringLastPart) );
   }
 }

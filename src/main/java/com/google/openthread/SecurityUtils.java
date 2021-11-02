@@ -233,13 +233,13 @@ public class SecurityUtils {
     return str.toString();
   }
 
-  public static X509Certificate parseCertFromPem(Reader reader) throws Exception {
+  public static X509Certificate parseCertFromPem(Reader reader) throws CertificateException , IOException {
     PEMParser parser = new PEMParser(reader);
     return new JcaX509CertificateConverter()
         .getCertificate((X509CertificateHolder) parser.readObject());
   }
 
-  public static PrivateKey parsePrivateKeyFromPem(Reader reader) throws Exception {
+  public static PrivateKey parsePrivateKeyFromPem(Reader reader) throws IOException {
     PEMParser parser = new PEMParser(reader);
     Object obj = parser.readObject();
     PrivateKeyInfo pkInfo;
@@ -248,7 +248,7 @@ public class SecurityUtils {
     } else if (obj instanceof PrivateKeyInfo) {
       pkInfo = (PrivateKeyInfo) obj;
     } else {
-      throw new Exception("the key file is corrupted");
+      throw new IOException("the key file is corrupted, or not a private key");
     }
     return new JcaPEMKeyConverter().getPrivateKey(pkInfo);
   }
