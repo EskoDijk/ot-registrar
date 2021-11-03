@@ -147,7 +147,7 @@ public final class RegistrarMain {
         // trust all MASAs by default
         builder.setTrustAllMasas(true);
       } else {
-        // if one MASA identity defined in credentials file, use that one as trusted MASA.
+        // FIXME if one MASA identity defined in credentials file, use that one as trusted MASA.
         if (masaCred.getCertificate() != null)
           builder.addMasaCertificate(masaCred.getCertificate());
       }

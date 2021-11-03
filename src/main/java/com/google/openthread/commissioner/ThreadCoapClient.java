@@ -11,7 +11,6 @@ import com.google.openthread.Constants;
 import com.google.openthread.commissioner.tlv.*;
 import COSE.CoseException;
 import se.sics.ace.cwt.CWT;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 /*** 
  * A Commissioner Coap client that can send Thread-specific management commands to a Border Agent (BA), 
@@ -48,7 +47,7 @@ public class ThreadCoapClient extends CoapClient {
   }
   
   public void setUDP_TX_Encapsulation(boolean doEncapsulate) {
-    throw new NotImplementedException();
+    throw new UnsupportedOperationException();
   }
   
   /**

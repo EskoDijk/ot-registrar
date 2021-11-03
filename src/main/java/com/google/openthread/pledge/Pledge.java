@@ -256,8 +256,7 @@ public class Pledge extends CoapClient {
       throw new PledgeException("voucher request failed: null response");
     }
     if (response.getCode() != ResponseCode.CHANGED) {
-      throw new PledgeException(
-          "voucher request failed: " + response.getCode().toString(), response.getCode());
+      throw new PledgeException("voucher request failed", response);
     }
     if (response.getOptions().getContentFormat()
         != ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR) {
@@ -545,8 +544,7 @@ public class Pledge extends CoapClient {
       throw new PledgeException("CSR request failed: null response");
     }
     if (response.getCode() != ResponseCode.CHANGED) {
-      throw new PledgeException(
-          "CSR request failed: " + response.getCode().toString(), response.getCode());
+      throw new PledgeException("CSR request failed", response);
     }
 
     if (response.getOptions().getContentFormat()
