@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#  Copyright (c) 2019, The OpenThread Registrar Authors.
+#  Copyright (c) 2021, The OpenThread Registrar Authors.
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -27,5 +27,7 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-java -cp target/ot-registrar-0.1-SNAPSHOT-jar-with-dependencies.jar com.google.openthread.pledge.PledgeMain -f ./credentials/local-masa/test_credentials.p12 -r coaps://masa.iotconsultancy.nl
-#java -cp target/ot-registrar-0.1-SNAPSHOT-jar-with-dependencies.jar com.google.openthread.pledge.PledgeMain -f ./credentials/local-masa/test_credentials.p12 -r coaps://localhost
+# This runs a Pledge using Honeydukes IDevID, onboarding via cloud Registrar.
+# The script create-pledge-credentials-p12-honeydukes.sh can be used to create 
+# or recreate the credentials file.
+java -cp target/ot-registrar-0.1-SNAPSHOT-jar-with-dependencies.jar com.google.openthread.pledge.PledgeMain -f ./credentials/honeydukes/credentials.p12 -r coaps://masa.iotconsultancy.nl

@@ -67,6 +67,7 @@ import org.bouncycastle.asn1.ASN1String;
 import org.bouncycastle.asn1.DERIA5String;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.DERPrintableString;
+import org.bouncycastle.asn1.DERUTF8String;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
@@ -152,8 +153,14 @@ public class SecurityUtils {
     if (serialNumbers == null || serialNumbers.length == 0) {
       return null;
     }
-    ASN1String str = DERPrintableString.getInstance(serialNumbers[0].getFirst().getValue());
-    return str.getString();
+    try { 
+      ASN1String str = DERPrintableString.getInstance(serialNumbers[0].getFirst().getValue());
+      return str.getString();
+    }catch(IllegalArgumentException ex) {
+      // try converting from DERUTF8String, if it wasn't DERPrintableString. 
+      ASN1String str = DERUTF8String.getInstance(serialNumbers[0].getFirst().getValue());
+      return str.getString();      
+    }
   }
 
   /**
