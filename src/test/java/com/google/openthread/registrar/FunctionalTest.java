@@ -38,12 +38,14 @@ import com.google.openthread.masa.*;
 import com.google.openthread.pledge.*;
 import com.google.openthread.pledge.Pledge.CertState;
 import com.google.openthread.tools.*;
+import com.upokecenter.cbor.CBORObject;
 import java.io.IOException;
 import java.security.cert.*;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.bouncycastle.util.encoders.Hex;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -187,55 +189,82 @@ public class FunctionalTest {
     Voucher voucher = pledge.requestVoucher();
     Assert.assertTrue(voucher.validate());
     VerifyPledge(pledge);
+    Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
   }
 
+  /**
+   * Test BRSKI voucher request while first requesting CSR attributes. The returned attributes aren't used.
+   * Requesting this is not recommended anymore for constrained Pledges, but tested here nevertheless.
+   * 
+   * @throws Exception
+   */
   @Test
   public void testCsrAttrsRequest() throws Exception {
     Voucher voucher = pledge.requestVoucher();
     pledge.requestCSRAttributes();
     Assert.assertTrue(voucher.validate());
     VerifyPledge(pledge);
+    Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
   }
 
   @Test
   public void testEnroll() throws Exception {
     Voucher voucher = pledge.requestVoucher();
-    pledge.requestCSRAttributes();
+    Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
+
     pledge.enroll();
     Assert.assertTrue(voucher.validate());
     VerifyPledge(pledge);
-    VerifyEnroll(pledge);
+    VerifyEnroll(pledge);    
+    Assert.assertEquals(ResponseCode.CHANGED, pledge.sendEnrollStatusTelemetry(true, null));
   }
 
   @Test
   public void testReenroll() throws Exception {
     Voucher voucher = pledge.requestVoucher();
-    pledge.requestCSRAttributes();
+    Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
+    
     pledge.enroll();
     Assert.assertTrue(voucher.validate());
     VerifyPledge(pledge);
     VerifyEnroll(pledge);
+    Assert.assertEquals(ResponseCode.CHANGED, pledge.sendEnrollStatusTelemetry(true, null));
+    
     pledge.reenroll();
     VerifyEnroll(pledge);
   }
 
+  /**
+   * Test various status telemetry messages, stand-alone (not associated to enrollment/voucher request).
+   * Current Registrar is implemented to just accept/log these.
+   * 
+   * @throws Exception
+   */
+  @Test
+  public void testStatusTelemetry() throws Exception {
+    Assert.assertEquals(ResponseCode.CHANGED, pledge.sendEnrollStatusTelemetry(true, "this message should not be here, but may be accepted by Registrar nevertheless."));
+    Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, "this message should not be here, but may be accepted by Registrar nevertheless."));
+    byte[] wrongFormatTelemetry = Hex.decode("a46776657273696f6e6131665374617475730166526561736f6e7822496e666f726d61746976652068756d616e207265616461626c65206d6573736167656e726561736f6e2d636f6e74657874764164646974696f6e616c20696e666f726d6174696f6e");
+    Assert.assertEquals(ResponseCode.BAD_REQUEST, pledge.sendStatusTelemetry(Constants.ENROLL_STATUS, wrongFormatTelemetry, ExtendedMediaTypeRegistry.APPLICATION_CBOR));
+    Assert.assertEquals(ResponseCode.UNSUPPORTED_CONTENT_FORMAT, pledge.sendStatusTelemetry(Constants.ENROLL_STATUS, StatusTelemetry.create(true, null).serializeToBytes(), ExtendedMediaTypeRegistry.APPLICATION_COSE_SIGN1));
+    Assert.assertEquals(ResponseCode.UNSUPPORTED_CONTENT_FORMAT, pledge.sendStatusTelemetry(Constants.VOUCHER_STATUS, wrongFormatTelemetry, ExtendedMediaTypeRegistry.APPLICATION_COSE_SIGN1));
+    wrongFormatTelemetry = Hex.decode("a36776657273696f6e0166737461747573f467726561736f6e787174686973206b65792069732077726f6e67");
+    Assert.assertEquals(ResponseCode.BAD_REQUEST, pledge.sendStatusTelemetry(Constants.VOUCHER_STATUS, wrongFormatTelemetry, ExtendedMediaTypeRegistry.APPLICATION_CBOR));
+  }
+  
   @Test
   public void testReset() throws Exception {
     pledge.requestVoucher();
-    pledge.requestCSRAttributes();
     pledge.enroll();
     VerifyEnroll(pledge);
-
     pledge.reenroll();
     VerifyEnroll(pledge);
 
     pledge.reset();
 
     pledge.requestVoucher();
-    pledge.requestCSRAttributes();
     pledge.enroll();
     VerifyEnroll(pledge);
-
     pledge.reenroll();
     VerifyEnroll(pledge);
   }
@@ -292,12 +321,14 @@ public class FunctionalTest {
                 new X509Certificate[] {cg.pledgeCert, cg.masaCert},
                 REGISTRAR_URI);
         p.requestVoucher();
-        p.requestCSRAttributes();
+        Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
         p.enroll();
         VerifyEnroll(p);
-
+        Assert.assertEquals(ResponseCode.CHANGED, pledge.sendEnrollStatusTelemetry(true, null));
+        
         p.reenroll();
         VerifyEnroll(p);
+        
       } catch (Throwable e) {
         errorState = e;
       } finally {
@@ -356,6 +387,7 @@ public class FunctionalTest {
       pledge.requestVoucher();
       Assert.fail("MASA mistakenly accepted voucher request");
     } catch (PledgeException ex) {
+      Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(false, "MASA didn't accept voucher request: " + ex.getMessage()));
       Assert.assertEquals(ResponseCode.FORBIDDEN, ex.code);
     }
   }
@@ -379,8 +411,10 @@ public class FunctionalTest {
     registrar2.start();
 
     Voucher voucher = pledge.requestVoucher();
+    Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
     pledge.enroll();
     VerifyEnroll(pledge);
     voucher.validate();
+    Assert.assertEquals(ResponseCode.CHANGED, pledge.sendEnrollStatusTelemetry(true, null));
   }
 }

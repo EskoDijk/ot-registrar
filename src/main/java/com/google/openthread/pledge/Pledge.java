@@ -38,6 +38,7 @@ import com.google.openthread.Constants;
 import com.google.openthread.ExtendedMediaTypeRegistry;
 import com.google.openthread.SecurityUtils;
 import com.google.openthread.brski.CBORSerializer;
+import com.google.openthread.brski.StatusTelemetry;
 import com.google.openthread.brski.Voucher;
 import com.google.openthread.brski.VoucherRequest;
 import java.io.ByteArrayInputStream;
@@ -381,6 +382,48 @@ public class Pledge extends CoapClient {
     // TODO(wgtdkp):
   }
 
+  /**
+   * Send Voucher Status telemetry message
+   * @param isSuccess true if success voucher-status is to be reported, false if error is to be reported.
+   * @param failureReason human-readable failure reason string to be reported, usually only if isSuccess==false.
+   * @throws Exception
+   */
+  public ResponseCode sendVoucherStatusTelemetry(boolean isSuccess, String failureReason) throws Exception {
+    // create CBOR data structure
+    StatusTelemetry st = StatusTelemetry.create(isSuccess, failureReason);
+    setURI(getBRSKIPath() + "/" + Constants.VOUCHER_STATUS);
+    CoapResponse resp = post(st.serializeToBytes(), ExtendedMediaTypeRegistry.APPLICATION_CBOR);
+    return resp.getCode();
+
+  }
+  
+  /**
+   * Send Enroll Status telemetry message
+   * @param isSuccess true if success enroll-status is to be reported, false if error is to be reported.
+   * @param failureReason human-readable failure reason string to be reported, usually only if isSuccess==false.
+   * @throws Exception
+   */
+  public ResponseCode sendEnrollStatusTelemetry(boolean isSuccess, String failureReason) throws Exception {
+    // create CBOR data structure
+    StatusTelemetry st = StatusTelemetry.create(isSuccess, failureReason);
+    setURI(getBRSKIPath() + "/" + Constants.ENROLL_STATUS);
+    CoapResponse resp = post(st.serializeToBytes(), ExtendedMediaTypeRegistry.APPLICATION_CBOR);
+    return resp.getCode();
+  }
+  
+  /**
+   * Send generic status telemetry message - for testing.
+   * @param resource
+   * @param payload
+   * @return
+   * @throws Exception
+   */
+  public ResponseCode sendStatusTelemetry(String resource, byte[] payload, int contentFormat) throws Exception {
+    setURI(getBRSKIPath() + "/" + resource);
+    CoapResponse resp = post(payload, contentFormat);
+    return resp.getCode();    
+  }
+  
   /**
    * The EST simpleEnrollment process.
    *

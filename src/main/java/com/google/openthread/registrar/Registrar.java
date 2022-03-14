@@ -188,6 +188,8 @@ public class Registrar extends CoapServer {
 
     @Override
     public void handlePOST(CoapExchange exchange) {
+      StatusTelemetry voucherStatus = null;
+      
       try {
         int contentFormat = exchange.getRequestOptions().getContentFormat();
         RequestDumper.dump(logger, getURI(), exchange.getRequestPayload());
@@ -204,7 +206,7 @@ public class Registrar extends CoapServer {
           return;
         }
 
-        StatusTelemetry voucherStatus = StatusTelemetry.deserialize(exchange.getRequestPayload());
+        voucherStatus = StatusTelemetry.deserialize(exchange.getRequestPayload());
         if (voucherStatus.cbor == null) {
           logger.warn("decoding CBOR payload failed for voucher status report");
           exchange.respond(ResponseCode.BAD_REQUEST);
@@ -226,8 +228,12 @@ public class Registrar extends CoapServer {
         return;
       }
 
-      // success response
-      exchange.respond(ResponseCode.CHANGED);
+      if (voucherStatus != null && voucherStatus.isValidFormat) {
+        //success response
+        exchange.respond(ResponseCode.CHANGED);
+      }else {
+        exchange.respond(ResponseCode.BAD_REQUEST); // client submitted wrong format.
+      }
     }
   }
 
@@ -239,6 +245,7 @@ public class Registrar extends CoapServer {
 
     @Override
     public void handlePOST(CoapExchange exchange) {
+      StatusTelemetry enrollStatus = null;
       try {
         int contentFormat = exchange.getRequestOptions().getContentFormat();
         RequestDumper.dump(logger, getURI(), exchange.getRequestPayload());
@@ -255,7 +262,7 @@ public class Registrar extends CoapServer {
           return;
         }
 
-        StatusTelemetry enrollStatus = StatusTelemetry.deserialize(exchange.getRequestPayload());
+        enrollStatus = StatusTelemetry.deserialize(exchange.getRequestPayload());
         if (enrollStatus.cbor == null) {
           logger.warn("decoding CBOR payload failed for enroll status report");
           exchange.respond(ResponseCode.BAD_REQUEST);
@@ -276,7 +283,13 @@ public class Registrar extends CoapServer {
         exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
         return;
       }
-      exchange.respond(ResponseCode.CHANGED);
+
+      if (enrollStatus != null && enrollStatus.isValidFormat) {
+        //success response
+        exchange.respond(ResponseCode.CHANGED);
+      }else {
+        exchange.respond(ResponseCode.BAD_REQUEST); // client submitted wrong format.
+      }
     }
   }
 

@@ -44,10 +44,10 @@ public class StatusTelemetry {
   public boolean status;
 
   /**
-   * in case of failure (status==false), contains the reason for failure given by Pledge, if any
-   * given.
+   * in case of failure (status==false), should contain the reason for failure given by Pledge, if any
+   * given. For success (status==true) normally should be null, but may be provided nevertheless.
    */
-  public String reason = "";
+  public String reason = null;
 
   /** keep track of whether the telemetry report was in 100% valid format, or not. */
   public boolean isValidFormat = false;
@@ -66,6 +66,44 @@ public class StatusTelemetry {
   }
 
   /**
+   * Create a new StatusTelemetry object with given state info. This is useful to serialize it 
+   * to CBOR or byte[].
+   * 
+   * @param isSuccess true if status should indicate success, false otherwise.
+   * @param reason required human-readable failure reason if isSuccess==false, should be null otherwise (but not necessarily).
+   * @return
+   */
+  public static StatusTelemetry create(boolean isSuccess, String reason) {
+    StatusTelemetry st = new StatusTelemetry();
+    st.status = isSuccess;
+    st.reason = reason;
+    st.isValidFormat = isSuccess || (reason != null && reason.length() > 0 );
+    return st;
+  }
+  
+  /**
+   * Serialize the current status telemetry report into CBORObject.
+   * @return status telemetry report as CBORObject.
+   */
+  public CBORObject serialize() {
+    CBORObject o = CBORObject.NewMap();
+    o.Add("version", CBORObject.FromObject(1));
+    o.Add("status", CBORObject.FromObject(status));
+    if (reason != null) {
+      o.Add("reason", CBORObject.FromObject(reason));
+    }
+    return o;
+  }
+
+  /**
+   * Serialize the current status telemetry report into CBOR bytes.
+   * @return status telemetry report as bytes.
+   */
+  public byte[] serializeToBytes() {
+    return this.serialize().EncodeToBytes();
+  }
+  
+  /**
    * Deserialize a status telemetry report from CBOR bytes. In case of invalid 'data', i.e. invalid
    * CBOR format or invalid report format, flags in the StatusTelemetry object are set to indicate
    * this.
@@ -78,10 +116,10 @@ public class StatusTelemetry {
     boolean isValidFormat = true;
     try {
       CBORObject stCbor = CBORObject.DecodeFromBytes(data);
-      if (stCbor == null || stCbor.size() == 0) {
+      if (stCbor == null || stCbor.size() == 0 || !stCbor.ContainsKey("version") || !stCbor.get("version").equals(CBORObject.FromObject(1)) ) {
         isValidFormat = false;
         st.parseResultStatus =
-            "CBOR object is not in status telemetry report format; it should be a map";
+            "CBOR object is not a correct status telemetry report format";
         return st;
       }
 
@@ -120,7 +158,7 @@ public class StatusTelemetry {
     }
 
     // evaluate cases of valid format.
-    if (isValidFormat && ((st.status == false && st.reason.length() > 0) || (st.status == true)))
+    if (isValidFormat && ((st.status == false && st.reason != null && st.reason.length() > 0) || (st.status == true)))
       st.isValidFormat = true;
 
     return st;

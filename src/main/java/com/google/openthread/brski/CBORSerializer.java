@@ -32,7 +32,11 @@ import com.upokecenter.cbor.CBORObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Create new instance for each serialization/deserialization job. */
+/**
+ * Utility class to serialize/deserialize Vouchers to or from CBOR,
+ * either as byte array or CBORObject. 
+ * Create a new instance for each serialization/deserialization job. 
+ */
 public class CBORSerializer implements VoucherSerializer {
 
   protected CBORObject container;
