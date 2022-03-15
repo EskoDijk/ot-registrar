@@ -250,6 +250,7 @@ public class FunctionalTest {
     Assert.assertEquals(ResponseCode.UNSUPPORTED_CONTENT_FORMAT, pledge.sendStatusTelemetry(Constants.VOUCHER_STATUS, wrongFormatTelemetry, ExtendedMediaTypeRegistry.APPLICATION_COSE_SIGN1));
     wrongFormatTelemetry = Hex.decode("a36776657273696f6e0166737461747573f467726561736f6e787174686973206b65792069732077726f6e67");
     Assert.assertEquals(ResponseCode.BAD_REQUEST, pledge.sendStatusTelemetry(Constants.VOUCHER_STATUS, wrongFormatTelemetry, ExtendedMediaTypeRegistry.APPLICATION_CBOR));
+    Assert.assertEquals(ResponseCode.CHANGED, pledge.sendStatusTelemetry(Constants.ENROLL_STATUS, StatusTelemetry.create(true, "this msg is not needed").serializeToBytes(), ExtendedMediaTypeRegistry.APPLICATION_CBOR));
   }
   
   @Test
