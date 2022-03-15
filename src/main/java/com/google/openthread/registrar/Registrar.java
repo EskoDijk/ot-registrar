@@ -208,8 +208,8 @@ public class Registrar extends CoapServer {
 
         voucherStatus = StatusTelemetry.deserialize(exchange.getRequestPayload());
         if (voucherStatus.cbor == null) {
-          logger.warn("decoding CBOR payload failed for voucher status report");
-          exchange.respond(ResponseCode.BAD_REQUEST);
+          logger.warn("decoding CBOR payload failed for voucher status report: " + voucherStatus.parseResultStatus);
+          exchange.respond(ResponseCode.BAD_REQUEST, "decoding CBOR payload failed for voucher status report: " + voucherStatus.parseResultStatus);
           return;
         }
 
@@ -224,16 +224,16 @@ public class Registrar extends CoapServer {
 
       } catch (Exception e) {
         logger.warn("handle voucher status report failed with exception: " + e.getMessage(), e);
-        exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
+        exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR, "Exception: " + e.getMessage() );
         return;
       }
 
-      if (voucherStatus != null && voucherStatus.isValidFormat) {
-        //success response
+      if (voucherStatus.isValidFormat) {        //success response
         exchange.respond(ResponseCode.CHANGED);
       }else {
-        exchange.respond(ResponseCode.BAD_REQUEST); // client submitted wrong format.
-      }
+        exchange.respond(ResponseCode.BAD_REQUEST, "payload error: " + voucherStatus.parseResultStatus ); // client submitted wrong format.
+      } 
+            
     }
   }
 
@@ -264,8 +264,8 @@ public class Registrar extends CoapServer {
 
         enrollStatus = StatusTelemetry.deserialize(exchange.getRequestPayload());
         if (enrollStatus.cbor == null) {
-          logger.warn("decoding CBOR payload failed for enroll status report");
-          exchange.respond(ResponseCode.BAD_REQUEST);
+          logger.warn("status telemetry report message decoding error: " + enrollStatus.parseResultStatus);
+          exchange.respond(ResponseCode.BAD_REQUEST, "payload error: " + enrollStatus.parseResultStatus);
           return;
         }
 
@@ -280,16 +280,16 @@ public class Registrar extends CoapServer {
 
       } catch (Exception e) {
         logger.warn("handle enroll status report failed with exception: " + e.getMessage(), e);
-        exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
+        exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR, "Exception: " + e.getMessage() );
         return;
       }
 
-      if (enrollStatus != null && enrollStatus.isValidFormat) {
-        //success response
+      if (enrollStatus.isValidFormat) {        //success response
         exchange.respond(ResponseCode.CHANGED);
       }else {
-        exchange.respond(ResponseCode.BAD_REQUEST); // client submitted wrong format.
+        exchange.respond(ResponseCode.BAD_REQUEST, "payload error: " + enrollStatus.parseResultStatus); // client submitted wrong format.
       }
+      
     }
   }
 

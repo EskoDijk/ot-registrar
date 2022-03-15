@@ -113,20 +113,20 @@ public class StatusTelemetry {
    */
   public static StatusTelemetry deserialize(byte[] data) {
     StatusTelemetry st = new StatusTelemetry();
-    boolean isValidFormat = true;
+    st.isValidFormat = true;
     try {
       CBORObject stCbor = CBORObject.DecodeFromBytes(data);
       if (stCbor == null || stCbor.size() == 0 || !stCbor.ContainsKey("version") || !stCbor.get("version").equals(CBORObject.FromObject(1)) ) {
-        isValidFormat = false;
+        st.isValidFormat = false;
         st.parseResultStatus =
-            "CBOR object is not a correct status telemetry report format";
+            "CBOR object not in correct status telemetry report format";
         return st;
       }
 
       // getting status report from the data
       if (!stCbor.ContainsKey("status")
           || (!stCbor.get("status").isTrue() && !stCbor.get("status").isFalse())) {
-        isValidFormat = false;
+        st.isValidFormat = false;
         st.parseResultStatus = "'status' field missing or not boolean in status telemetry report";
       }
       st.status = stCbor.get("status").isTrue();
@@ -134,7 +134,8 @@ public class StatusTelemetry {
       // '1' as well.
       // this will be logged though as invalid format usage by Pledge.
       if (stCbor.get("status").equals(CBORObject.FromObject(1))) {
-        isValidFormat = false;
+        st.isValidFormat = false;
+        st.parseResultStatus = "'status' field must use Boolean value instead of Int";
         st.status = true;
       }
 
@@ -148,18 +149,21 @@ public class StatusTelemetry {
           r = stCbor.get("reason").AsString();
         } catch (IllegalStateException ex) {
           r = stCbor.get("reason").toString();
-          isValidFormat = false;
+          st.isValidFormat = false;
+          st.parseResultStatus = "'reason' field has wrong value format, must be String";
         }
         st.reason = r;
       }
     } catch (CBORException ex) {
       st.parseResultStatus = "Not a valid CBOR object";
-      isValidFormat = false;
+      st.isValidFormat = false;
     }
 
-    // evaluate cases of valid format.
-    if (isValidFormat && ((st.status == false && st.reason != null && st.reason.length() > 0) || (st.status == true)))
-      st.isValidFormat = true;
+    // evaluate more cases of invalid format.
+    if ( st.status == false && ( st.reason == null || st.reason.length() == 0 )) {
+      st.isValidFormat = false;
+      st.parseResultStatus = "'reason' field must be provided if status==false";
+    }
 
     return st;
   }
