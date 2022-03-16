@@ -211,12 +211,28 @@ public class FunctionalTest {
   public void testEnroll() throws Exception {
     Voucher voucher = pledge.requestVoucher();
     Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
+    Assert.assertTrue(voucher.validate());
 
     pledge.enroll();
-    Assert.assertTrue(voucher.validate());
     VerifyPledge(pledge);
     VerifyEnroll(pledge);    
     Assert.assertEquals(ResponseCode.CHANGED, pledge.sendEnrollStatusTelemetry(true, null));
+  }
+
+  @Test
+  public void testEnrollWithUnsupportedFormat() throws Exception {
+    Voucher voucher = pledge.requestVoucher();
+    Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
+    Assert.assertTrue(voucher.validate());
+
+    // modify the CSR's Content Format to something not supported.
+    pledge.csrContentFormat = ExtendedMediaTypeRegistry.APPLICATION_PKIX_CERT;
+    try {
+      pledge.enroll();
+      Assert.fail("CSR with unsupported Content Format should fail.");
+    }catch(PledgeException ex){
+      // ok, as expected it fails.
+    }
   }
 
   @Test

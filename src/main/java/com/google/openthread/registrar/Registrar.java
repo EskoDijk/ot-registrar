@@ -202,7 +202,7 @@ public class Registrar extends CoapServer {
           logger.warn(
               "unsupported content-format for voucher status report: content-format="
                   + contentFormat);
-          exchange.respond(ResponseCode.UNSUPPORTED_CONTENT_FORMAT);
+          exchange.respond(ResponseCode.UNSUPPORTED_CONTENT_FORMAT, "Only Content Format "+ExtendedMediaTypeRegistry.APPLICATION_CBOR+" supported.");
           return;
         }
 
@@ -258,7 +258,7 @@ public class Registrar extends CoapServer {
           logger.warn(
               "unexpected content format for enroll status report: content-format="
                   + contentFormat);
-          exchange.respond(ResponseCode.UNSUPPORTED_CONTENT_FORMAT);
+          exchange.respond(ResponseCode.UNSUPPORTED_CONTENT_FORMAT, "Only Content Format "+ExtendedMediaTypeRegistry.APPLICATION_CBOR+" supported.");
           return;
         }
 
@@ -301,9 +301,9 @@ public class Registrar extends CoapServer {
 
     @Override
     public void handlePOST(CoapExchange exchange) {
-      int contentFormat = exchange.getRequestOptions().getContentFormat();
 
       try {
+        int contentFormat = exchange.getRequestOptions().getContentFormat();
         RequestDumper.dump(logger, getURI(), exchange.getRequestPayload());
 
         // Get client certificate, it is pledge's idevid for voucher request
@@ -339,7 +339,7 @@ public class Registrar extends CoapServer {
                   new CBORSerializer().deserialize(exchange.getRequestPayload());
         } else {
           logger.error("unsupported voucher request format: " + contentFormat);
-          exchange.respond(ResponseCode.UNSUPPORTED_CONTENT_FORMAT);
+          exchange.respond(ResponseCode.UNSUPPORTED_CONTENT_FORMAT, "unsupported voucher request Content Format: " + contentFormat);
           return;
         }
 
@@ -655,14 +655,15 @@ public class Registrar extends CoapServer {
 
     @Override
     public void handlePOST(CoapExchange exchange) {
-      int contentFormat = exchange.getRequestOptions().getContentFormat();
-      if (contentFormat != ExtendedMediaTypeRegistry.APPLICATION_PKCS10) {
-        exchange.respond(ResponseCode.UNSUPPORTED_CONTENT_FORMAT);
-        return;
-      }
 
       try {
+        int contentFormat = exchange.getRequestOptions().getContentFormat();
         RequestDumper.dump(logger, getURI(), exchange.getRequestPayload());
+
+        if (contentFormat != ExtendedMediaTypeRegistry.APPLICATION_PKCS10) {
+          exchange.respond(ResponseCode.UNSUPPORTED_CONTENT_FORMAT, "Only Content Format "+ExtendedMediaTypeRegistry.APPLICATION_PKCS10+" supported.");
+          return;
+        }
 
         byte[] payload = exchange.getRequestPayload();
 
@@ -744,14 +745,14 @@ public class Registrar extends CoapServer {
 
     @Override
     public void handlePOST(CoapExchange exchange) {
-      int contentFormat = exchange.getRequestOptions().getContentFormat();
-      if (contentFormat != ExtendedMediaTypeRegistry.APPLICATION_CWT) {
-        exchange.respond(ResponseCode.UNSUPPORTED_CONTENT_FORMAT);
-        return;
-      }
-
       try {
+        int contentFormat = exchange.getRequestOptions().getContentFormat();
         RequestDumper.dump(logger, getURI(), exchange.getRequestPayload());
+
+        if (contentFormat != ExtendedMediaTypeRegistry.APPLICATION_CWT) {
+          exchange.respond(ResponseCode.UNSUPPORTED_CONTENT_FORMAT,  "Only Content Format "+ExtendedMediaTypeRegistry.APPLICATION_CWT+" supported.");
+          return;
+        }
 
         // TODO(wgtdkp): verify the COM_TOK.req
         CBORObject req = CBORObject.DecodeFromBytes(exchange.getRequestPayload());

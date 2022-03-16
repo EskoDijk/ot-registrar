@@ -576,7 +576,7 @@ public class Pledge extends CoapClient {
   private CoapResponse sendCSR(PKCS10CertificationRequest csr, String resource)
       throws IOException, ConnectorException {
     setURI(getESTPath() + "/" + resource);
-    return post(csr.getEncoded(), ExtendedMediaTypeRegistry.APPLICATION_PKCS10);
+    return post(csr.getEncoded(), csrContentFormat );
   }
 
   private X509Certificate requestSigning(PKCS10CertificationRequest csr, String resource)
@@ -707,6 +707,9 @@ public class Pledge extends CoapClient {
   PledgeCertificateVerifier certVerifier;
 
   private CertPath registrarCertPath;
+  
+  /** the Content Format to use for a CSR request */
+  public int csrContentFormat = ExtendedMediaTypeRegistry.APPLICATION_PKCS10;
 
   private PublicKey domainPublicKey;
 
