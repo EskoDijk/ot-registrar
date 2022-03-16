@@ -137,13 +137,22 @@ public final class RegistrarMain {
         throw new KeyStoreException("can't find registrar key or certificate");
       }
 
-      builder.setPrivateKey(cred.getPrivateKey()).setCertificateChain(cred.getCertificateChain());
-      if (masaCred.getCertificate() != null) {
-        builder.addMasaCertificate(masaCred.getCertificate());
-      }
-      System.out.println("masa server number: " + builder.getMasaNumber());
+      // re-use the same creds for Pledge-facing identity and MASA-facing identity.
+      builder.setPrivateKey(cred.getPrivateKey());
+      builder.setCertificateChain(cred.getCertificateChain());
+      builder.setMasaClientCredentials(cred);
+      builder.setPort(Integer.parseInt(port));
 
-      registrar = builder.build(Integer.parseInt(port));
+      if (true) {
+        // trust all MASAs by default
+        builder.setTrustAllMasas(true);
+      } else {
+        // FIXME if one MASA identity defined in credentials file, use that one as trusted MASA.
+        if (masaCred.getCertificate() != null)
+          builder.addMasaCertificate(masaCred.getCertificate());
+      }
+
+      registrar = builder.build();
 
       DomainCA ca =
           new DomainCA(domainName, domainCred.getPrivateKey(), domainCred.getCertificate());

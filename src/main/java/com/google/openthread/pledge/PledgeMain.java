@@ -45,7 +45,7 @@ public class PledgeMain {
   private PledgeMain() {}
 
   public static void main(String args[]) {
-    final String HELP_FORMAT = "registrar [-h] -f <keystore-file> -r <registrar-uri>";
+    final String HELP_FORMAT = "pledge [-h] -f <keystore-file> -r <registrar-uri>";
 
     HelpFormatter helper = new HelpFormatter();
     Options options = new Options();

@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2019, The OpenThread Registrar Authors.
+ *    Copyright (c) 2021, The OpenThread Registrar Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
@@ -26,27 +26,21 @@
  *    POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.google.openthread.brski;
+package com.google.openthread;
 
-public class ConstrainedVoucher extends Voucher {
-  public ConstrainedVoucher() {
-    sidMap = voucherSIDMap;
-  }
+import com.fazecast.jSerialComm.*;
+import org.junit.*;
+import org.slf4j.*;
 
-  @Override
-  public boolean validate() {
-    if (assertion == null
-        || createdOn == null
-        || serialNumber == null
-        || (pinnedDomainSPKI == null && pinnedDomainCert == null)) {
-      return false;
+public class SerialPortsTest {
+
+  private static Logger logger = LoggerFactory.getLogger(SerialPortsTest.class);
+
+  @Test
+  public void testSerialPortEnumeration() throws Exception {
+    SerialPort[] comPorts = SerialPort.getCommPorts();
+    for (int i = 0; i < comPorts.length; i++) {
+      logger.info(comPorts[0].toString());
     }
-    if (expiresOn != null && nonce != null) {
-      return false;
-    }
-    if (lastRenewalDate != null && expiresOn == null) {
-      return false;
-    }
-    return true;
   }
 }

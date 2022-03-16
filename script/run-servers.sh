@@ -31,7 +31,7 @@ set -e
 
 readonly DOMAIN_NAME=TestDomainTCE
 
-readonly TIMESTAMP=$(date "+%Y-%m-%d-%H:%M:%S")
+readonly TIMESTAMP=$(date "+%Y-%m-%d_%H.%M.%S")
 readonly LOGS=logs/${TIMESTAMP}
 readonly TRI_LOG=${LOGS}/tri.log
 readonly REGISTRAR_LOG=${LOGS}/registrar.log
@@ -39,20 +39,33 @@ readonly MASA_LOG=${LOGS}/masa.log
 
 readonly TRI_PORT=5683
 readonly REGISTRAR_PORT=5684
-readonly MASA_PORT=5685
-readonly BORDER_AGENT_PORT=61631
+readonly MASA_PORT=9443
 
 readonly JAR_FILE=./target/ot-registrar-0.1-SNAPSHOT-jar-with-dependencies.jar
+# prebuilt TRI v1.2 server from the tce-registrar-java BitBucket repo needs to go here
+readonly JAR_TRI=./script/TRIserver.jar
 
 #readonly CREDENTIAL=credentials/threadgroup-5f9d307c.p12
 readonly CREDENTIAL=credentials/local-masa/test_credentials.p12
 
+# test if TRI exists
+if [ ! -f  "${JAR_TRI}" ]; then
+  echo "Please add TRI server JAR at ./script/TRIserver.jar"
+  exit 1
+fi
+
+# test if Registrar JAR exists
+if [ ! -f  "${JAR_FILE}" ]; then
+  echo "Please build using 'mvn -DskipTests package' before running."
+  exit 1
+fi
+
 rm -rf $LOGS
 mkdir -p $LOGS
 
-echo "starting tri, port=${TRI_PORT}, log=${TRI_LOG}..."
-java -jar tri/TRIserver.jar [::1] $REGISTRAR_PORT $BORDER_AGENT_PORT -dyntx \
-    >> $TRI_LOG 2>&1 &
+echo "starting TRI, port=${TRI_PORT}, log=${TRI_LOG}..."
+java -jar $JAR_TRI [::1] $REGISTRAR_PORT -log $TRI_LOG \
+    >> /dev/null 2>&1 &
 
 echo "starting registrar server, port=${REGISTRAR_PORT}, log=${REGISTRAR_LOG}..."
 java -cp $JAR_FILE \
@@ -60,8 +73,9 @@ java -cp $JAR_FILE \
     -v -d $DOMAIN_NAME -p $REGISTRAR_PORT -f $CREDENTIAL \
     >> $REGISTRAR_LOG 2>&1 &
 
-echo "starting masa server, port=${MASA_PORT}, log=${MASA_LOG}..."
+echo "starting HTTPS masa server, port=${MASA_PORT}, log=${MASA_LOG}..."
 java -cp $JAR_FILE \
     com.google.openthread.masa.MASAMain \
     -p $MASA_PORT -f $CREDENTIAL \
     >> $MASA_LOG 2>&1 &
+

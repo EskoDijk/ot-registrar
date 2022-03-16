@@ -28,9 +28,10 @@
 
 package com.google.openthread.pledge;
 
-import java.security.GeneralSecurityException;
+import com.google.openthread.Constants;
 import java.security.cert.CertPath;
 import java.security.cert.CertPathValidator;
+import java.security.cert.CertificateException;
 import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
@@ -38,6 +39,13 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.bouncycastle.asn1.ASN1Encodable;
+import org.bouncycastle.asn1.ASN1InputStream;
+import org.bouncycastle.asn1.ASN1Primitive;
+import org.bouncycastle.asn1.ASN1Sequence;
+import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.KeyPurposeId;
+import org.bouncycastle.cert.X509CertificateHolder;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -48,7 +56,12 @@ import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * CertificateVerifier for the Pledge, to perform all actions with a Registrar such as BRSKI voucher
+ * request, enrollment, re-enrollment, etc. Only valid for scope of contact with a Registrar.
+ */
 public class PledgeCertificateVerifier implements CertificateVerifier {
+
   public PledgeCertificateVerifier(Set<TrustAnchor> trustAnchors) {
     this.trustAnchors = new HashSet<>();
     if (trustAnchors != null) {
@@ -63,8 +76,10 @@ public class PledgeCertificateVerifier implements CertificateVerifier {
       throws HandshakeException {
 
     // We save the provisionally accepted registrar certificate chain, it will be verified
-    // after we got the 'pinned-domain-subject-public-key-info' in voucher.
+    // later, after we get a pinned domain/Registrar certificate in the voucher.
     peerCertPath = message.getCertificateChain();
+
+    // Check that it contains at least something to verify later.
     if (peerCertPath.getCertificates().size() == 0) {
       AlertMessage alert =
           new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE, session.getPeer());
@@ -73,6 +88,37 @@ public class PledgeCertificateVerifier implements CertificateVerifier {
     }
 
     try {
+
+      X509Certificate peerCert = (X509Certificate) peerCertPath.getCertificates().get(0);
+      X509CertificateHolder peerCertBC =
+          new X509CertificateHolder(peerCert.getEncoded()); // BouncyCastle equivalent
+
+      // Check that it is at least an RA cert
+      Extension ext = peerCertBC.getExtension(Constants.eku);
+      // byte[] ekuBytes = peerCert.getExtensionValue(Constants.EXTENDED_KEY_USAGE_OID);
+      if (ext == null) throw new CertificateException("EKU not present in Registrar cert");
+      ASN1InputStream is = new ASN1InputStream(ext.getExtnValue().getOctets());
+      ASN1Primitive p;
+      ASN1Sequence ekus = null;
+      boolean isServerAuth = false;
+      boolean isCmcRa = false;
+      if ((p = is.readObject()) != null) {
+        ekus = ASN1Sequence.getInstance(p);
+      }
+      for (ASN1Encodable eku : ekus) {
+        if (eku.equals(KeyPurposeId.id_kp_serverAuth.toOID())) isServerAuth = true;
+        if (eku.equals(Constants.id_kp_cmcRA.toOID())) isCmcRa = true;
+      }
+      is.close();
+      if (!isServerAuth) throw new CertificateException("EKU tlsServerAuth not present");
+      if (!isCmcRa && isCmcRaCheck) throw new CertificateException("EKU id_kp_cmcRA not present");
+
+      // eku.hasKeyPurposeId(KeyPurposeId.id_kp_serverAuth);
+      // eku.hasKeyPurposeId(Constants.id_kp_cmcRA);
+      // Check that it is valid in terms of time/date.
+      peerCert.checkValidity();
+
+      // In case of non-empty TA store and verification enabled, validate it.
       if (isDoVerification() && !trustAnchors.isEmpty()) {
         PKIXParameters params = new PKIXParameters(trustAnchors);
         params.setRevocationEnabled(false);
@@ -81,14 +127,14 @@ public class PledgeCertificateVerifier implements CertificateVerifier {
         validator.validate(message.getCertificateChain(), params);
         logger.info("handshake - certificate validation succeed!");
       } else {
-        // We do no verification here to provisionally accept registrar certificate
+        // We do no verification here to provisionally accept registrar certificate.
+        // This is typically for the bootstrap first contact only.
         logger.info("registrar provisionally accepted without verification!");
       }
 
       peerAccepted = true;
-    } catch (GeneralSecurityException e) {
-      logger.error("handshake - certificate validation failed: " + e.getMessage());
-      e.printStackTrace();
+    } catch (Exception e) {
+      logger.error("handshake - certificate validation failed: " + e.getMessage(), e);
       AlertMessage alert =
           new AlertMessage(
               AlertMessage.AlertLevel.FATAL,
@@ -138,5 +184,11 @@ public class PledgeCertificateVerifier implements CertificateVerifier {
 
   protected boolean doVerification = false;
 
+  protected boolean isCmcRaCheck = true;
+
   protected Logger logger;
+
+  public void setCmcRaCheck(boolean b) {
+    this.isCmcRaCheck = b;
+  }
 }

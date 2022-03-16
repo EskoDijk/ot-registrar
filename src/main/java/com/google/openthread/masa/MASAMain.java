@@ -44,7 +44,7 @@ public class MASAMain {
   private MASAMain() {}
 
   public static void main(String args[]) {
-    final String HELP_FORMAT = "masa [-h] [-v] -f <keystore-file> -p <port>";
+    final String HELP_FORMAT = "masa [-h] [-v] [-c] -f <keystore-file> -p <port>";
 
     HelpFormatter helper = new HelpFormatter();
     Options options = new Options();
@@ -75,7 +75,11 @@ public class MASAMain {
     Option optHelp =
         Option.builder("h").longOpt("help").hasArg(false).desc("print this message").build();
 
-    options.addOption(fileOpt).addOption(optPort).addOption(optVerbose).addOption(optHelp);
+    options
+        .addOption(fileOpt)
+        .addOption(optPort)
+        .addOption(optVerbose)
+        .addOption(optHelp);
 
     MASA masa;
 
@@ -108,7 +112,11 @@ public class MASAMain {
         throw new KeyStoreException("can't find MASA key or certificate");
       }
 
-      masa = new MASA(cred.getPrivateKey(), cred.getCertificate(), Integer.parseInt(port));
+      masa = new MASA(
+              cred.getPrivateKey(),
+              cred.getCertificate(),
+              cred,
+              Integer.parseInt(port));
     } catch (Exception e) {
       System.err.println("error: " + e.getMessage());
       helper.printHelp(HELP_FORMAT, options);

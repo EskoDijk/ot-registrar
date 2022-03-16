@@ -37,10 +37,18 @@ import com.google.openthread.BouncyCastleInitializer;
 import com.google.openthread.Constants;
 import com.google.openthread.ExtendedMediaTypeRegistry;
 import com.google.openthread.SecurityUtils;
-import com.google.openthread.brski.*;
+import com.google.openthread.brski.CBORSerializer;
+import com.google.openthread.brski.StatusTelemetry;
+import com.google.openthread.brski.Voucher;
+import com.google.openthread.brski.VoucherRequest;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.security.*;
+import java.security.GeneralSecurityException;
+import java.security.KeyFactory;
+import java.security.KeyPair;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.SecureRandom;
 import java.security.cert.CertPath;
 import java.security.cert.CertPathValidator;
 import java.security.cert.Certificate;
@@ -51,9 +59,19 @@ import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import javax.security.auth.x500.X500Principal;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Primitive;
+import org.bouncycastle.asn1.ASN1Sequence;
+import org.bouncycastle.asn1.ASN1TaggedObject;
+import org.bouncycastle.asn1.DERIA5String;
+import org.bouncycastle.asn1.DERSequence;
+import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.est.CsrAttrs;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
@@ -75,11 +93,20 @@ import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * The Pledge (i.e., CCM Joiner) is the new device which is to securely bootstrap into the network
+ * domain using the Constrained BRSKI protocol.
+ */
 public class Pledge extends CoapClient {
+
+  protected static final ASN1ObjectIdentifier THREAD_DOMAIN_NAME_OID_ASN1 =
+      new ASN1ObjectIdentifier(Constants.THREAD_DOMAIN_NAME_OID); // per Thread 1.2 spec
+
   static {
     BouncyCastleInitializer.init();
   }
@@ -137,6 +164,44 @@ public class Pledge extends CoapClient {
     return operationalCertificate;
   }
 
+  /**
+   * Get the Thread Domain Name as encoded in the operational certificate of the Pledge.
+   *
+   * @return the Thread Domain Name, encoded in the SubjectAltName/Othername field as per Thread
+   *     spec. Or "DefaultDomain" if not encoded in there. Null if no operational cert present or if
+   *     it couldn't be parsed.
+   */
+  public String getDomainName() {
+    if (operationalCertificate == null) return null;
+
+    try {
+      Collection<List<?>> cSubjAltNames = operationalCertificate.getSubjectAlternativeNames();
+      if (cSubjAltNames == null) return Constants.THREAD_DOMAIN_NAME_DEFAULT;
+      // loop all subject-alt-names to find a matching 'otherName' item.
+      for (List<?> l : cSubjAltNames) {
+        if (l.size() == 2 && l.get(0).equals(Constants.ASN1_TAG_GENERALNAME_OTHERNAME)) {
+          ASN1Sequence ds = DERSequence.getInstance(DLSequence.fromByteArray((byte[]) l.get(1)));
+          // check that the otherName item has the Thread domain OID
+          if (ds.size() == 2 && ds.getObjectAt(0).equals(THREAD_DOMAIN_NAME_OID_ASN1)) {
+            ASN1TaggedObject ato = ASN1TaggedObject.getInstance(ds.getObjectAt(1));
+            if (ato.getTagNo() == 0) {
+              // get to the deepest embedded tagged object.
+              while (ato.getObject() instanceof ASN1TaggedObject)
+                ato = (ASN1TaggedObject) ato.getObject();
+              // must be stored as IA5String
+              return DERIA5String.getInstance(ato.getObject()).toString();
+            }
+          }
+        }
+      }
+    } catch (Exception ex) {
+      logger.error("getDomainName(): couldn't parse operational certificate", ex);
+      return null;
+    }
+    // if cert correct but not encoded in there, use default name.
+    return Constants.THREAD_DOMAIN_NAME_DEFAULT;
+  }
+
   // BRSKI protocol
 
   /**
@@ -146,7 +211,7 @@ public class Pledge extends CoapClient {
    * @throws IllegalStateException
    * @throws PledgeException
    */
-  public ConstrainedVoucher requestVoucher() throws Exception {
+  public Voucher requestVoucher() throws Exception {
     if (certState == CertState.ACCEPT) {
       throw new IllegalStateException("registrar certificate already accepted");
     }
@@ -159,12 +224,13 @@ public class Pledge extends CoapClient {
     registrarCertPath = certVerifier.getPeerCertPath();
 
     // 0. Build constrained voucher request
-    ConstrainedVoucherRequest voucherRequest = new ConstrainedVoucherRequest();
+    VoucherRequest voucherRequest = new VoucherRequest();
+    voucherRequest.setConstrained(true);
     voucherRequest.assertion = Voucher.Assertion.PROXIMITY;
     voucherRequest.serialNumber = getSerialNumber(getCertificate());
     voucherRequest.nonce = generateNonce();
 
-    // FIXME(wgtdkp): should use 'subjectPublicKeyInfo'
+    // FIXME(wgtdkp): should use 'subjectPublicKeyInfo' -> note, seems to already use this properly.
     voucherRequest.proximityRegistrarSPKI = getRegistrarCertificate().getPublicKey().getEncoded();
     if (!voucherRequest.validate()) {
       throw new PledgeException("validate voucher request failed");
@@ -174,14 +240,15 @@ public class Pledge extends CoapClient {
   }
 
   /**
-   * Request constrained voucher from registrar.
+   * Request constrained voucher from registrar using the supplied request 'req'.
    *
-   * @param req the voucher request
-   * @return the constrained voucher
+   * @param req the voucher request to send to registrar
+   * @return the constrained voucher response from the registrar
    * @throws IllegalStateException
    * @throws PledgeException
    */
-  public ConstrainedVoucher requestVoucher(VoucherRequest req) throws PledgeException {
+  public Voucher requestVoucher(VoucherRequest req)
+      throws PledgeException, ConnectorException, IOException, CoseException {
     // 0. Send to registrar
     CoapResponse response = sendRequestVoucher(req);
 
@@ -190,9 +257,8 @@ public class Pledge extends CoapClient {
       throw new PledgeException("voucher request failed: null response");
     }
     if (response.getCode() != ResponseCode.CHANGED) {
-      throw new PledgeException("voucher request failed: " + response.getCode().toString());
+      throw new PledgeException("voucher request failed", response);
     }
-
     if (response.getOptions().getContentFormat()
         != ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR) {
       throw new PledgeException(
@@ -216,15 +282,15 @@ public class Pledge extends CoapClient {
       }
 
       // 2.1 verify the voucher
-      ConstrainedVoucher voucher =
-          (ConstrainedVoucher) new CBORSerializer().deserialize(msg.GetContent());
+      Voucher voucher =
+          (Voucher) new CBORSerializer().deserialize(msg.GetContent());
       if (!voucher.validate()) {
-        throw new PledgeException("voucher validation failed");
+        throw new PledgeException("unexpected combination of fields in the Voucher");
       }
 
       if (!voucher.serialNumber.equals(req.serialNumber)
-          || !Arrays.equals(
-              voucher.idevidIssuer, SecurityUtils.getAuthorityKeyId(getCertificate()))) {
+          || (voucher.idevidIssuer != null && !Arrays.equals(
+              voucher.idevidIssuer, SecurityUtils.getAuthorityKeyIdentifier(getCertificate())))) {
         throw new PledgeException("serial number or idevid-issuer not matched");
       }
       if (req.nonce != null
@@ -258,8 +324,8 @@ public class Pledge extends CoapClient {
 
       return voucher;
     } catch (Exception e) {
-      e.printStackTrace();
-      throw new PledgeException("voucher error: " + e.getMessage());
+      logger.error("voucher processing error: " + e.getMessage(), e);
+      throw new PledgeException("voucher processing error: " + e.getMessage());
     }
   }
 
@@ -271,7 +337,8 @@ public class Pledge extends CoapClient {
    * @throws IllegalStateException
    * @throws PledgeException
    */
-  public void requestCSRAttributes() throws IllegalStateException, PledgeException {
+  public void requestCSRAttributes()
+      throws IllegalStateException, PledgeException, ConnectorException, IOException {
     if (certState != CertState.ACCEPT) {
       throw new IllegalStateException("should successfully get voucher first");
     }
@@ -281,7 +348,8 @@ public class Pledge extends CoapClient {
       throw new PledgeException("request CSR Attributes failed: null response");
     }
     if (response.getCode() != ResponseCode.CONTENT) {
-      logger.warn("CSR attributes request failed: " + response.getCode().toString());
+      logger.warn(
+          "CSR attributes request failed: " + response.getCode().toString(), response.getCode());
       return;
     }
 
@@ -314,6 +382,48 @@ public class Pledge extends CoapClient {
     // TODO(wgtdkp):
   }
 
+  /**
+   * Send Voucher Status telemetry message
+   * @param isSuccess true if success voucher-status is to be reported, false if error is to be reported.
+   * @param failureReason human-readable failure reason string to be reported, usually only if isSuccess==false.
+   * @throws Exception
+   */
+  public ResponseCode sendVoucherStatusTelemetry(boolean isSuccess, String failureReason) throws Exception {
+    // create CBOR data structure
+    StatusTelemetry st = StatusTelemetry.create(isSuccess, failureReason);
+    setURI(getBRSKIPath() + "/" + Constants.VOUCHER_STATUS);
+    CoapResponse resp = post(st.serializeToBytes(), ExtendedMediaTypeRegistry.APPLICATION_CBOR);
+    return resp.getCode();
+
+  }
+  
+  /**
+   * Send Enroll Status telemetry message
+   * @param isSuccess true if success enroll-status is to be reported, false if error is to be reported.
+   * @param failureReason human-readable failure reason string to be reported, usually only if isSuccess==false.
+   * @throws Exception
+   */
+  public ResponseCode sendEnrollStatusTelemetry(boolean isSuccess, String failureReason) throws Exception {
+    // create CBOR data structure
+    StatusTelemetry st = StatusTelemetry.create(isSuccess, failureReason);
+    setURI(getBRSKIPath() + "/" + Constants.ENROLL_STATUS);
+    CoapResponse resp = post(st.serializeToBytes(), ExtendedMediaTypeRegistry.APPLICATION_CBOR);
+    return resp.getCode();
+  }
+  
+  /**
+   * Send generic status telemetry message - for testing.
+   * @param resource
+   * @param payload
+   * @return
+   * @throws Exception
+   */
+  public ResponseCode sendStatusTelemetry(String resource, byte[] payload, int contentFormat) throws Exception {
+    setURI(getBRSKIPath() + "/" + resource);
+    CoapResponse resp = post(payload, contentFormat);
+    return resp.getCode();    
+  }
+  
   /**
    * The EST simpleEnrollment process.
    *
@@ -392,8 +502,13 @@ public class Pledge extends CoapClient {
     operationalCertificate = cert;
   }
 
-  public CoapResponse sayHello() {
-    setURI(getESTPath() + "/" + Constants.HELLO);
+  public CoapResponse sayHello() throws IOException, ConnectorException {
+    setURI(hostURI + "/" + Constants.HELLO);
+    return get();
+  }
+
+  public CoapResponse discoverResources() throws IOException, ConnectorException {
+    setURI(hostURI + Constants.CORE_PATH);
     return get();
   }
 
@@ -401,6 +516,10 @@ public class Pledge extends CoapClient {
     shutdown();
     init(privateKey, certificateChain, hostURI);
     initEndpoint(privateKey, certificateChain, certVerifier);
+  }
+
+  public CertState getState() {
+    return certState;
   }
 
   X509Certificate getCertificate() {
@@ -437,20 +556,27 @@ public class Pledge extends CoapClient {
     initEndpoint(this.privateKey, this.certificateChain, this.certVerifier);
   }
 
-  private CoapResponse sendRequestVoucher(VoucherRequest voucherRequest) {
-    setURI(getESTPath() + "/" + Constants.REQUEST_VOUCHER);
-    byte[] payload = new CBORSerializer().serialize(voucherRequest);
-    return post(payload, ExtendedMediaTypeRegistry.APPLICATION_CBOR);
+  private CoapResponse sendRequestVoucher(VoucherRequest voucherRequest)
+      throws IOException, ConnectorException, CoseException {
+    setURI(getBRSKIPath() + "/" + Constants.REQUEST_VOUCHER);
+    byte[] vrEncoded = new CBORSerializer().serialize(voucherRequest);
+
+    // COSE_Sign1 signing of the CBOR
+    byte[] payload =
+        SecurityUtils.genCoseSign1Message(
+            privateKey, SecurityUtils.COSE_SIGNATURE_ALGORITHM, vrEncoded);
+    return post(payload, ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
   }
 
-  private CoapResponse sendRequestCSRAttributes() {
+  private CoapResponse sendRequestCSRAttributes() throws IOException, ConnectorException {
     setURI(getESTPath() + "/" + Constants.CSR_ATTRIBUTES);
     return get();
   }
 
-  private CoapResponse sendCSR(PKCS10CertificationRequest csr, String resource) throws IOException {
+  private CoapResponse sendCSR(PKCS10CertificationRequest csr, String resource)
+      throws IOException, ConnectorException {
     setURI(getESTPath() + "/" + resource);
-    return post(csr.getEncoded(), ExtendedMediaTypeRegistry.APPLICATION_PKCS10);
+    return post(csr.getEncoded(), csrContentFormat );
   }
 
   private X509Certificate requestSigning(PKCS10CertificationRequest csr, String resource)
@@ -461,7 +587,7 @@ public class Pledge extends CoapClient {
       throw new PledgeException("CSR request failed: null response");
     }
     if (response.getCode() != ResponseCode.CHANGED) {
-      throw new PledgeException("CSR request failed: " + response.getCode().toString());
+      throw new PledgeException("CSR request failed", response);
     }
 
     if (response.getOptions().getContentFormat()
@@ -524,16 +650,16 @@ public class Pledge extends CoapClient {
       PrivateKey privateKey, X509Certificate[] certificateChain, CertificateVerifier verifier) {
     CoapEndpoint endpoint =
         SecurityUtils.genCoapClientEndPoint(
-            new X509Certificate[] {}, privateKey, certificateChain, verifier);
+            new X509Certificate[] {}, privateKey, certificateChain, verifier, false);
     setEndpoint(endpoint);
   }
 
   // We need a provisional DTLS session before requesting
   // voucher since we need registrar certificate. But there
   // is no 'connect' API to build this session ahead. We
-  // here send a GET to registrar to have this session built.
+  // here send a 'CoAP ping' to registrar to have this session built.
   private void connect() {
-    setURI(getESTPath());
+    setURI(getBRSKIPath());
     ping();
   }
 
@@ -544,7 +670,8 @@ public class Pledge extends CoapClient {
 
       Set<TrustAnchor> trustAnchors = new HashSet<>();
 
-      // Build trust anchor with the last certificate's issuer name and public key of Domain CA.
+      // Build trust anchor with the last certificate's issuer name and public key of
+      // Domain CA.
       trustAnchors.add(new TrustAnchor(lastCert.getIssuerX500Principal(), domainPublicKey, null));
       PKIXParameters params = new PKIXParameters(trustAnchors);
 
@@ -566,6 +693,10 @@ public class Pledge extends CoapClient {
     return hostURI + Constants.EST_PATH;
   }
 
+  private String getBRSKIPath() {
+    return hostURI + Constants.BRSKI_PATH;
+  }
+
   private static final String SUBJECT_NAME = "C=CN,L=SH,O=GG,OU=OpenThread,CN=pledge_op";
 
   private String hostURI;
@@ -576,6 +707,9 @@ public class Pledge extends CoapClient {
   PledgeCertificateVerifier certVerifier;
 
   private CertPath registrarCertPath;
+  
+  /** the Content Format to use for a CSR request */
+  public int csrContentFormat = ExtendedMediaTypeRegistry.APPLICATION_PKCS10;
 
   private PublicKey domainPublicKey;
 
@@ -587,4 +721,8 @@ public class Pledge extends CoapClient {
   private CsrAttrs csrAttrs;
 
   private static Logger logger = LoggerFactory.getLogger(Pledge.class);
+
+  public void setCmcRaCheck(boolean b) {
+    this.certVerifier.setCmcRaCheck(b);
+  }
 }

@@ -28,9 +28,37 @@
 
 package com.google.openthread.pledge;
 
+import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+
 public class PledgeException extends Exception {
+
+  /**
+   * An optional CoAP response code, from a CoAP response, that was unexpected or related to the 
+   * exception.
+   */
+  public ResponseCode code = null;
+  
+  /**
+   * An optional CoAP diagnostic message, from a CoAP response, to clarify what went wrong.
+   */
+  public String diagMsg = null;
+  
   public PledgeException(String msg) {
-    super(msg);
+    this(msg,null,null);
+  }
+
+  public PledgeException(String msg, CoapResponse resp) {
+    super( msg + 
+        ((resp.getCode() != null) ? (" (" + resp.getCode().toString() + ")") : "" ) + 
+        ((resp.getCode() != null && resp.getPayload() != null) ? (" - CoAP diagnostic: '" + new String(resp.getPayload()) + "'") : "") 
+    );
+    this.code = resp.getCode();
+    if (!ResponseCode.isSuccess(this.code) && resp.getPayload() != null)
+      this.diagMsg = new String(resp.getPayload());
+  }
+
+  public PledgeException(String msg, ResponseCode coapCode, String coapDiagnosticMsg) {
   }
 
   private static final long serialVersionUID = -1980574489782019605L;

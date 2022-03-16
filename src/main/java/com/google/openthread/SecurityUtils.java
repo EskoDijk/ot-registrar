@@ -35,12 +35,16 @@ import COSE.HeaderKeys;
 import COSE.OneKey;
 import COSE.Sign1Message;
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
+import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Reader;
 import java.io.StringWriter;
 import java.math.BigInteger;
 import java.net.InetSocketAddress;
+import java.security.GeneralSecurityException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -63,6 +67,7 @@ import org.bouncycastle.asn1.ASN1String;
 import org.bouncycastle.asn1.DERIA5String;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.DERPrintableString;
+import org.bouncycastle.asn1.DERUTF8String;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
@@ -76,6 +81,7 @@ import org.bouncycastle.asn1.x509.GeneralNames;
 import org.bouncycastle.asn1.x509.OtherName;
 import org.bouncycastle.asn1.x509.SubjectKeyIdentifier;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.cert.CertIOException;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.X509ExtensionUtils;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
@@ -99,6 +105,7 @@ import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.bouncycastle.operator.ContentSigner;
+import org.bouncycastle.operator.OperatorException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
 import org.bouncycastle.util.Store;
@@ -113,9 +120,6 @@ import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 
 /** Provides common security-related definitions and functionalities. */
 public class SecurityUtils {
-  static {
-    BouncyCastleInitializer.init();
-  }
 
   public static final String KEY_ALGORITHM = "EC";
 
@@ -124,6 +128,17 @@ public class SecurityUtils {
   public static final String SIGNATURE_ALGORITHM = "SHA256withECDSA";
 
   public static final CBORObject COSE_SIGNATURE_ALGORITHM = AlgorithmID.ECDSA_256.AsCBOR();
+
+  private static CertificateFactory certFactory;
+
+  static {
+    BouncyCastleInitializer.init();
+    try {
+      certFactory = CertificateFactory.getInstance("X.509");
+    } catch (CertificateException ex) {;
+      ex.printStackTrace();
+    }
+  }
 
   /**
    * Extract serialNumber from subject extension of given certificate.
@@ -138,8 +153,14 @@ public class SecurityUtils {
     if (serialNumbers == null || serialNumbers.length == 0) {
       return null;
     }
-    ASN1String str = DERPrintableString.getInstance(serialNumbers[0].getFirst().getValue());
-    return str.getString();
+    try { 
+      ASN1String str = DERPrintableString.getInstance(serialNumbers[0].getFirst().getValue());
+      return str.getString();
+    }catch(IllegalArgumentException ex) {
+      // try converting from DERUTF8String, if it wasn't DERPrintableString. 
+      ASN1String str = DERUTF8String.getInstance(serialNumbers[0].getFirst().getValue());
+      return str.getString();      
+    }
   }
 
   /**
@@ -187,8 +208,10 @@ public class SecurityUtils {
     try {
       X509CertificateHolder holder = new JcaX509CertificateHolder(cert);
       Extension masaUri = holder.getExtension(new ASN1ObjectIdentifier(Constants.MASA_URI_OID));
-      return DERIA5String.fromByteArray(masaUri.getExtnValue().getOctets()).toString();
+      String sUri = DERIA5String.fromByteArray(masaUri.getExtnValue().getOctets()).toString();
+      return sUri;
     } catch (IOException e) {
+      // TODO throw exception from this method, remove the prints.
       e.printStackTrace();
       return null;
     } catch (CertificateEncodingException e) {
@@ -217,13 +240,13 @@ public class SecurityUtils {
     return str.toString();
   }
 
-  public static X509Certificate parseCertFromPem(Reader reader) throws Exception {
+  public static X509Certificate parseCertFromPem(Reader reader) throws CertificateException , IOException {
     PEMParser parser = new PEMParser(reader);
     return new JcaX509CertificateConverter()
         .getCertificate((X509CertificateHolder) parser.readObject());
   }
 
-  public static PrivateKey parsePrivateKeyFromPem(Reader reader) throws Exception {
+  public static PrivateKey parsePrivateKeyFromPem(Reader reader) throws IOException {
     PEMParser parser = new PEMParser(reader);
     Object obj = parser.readObject();
     PrivateKeyInfo pkInfo;
@@ -232,7 +255,7 @@ public class SecurityUtils {
     } else if (obj instanceof PrivateKeyInfo) {
       pkInfo = (PrivateKeyInfo) obj;
     } else {
-      throw new Exception("the key file is corrupted");
+      throw new IOException("the key file is corrupted, or not a private key");
     }
     return new JcaPEMKeyConverter().getPrivateKey(pkInfo);
   }
@@ -251,23 +274,77 @@ public class SecurityUtils {
     }
   }
 
-  public static byte[] getAuthorityKeyId(X509Certificate cert) {
+  /**
+   * get the entire Authority Key Identifier OCTET STRING from the certificate.
+   * This is an octet string that contains an embedded SEQUENCE that defines the AKI
+   * extension structure.
+   * See RFC 5280.
+   * 
+   * @param cert 
+   * @return the entire Authority Key Identifier ASN.1 SEQUENCE, or null if not present.
+   */
+  public static byte[] getAuthorityKeyIdentifier(X509Certificate cert) {
+    return cert.getExtensionValue(Extension.authorityKeyIdentifier.getId());
+  }
+
+  /**
+   * get only the KeyIdentifier sub-field (OCTET STRING) from the Authority Key Identifier of the
+   * certificate. See RFC 5280.
+   *
+   * @param cert
+   * @return only the KeyIdentifier OCTET STRING bytes part of the AKI of the certificate, or null if not found.
+   */
+  public static byte[] getAuthorityKeyIdentifierKeyId(X509Certificate cert) {
     ASN1OctetString octets =
         DEROctetString.getInstance(
             cert.getExtensionValue(Extension.authorityKeyIdentifier.getId()));
-    if (octets == null) {
+    if (octets == null)
       return null;
-    }
     AuthorityKeyIdentifier aki = AuthorityKeyIdentifier.getInstance(octets.getOctets());
     return aki.getKeyIdentifier();
   }
 
+  /**
+   * Cose_sign1 encoding of the given content.
+   *
+   * @param signingKey
+   * @param signingAlg
+   * @param content
+   * @return encoded COSE object
+   * @throws CoseException
+   */
   public static byte[] genCoseSign1Message(
       PrivateKey signingKey, CBORObject signingAlg, byte[] content) throws CoseException {
+    try {
+      return genCoseSign1Message(signingKey, signingAlg, content, null);
+    } catch (CertificateEncodingException ex) {
+      throw new RuntimeException("Should never happen");
+    }
+  }
+
+  /**
+   * Cose-sign1 with optionally X509 certs included in an x5bag structure per
+   * draft-ietf-anima-constrained-voucher. See draft-ietf-cose-x509-08 for x5bag encoding.
+   *
+   * @param signingKey
+   * @param signingAlg
+   * @param content
+   * @param certs additional certs to package into an x5bag structure into the COSE object, or null
+   *     if none.
+   * @return
+   * @throws CoseException
+   */
+  public static byte[] genCoseSign1Message(
+      PrivateKey signingKey, CBORObject signingAlg, byte[] content, X509Certificate[] certs)
+      throws CoseException, CertificateEncodingException {
     Sign1Message msg = new Sign1Message();
     msg.addAttribute(HeaderKeys.Algorithm, signingAlg, Attribute.PROTECTED);
     msg.SetContent(content);
     msg.sign(new OneKey(null, signingKey));
+    if (certs != null) {
+      CBORObject x5bag = SecurityUtils.createX5BagCertificates(certs);
+      msg.addAttribute(Constants.COSE_X5BAG_HEADER_KEY, x5bag, Attribute.UNPROTECTED);
+    }
     return msg.EncodeToBytes();
   }
 
@@ -366,7 +443,7 @@ public class SecurityUtils {
       String issuerName,
       boolean ca,
       List<Extension> extensions)
-      throws Exception {
+      throws GeneralSecurityException, CertIOException, OperatorException {
     PublicKey subPub = subKeyPair.getPublic();
     PrivateKey issPriv = issuerKeyPair.getPrivate();
     PublicKey issPub = issuerKeyPair.getPublic();
@@ -387,7 +464,7 @@ public class SecurityUtils {
 
     v3CertGen.addExtension(Extension.authorityKeyIdentifier, false, createAuthorityKeyId(issPub));
 
-    v3CertGen.addExtension(Extension.basicConstraints, false, new BasicConstraints(ca));
+    v3CertGen.addExtension(Extension.basicConstraints, true, new BasicConstraints(ca));
 
     // Additional extensions
     if (extensions != null) {
@@ -435,16 +512,13 @@ public class SecurityUtils {
   }
 
   public static final CoapEndpoint genCoapClientEndPoint(
-      X509Certificate[] trustAnchors, PrivateKey privateKey, X509Certificate[] certificateChain) {
-    return genCoapClientEndPoint(trustAnchors, privateKey, certificateChain, null);
-  }
-
-  public static final CoapEndpoint genCoapClientEndPoint(
       X509Certificate[] trustAnchors,
       PrivateKey privateKey,
       X509Certificate[] certificateChain,
-      CertificateVerifier verifier) {
-    return genCoapEndPoint(-1, trustAnchors, privateKey, certificateChain, verifier);
+      CertificateVerifier verifier,
+      boolean isSniEnabled) {
+    return genCoapEndPoint(
+        -1, trustAnchors, privateKey, certificateChain, verifier, false, isSniEnabled);
   }
 
   public static final CoapEndpoint genCoapServerEndPoint(
@@ -454,7 +528,7 @@ public class SecurityUtils {
       X509Certificate[] certificateChain,
       CertificateVerifier verifier) {
     assert (port >= 0);
-    return genCoapEndPoint(port, trustAnchors, privateKey, certificateChain, verifier);
+    return genCoapEndPoint(port, trustAnchors, privateKey, certificateChain, verifier, true, true);
   }
 
   private static final CoapEndpoint genCoapEndPoint(
@@ -462,10 +536,18 @@ public class SecurityUtils {
       X509Certificate[] trustAnchors,
       PrivateKey privateKey,
       X509Certificate[] certificateChain,
-      CertificateVerifier verifier) {
+      CertificateVerifier verifier,
+      boolean isServerEndPoint,
+      boolean isSniEnabled) {
     DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder();
 
-    config.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+    if (isServerEndPoint)
+      config.setSupportedCipherSuites(
+          CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+          CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM,
+          CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8,
+          CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM);
+    else config.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 
     config.setRetransmissionTimeout(10 * 1000);
 
@@ -475,19 +557,18 @@ public class SecurityUtils {
     // OpenThread CoAP doesn't handle fragments, so it still fails
     config.setMaxTransmissionUnit(1024);
 
+    config.setSniEnabled(isSniEnabled);
     if (port >= 0) {
       // Server
       config.setServerOnly(true).setAddress(new InetSocketAddress(port));
     } else {
       // Client
-      config.setClientOnly().setSniEnabled(false);
+      config.setClientOnly();
     }
 
-    config.setTrustStore(trustAnchors);
+    if (verifier != null) config.setCertificateVerifier(verifier);
 
-    if (verifier != null) {
-      config.setCertificateVerifier(verifier);
-    }
+    if (trustAnchors != null) config.setTrustStore(trustAnchors);
 
     List<CertificateType> types = new ArrayList<>();
 
@@ -520,5 +601,57 @@ public class SecurityUtils {
   public static BigInteger allocateSerialNumber() {
     serialNumber = serialNumber.add(BigInteger.ONE);
     return serialNumber;
+  }
+
+  /**
+   * Get the X509 certificates encoded in a COSE-Sign1 message in an 'x5bag' header attribute,
+   * either protected (tried first) or unprotected (tried last). Per draft-ietf-cose-x509-08.
+   *
+   * @param sign1Msg
+   * @return List of X509Certificate, decoded from COSE-sign1 message, or null if nothing found in
+   *     header parameters.
+   */
+  public static List<X509Certificate> getX5BagCertificates(Sign1Message sign1Msg)
+      throws CertificateException {
+    List<X509Certificate> certs = new ArrayList<>();
+    // look for header parameter
+    CBORObject x5bag = sign1Msg.findAttribute(Constants.COSE_X5BAG_HEADER_KEY);
+    if (x5bag == null) return null;
+    // if it is an array of certs
+    if (x5bag.getType().equals(CBORType.Array) && x5bag.size() > 0) {
+      for (int idx = 0; idx < x5bag.size(); idx++) {
+        InputStream is = new ByteArrayInputStream(x5bag.get(idx).GetByteString());
+        X509Certificate cert = (X509Certificate) certFactory.generateCertificate(is);
+        certs.add(cert);
+      }
+    } else if (x5bag.getType().equals(CBORType.ByteString)) {
+      // single cert
+      InputStream is = new ByteArrayInputStream(x5bag.GetByteString());
+      X509Certificate cert = (X509Certificate) certFactory.generateCertificate(is);
+      // X509Certificate cert =
+      certs.add(cert);
+    }
+    return certs;
+  }
+
+  /**
+   * Create an x5bag structure per draft-ietf-cose-x509-08. If one certificate, it simply encodes
+   * the cert as CBOR byte array. If multiple, it uses CBOR array of byte-arrays.
+   *
+   * @param certs
+   * @return
+   */
+  public static CBORObject createX5BagCertificates(X509Certificate[] certs)
+      throws CertificateEncodingException {
+    if (certs.length == 0) return CBORObject.NewArray();
+    if (certs.length == 1) {
+      return CBORObject.FromObject(certs[0].getEncoded()); // create CBOR byte string
+    } else {
+      CBORObject ca = CBORObject.NewArray();
+      for (int i = 0; i < certs.length; i++) {
+        ca.Add(CBORObject.FromObject(certs[i].getEncoded()));
+      }
+      return ca;
+    }
   }
 }

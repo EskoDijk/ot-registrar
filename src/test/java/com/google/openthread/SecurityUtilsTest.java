@@ -28,7 +28,14 @@
 
 package com.google.openthread;
 
+import COSE.OneKey;
+import COSE.Sign1Message;
+import com.google.openthread.tools.CredentialGenerator;
+import com.upokecenter.cbor.CBORObject;
 import java.security.*;
+import java.security.cert.X509Certificate;
+import java.util.Arrays;
+import java.util.List;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
@@ -95,5 +102,62 @@ public class SecurityUtilsTest {
     System.out.println("spki key algorithm: " + spki.getAlgorithm().getAlgorithm().getId());
     System.out.println("spki: ");
     System.out.println(Hex.toHexString(spki.getEncoded()));
+  }
+
+  @Test
+  public void testX5BagEncoding() throws Exception {
+    KeyPair kp = SecurityUtils.genKeyPair();
+    X509Certificate cert = SecurityUtils.genCertificate(kp, "CN=Root", kp, "CN=Root", true, null);
+    CBORObject bagSingle = SecurityUtils.createX5BagCertificates(new X509Certificate[] {cert});
+
+    KeyPair kp2 = SecurityUtils.genKeyPair();
+    X509Certificate cert2 =
+        SecurityUtils.genCertificate(
+            kp, "CN=AnotherRoot/L=InSpace", kp2, "CN=AnotherRoot/L=InSpace", true, null);
+    CBORObject bagMultiple =
+        SecurityUtils.createX5BagCertificates(new X509Certificate[] {cert, cert2});
+    byte[] payload = new byte[] {1, 2, 3, 4, 5};
+
+    // try single bag
+    byte[] cose =
+        SecurityUtils.genCoseSign1Message(
+            kp.getPrivate(),
+            SecurityUtils.COSE_SIGNATURE_ALGORITHM,
+            payload,
+            new X509Certificate[] {cert});
+    Sign1Message sign1 = (Sign1Message) Sign1Message.DecodeFromBytes(cose);
+    Assert.assertTrue(sign1.validate(new OneKey(kp.getPublic(), kp.getPrivate())));
+    List<X509Certificate> certList = SecurityUtils.getX5BagCertificates(sign1);
+    Assert.assertTrue(certList.size() == 1);
+    Assert.assertEquals(certList.get(0), cert);
+
+    // try multi bag
+    cose =
+        SecurityUtils.genCoseSign1Message(
+            kp2.getPrivate(),
+            SecurityUtils.COSE_SIGNATURE_ALGORITHM,
+            payload,
+            new X509Certificate[] {cert, cert2});
+    sign1 = (Sign1Message) Sign1Message.DecodeFromBytes(cose);
+    Assert.assertTrue(sign1.validate(new OneKey(kp2.getPublic(), kp2.getPrivate())));
+    certList = SecurityUtils.getX5BagCertificates(sign1);
+    Assert.assertTrue(certList.size() == 2);
+    Assert.assertEquals(certList.get(0), cert);
+    Assert.assertEquals(certList.get(1), cert2);
+  }
+  
+  @Test
+  public void testAuthorityKeyIdentifier() throws Exception {
+    CredentialGenerator cg = new CredentialGenerator();
+    cg.make(null, null, null, null);
+    byte[] akiOctetString = SecurityUtils.getAuthorityKeyIdentifier(cg.pledgeCert);
+    byte[] keyId = SecurityUtils.getAuthorityKeyIdentifierKeyId(cg.pledgeCert);
+    Assert.assertTrue(akiOctetString.length == 26);
+    Assert.assertTrue(keyId.length == 20);
+    
+    // verify that the last part of akiOctetString in fact contains the keyId.
+    byte[] akiOctetStringLastPart = new byte[20];
+    System.arraycopy(akiOctetString, 6, akiOctetStringLastPart, 0, 20);
+    Assert.assertTrue(Arrays.equals(keyId, akiOctetStringLastPart) );
   }
 }

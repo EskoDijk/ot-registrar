@@ -26,27 +26,33 @@
  *    POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.google.openthread.brski;
+package com.google.openthread;
 
-public class ConstrainedVoucherRequest extends VoucherRequest {
-  public ConstrainedVoucherRequest() {
-    sidMap = voucherRequestSIDMap;
+import java.net.Inet6Address;
+import java.net.InetAddress;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class NetworkUtilsTest {
+
+  @Test
+  public void testGetIPv6Host() throws Exception {
+    String host = NetworkUtils.getIPv6Host();
+    Assert.assertTrue(host.startsWith("[") && host.endsWith("]"));
+    InetAddress ia = Inet6Address.getByName(host);
+    Assert.assertNotNull(ia);
+    Assert.assertFalse(ia.isLinkLocalAddress());
+    Assert.assertFalse(ia.isMulticastAddress());
   }
 
-  @Override
-  public boolean validate() {
-    if (assertion == null || serialNumber == null) {
-      return false;
-    }
-    if (expiresOn != null && nonce != null) {
-      return false;
-    }
-    if (lastRenewalDate != null && expiresOn == null) {
-      return false;
-    }
-    if (assertion == Assertion.PROXIMITY && proximityRegistrarSPKI == null) {
-      return false;
-    }
-    return true;
+  @Test
+  public void testGetIPv4Host() throws Exception {
+    String host = NetworkUtils.getIPv4Host();
+    Assert.assertFalse(host.startsWith("[") && host.endsWith("]"));
+    InetAddress ia = InetAddress.getByName(host);
+    Assert.assertNotNull(ia);
+    Assert.assertFalse(ia.isLinkLocalAddress());
+    // Assert.assertFalse(ia.isLoopbackAddress()); // TODO investigate under Linux
+    Assert.assertFalse(ia.isMulticastAddress());
   }
 }

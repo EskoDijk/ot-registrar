@@ -28,7 +28,8 @@
 
 package com.google.openthread.registrar;
 
-import com.google.openthread.Constants;
+import com.google.openthread.*;
+import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -41,45 +42,143 @@ import java.util.List;
  */
 public class RegistrarBuilder {
 
-  public RegistrarBuilder(PrivateKey privateKey, X509Certificate[] certificateChain) {
-    this();
-
-    this.privateKey = privateKey;
-    this.certificateChain = certificateChain;
-  }
-
   public RegistrarBuilder() {
     masaCertificates = new ArrayList<>();
   }
 
+  /**
+   * Supply the credentials to be used for Registrar in its role as MASA client.
+   *
+   * @param cred
+   * @return
+   * @throws GeneralSecurityException
+   */
+  public RegistrarBuilder setMasaClientCredentials(Credentials cred)
+      throws GeneralSecurityException {
+    this.credentials = cred;
+    return this;
+  }
+
+  /**
+   * Supply the private key used for DTLS connections from Pledge, in DTLS server role.
+   *
+   * @param privateKey
+   * @return
+   */
   public RegistrarBuilder setPrivateKey(PrivateKey privateKey) {
     this.privateKey = privateKey;
     return this;
   }
 
+  /**
+   * Supply the X.509 certificate chain used for DTLS connections from Pledge, in DTLS server role.
+   *
+   * @param certificateChain
+   * @return
+   */
   public RegistrarBuilder setCertificateChain(X509Certificate[] certificateChain) {
     this.certificateChain = certificateChain;
     return this;
   }
 
+  /**
+   * Add a MASA certificate
+   *
+   * @param masaCertificate
+   * @return
+   */
   public RegistrarBuilder addMasaCertificate(X509Certificate masaCertificate) {
     masaCertificates.add(masaCertificate);
     return this;
   }
 
-  public int getMasaNumber() {
+  /**
+   * Sets whether to trust ALL MASAs (true) or only MASAs for which certificates were added (false).
+   *
+   * @param status
+   */
+  public RegistrarBuilder setTrustAllMasas(boolean status) {
+    this.isTrustAllMasas = status;
+    return this;
+  }
+
+  public RegistrarBuilder setPort(int port) {
+    this.port = port;
+    return this;
+  }
+
+  public RegistrarBuilder setHttpToMasa(boolean isHttp) {
+    this.isHttpToMasa = isHttp;
+    return this;
+  }
+
+  /**
+   * By default the Registrar mimics the Pledge's Voucher Request format, when requesting to MASA.
+   * This method changes that to force the Registrar to use one format only.
+   *
+   * @param mediaType one of Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON or
+   *     Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR, or "" to force nothing.
+   * @return
+   */
+  public RegistrarBuilder setForcedRequestFormat(String mediaType) {
+    switch (mediaType) {
+      case "":
+        this.forcedVoucherRequestFormat = -1;
+      case Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON:
+        this.forcedVoucherRequestFormat = ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON;
+        break;
+      case Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR:
+        this.forcedVoucherRequestFormat = ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR;
+        break;
+      default:
+        throw new IllegalArgumentException(
+            "Unsupported mediaType for setForcedRequestFormat in RegistrarBuilder: " + mediaType);
+    }
+    return this;
+  }
+
+  /**
+   * Override the MASA URI encoded in a Pledge's IDevID certificate, by setting a forced MASA-URI
+   * that is always applied. Used typically for testing, or a deployment-specific override of the
+   * MASA-URI.
+   *
+   * @param uri new MASA URI to always use.
+   * @return
+   */
+  public RegistrarBuilder setForcedMasaUri(String uri) {
+    this.setForcedMasaUri = uri;
+    return this;
+  }
+
+  /**
+   * return the number of supported/trusted MASA servers. Use addMasaCertificate() to add more
+   * trusted MASA servers.
+   *
+   * @return the number of MASA certificates that are considered trusted.
+   */
+  public int getNumberOfMasaServers() {
     return masaCertificates.size();
   }
 
   public Registrar build() throws RegistrarException {
-    return build(Constants.DEFAULT_REGISTRAR_COAPS_PORT);
-  }
-
-  public Registrar build(int port) throws RegistrarException {
-    if (privateKey == null || certificateChain == null || getMasaCertificates().length == 0) {
-      throw new RegistrarException("bad registrar credentials");
+    X509Certificate[] masaCerts = getMasaCertificates();
+    if (privateKey == null
+        || (masaCerts.length == 0 && !isTrustAllMasas)
+        || (masaCerts.length > 0 && isTrustAllMasas)
+        || certificateChain == null
+        || credentials == null) {
+      throw new RegistrarException(
+          "bad or missing registrar credentials, or misconfiguration of builder");
     }
-    return new Registrar(privateKey, certificateChain, getMasaCertificates(), port);
+    return new Registrar(
+        privateKey,
+        certificateChain,
+        masaCerts,
+        credentials,
+        port,
+        forcedVoucherRequestFormat,
+        isHttpToMasa,
+        setForcedMasaUri);
   }
 
   private X509Certificate[] getMasaCertificates() {
@@ -89,4 +188,10 @@ public class RegistrarBuilder {
   private PrivateKey privateKey;
   private X509Certificate[] certificateChain;
   private List<X509Certificate> masaCertificates;
+  private Credentials credentials;
+  private int port = Constants.DEFAULT_REGISTRAR_COAPS_PORT;
+  private int forcedVoucherRequestFormat = -1;
+  private boolean isHttpToMasa = true;
+  private boolean isTrustAllMasas = false;
+  private String setForcedMasaUri = null;
 }

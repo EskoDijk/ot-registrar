@@ -32,11 +32,21 @@ import com.upokecenter.cbor.CBORObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Utility class to serialize/deserialize Vouchers to or from CBOR,
+ * either as byte array or CBORObject. 
+ * Create a new instance for each serialization/deserialization job. 
+ */
 public class CBORSerializer implements VoucherSerializer {
 
+  protected CBORObject container;
+  protected int parentSid = 0;
+  private static Logger logger = LoggerFactory.getLogger(CBORSerializer.class);
+  Voucher voucher;
+
   @Override
-  public byte[] serialize(Voucher voucher) {
-    return toCBOR(voucher).EncodeToBytes();
+  public byte[] serialize(Voucher v) {
+    return toCBOR(v).EncodeToBytes();
   }
 
   @Override
@@ -45,148 +55,137 @@ public class CBORSerializer implements VoucherSerializer {
   }
 
   public CBORObject toCBOR(Voucher voucher) {
+    this.voucher = voucher;
+    Object keyObj = voucher.getKey(voucher.getName());
+    if (keyObj instanceof Integer) {
+      voucher.setConstrained(true);
+      parentSid = (Integer) keyObj;
+    }
     CBORObject cbor = CBORObject.NewMap();
-    CBORObject container = CBORObject.NewMap();
+    container = CBORObject.NewMap();
 
-    add(container, voucher.getKey(Voucher.ASSERTION), voucher.assertion.getValue());
+    if (voucher.assertion != null) add((Voucher.ASSERTION), voucher.assertion.getValue());
 
-    if (voucher.createdOn != null) {
-      add(
-          container,
-          voucher.getKey(Voucher.CREATED_ON),
-          Voucher.dateToYoungFormat(voucher.createdOn));
-    }
+    if (voucher.createdOn != null)
+      add((Voucher.CREATED_ON), Voucher.dateToYoungFormat(voucher.createdOn));
 
-    add(
-        container,
-        voucher.getKey(Voucher.DOMAIN_CERT_REVOCATION_CHECKS),
-        voucher.domainCertRevocationChecks);
+    add((Voucher.DOMAIN_CERT_REVOCATION_CHECKS), voucher.domainCertRevocationChecks);
 
-    if (voucher.expiresOn != null) {
-      add(
-          container,
-          voucher.getKey(Voucher.EXPIRES_ON),
-          Voucher.dateToYoungFormat(voucher.expiresOn));
-    }
+    if (voucher.expiresOn != null)
+      add((Voucher.EXPIRES_ON), Voucher.dateToYoungFormat(voucher.expiresOn));
 
-    add(container, voucher.getKey(Voucher.IDEVID_ISSUER), voucher.idevidIssuer);
+    add((Voucher.IDEVID_ISSUER), voucher.idevidIssuer);
 
-    if (voucher.lastRenewalDate != null) {
-      add(
-          container,
-          voucher.getKey(Voucher.LAST_RENEWAL_DATE),
-          Voucher.dateToYoungFormat(voucher.lastRenewalDate));
-    }
+    if (voucher.lastRenewalDate != null)
+      add((Voucher.LAST_RENEWAL_DATE), Voucher.dateToYoungFormat(voucher.lastRenewalDate));
 
-    add(container, voucher.getKey(Voucher.NONCE), voucher.nonce);
+    add((Voucher.NONCE), voucher.nonce);
 
-    add(container, voucher.getKey(Voucher.PINNED_DOMAIN_CERT), voucher.pinnedDomainCert);
+    add((Voucher.PINNED_DOMAIN_CERT), voucher.pinnedDomainCert);
 
-    add(container, voucher.getKey(Voucher.PINNED_DOMAIN_SPKI), voucher.pinnedDomainSPKI);
+    add((Voucher.PINNED_DOMAIN_SPKI), voucher.pinnedDomainSPKI);
 
-    add(
-        container,
-        voucher.getKey(Voucher.PRIOR_SIGNED_VOUCHER_REQUEST),
-        voucher.priorSignedVoucherRequest);
+    add((Voucher.PRIOR_SIGNED_VOUCHER_REQUEST), voucher.priorSignedVoucherRequest);
 
-    add(
-        container,
-        voucher.getKey(Voucher.PROXIMITY_REGISTRAR_CERT),
-        voucher.proximityRegistrarCert);
+    add((Voucher.PROXIMITY_REGISTRAR_CERT), voucher.proximityRegistrarCert);
 
-    add(
-        container,
-        voucher.getKey(Voucher.PROXIMITY_REGISTRAR_SPKI),
-        voucher.proximityRegistrarSPKI);
+    add((Voucher.PROXIMITY_REGISTRAR_SPKI), voucher.proximityRegistrarSPKI);
 
-    add(container, voucher.getKey(Voucher.SERIAL_NUMBER), voucher.serialNumber);
+    add((Voucher.SERIAL_NUMBER), voucher.serialNumber);
 
-    cbor.Add(voucher.getKey(voucher.getName()), container);
+    cbor.Add(keyObj, container);
 
     return cbor;
   }
 
   public Voucher fromCBOR(CBORObject cbor) {
-    Voucher voucher = null;
     try {
       for (CBORObject key : cbor.getKeys()) {
-        if (key.isIntegral()) {
-          if (key.AsInt32() == Voucher.VOUCHER_SID) {
-            voucher = new ConstrainedVoucher();
-          } else if (key.AsInt32() == Voucher.VOUCHER_REQUEST_SID) {
-            voucher = new ConstrainedVoucherRequest();
+        CBORObject ku = key.Untag();
+        if (ku.isNumber()) {
+          if (ku.AsInt32() == Voucher.VOUCHER_SID) {
+            voucher = new Voucher();
+            voucher.setConstrained(true);
+            parentSid = Voucher.VOUCHER_SID;
+          } else if (ku.AsInt32() == VoucherRequest.VOUCHER_REQUEST_SID) {
+            voucher = new VoucherRequest();
+            voucher.setConstrained(true);
+            parentSid = VoucherRequest.VOUCHER_REQUEST_SID;
           } else {
             String msg =
                 String.format(
-                    "wrong voucher sid: %d, expecting %d for voucher and %d for voucher request",
-                    key.AsInt32(), Voucher.VOUCHER_SID, Voucher.VOUCHER_REQUEST_SID);
-            throw new Exception(msg);
+                    "wrong voucher sid: %d, expecting %d for voucher or %d for voucher request",
+                    ku.AsInt32(),
+                    Voucher.VOUCHER_SID,
+                    VoucherRequest.VOUCHER_REQUEST_SID);
+            throw new IllegalArgumentException(msg);
           }
         } else if (key.AsString().equals(Voucher.VOUCHER)) {
           voucher = new Voucher();
+          voucher.setConstrained(false);
         } else if (key.AsString().equals(Voucher.VOUCHER_REQUEST)) {
           voucher = new VoucherRequest();
+          voucher.setConstrained(false);
         } else {
           String msg =
               String.format(
-                  "wrong voucher : %s, expecting %s for voucher and %s for voucher request",
+                  "wrong voucher : %s, expecting %s for voucher or %s for voucher request",
                   key.AsString(), Voucher.VOUCHER, Voucher.VOUCHER_REQUEST);
-          throw new Exception(msg);
+          throw new IllegalArgumentException(msg);
         }
 
-        CBORObject container = cbor.get(key);
+        container = cbor.get(key);
         CBORObject leaf;
 
-        if ((leaf = get(container, voucher.getKey(Voucher.ASSERTION))) != null) {
+        if ((leaf = get((Voucher.ASSERTION))) != null) {
           voucher.assertion = Voucher.Assertion.newAssertion(leaf.AsInt32());
         }
 
-        if ((leaf = get(container, voucher.getKey(Voucher.CREATED_ON))) != null) {
+        if ((leaf = get((Voucher.CREATED_ON))) != null) {
           voucher.createdOn = Voucher.dateFromYoungFormat(leaf.AsString());
         }
 
-        if ((leaf = get(container, voucher.getKey(Voucher.DOMAIN_CERT_REVOCATION_CHECKS)))
-            != null) {
+        if ((leaf = get((Voucher.DOMAIN_CERT_REVOCATION_CHECKS))) != null) {
           voucher.domainCertRevocationChecks = leaf.AsBoolean();
         }
 
-        if ((leaf = get(container, voucher.getKey(Voucher.EXPIRES_ON))) != null) {
+        if ((leaf = get((Voucher.EXPIRES_ON))) != null) {
           voucher.expiresOn = Voucher.dateFromYoungFormat(leaf.AsString());
         }
 
-        if ((leaf = get(container, voucher.getKey(Voucher.IDEVID_ISSUER))) != null) {
+        if ((leaf = get((Voucher.IDEVID_ISSUER))) != null) {
           voucher.idevidIssuer = leaf.GetByteString();
         }
 
-        if ((leaf = get(container, voucher.getKey(Voucher.LAST_RENEWAL_DATE))) != null) {
+        if ((leaf = get((Voucher.LAST_RENEWAL_DATE))) != null) {
           voucher.lastRenewalDate = Voucher.dateFromYoungFormat(leaf.AsString());
         }
 
-        if ((leaf = get(container, voucher.getKey(Voucher.NONCE))) != null) {
+        if ((leaf = get((Voucher.NONCE))) != null) {
           voucher.nonce = leaf.GetByteString();
         }
 
-        if ((leaf = get(container, voucher.getKey(Voucher.PINNED_DOMAIN_CERT))) != null) {
+        if ((leaf = get((Voucher.PINNED_DOMAIN_CERT))) != null) {
           voucher.pinnedDomainCert = leaf.GetByteString();
         }
 
-        if ((leaf = get(container, voucher.getKey(Voucher.PINNED_DOMAIN_SPKI))) != null) {
+        if ((leaf = get((Voucher.PINNED_DOMAIN_SPKI))) != null) {
           voucher.pinnedDomainSPKI = leaf.GetByteString();
         }
 
-        if ((leaf = get(container, voucher.getKey(Voucher.PRIOR_SIGNED_VOUCHER_REQUEST))) != null) {
+        if ((leaf = get((Voucher.PRIOR_SIGNED_VOUCHER_REQUEST))) != null) {
           voucher.priorSignedVoucherRequest = leaf.GetByteString();
         }
 
-        if ((leaf = get(container, voucher.getKey(Voucher.PROXIMITY_REGISTRAR_CERT))) != null) {
+        if ((leaf = get((Voucher.PROXIMITY_REGISTRAR_CERT))) != null) {
           voucher.proximityRegistrarCert = leaf.GetByteString();
         }
 
-        if ((leaf = get(container, voucher.getKey(Voucher.PROXIMITY_REGISTRAR_SPKI))) != null) {
+        if ((leaf = get((Voucher.PROXIMITY_REGISTRAR_SPKI))) != null) {
           voucher.proximityRegistrarSPKI = leaf.GetByteString();
         }
 
-        if ((leaf = get(container, voucher.getKey(Voucher.SERIAL_NUMBER))) != null) {
+        if ((leaf = get((Voucher.SERIAL_NUMBER))) != null) {
           voucher.serialNumber = leaf.AsString();
         }
 
@@ -194,23 +193,54 @@ public class CBORSerializer implements VoucherSerializer {
         break;
       }
     } catch (Exception e) {
-      logger.error("bad voucher: " + e.getMessage());
-      e.printStackTrace();
+      logger.error("bad voucher: " + e.getMessage(), e);
       return null;
     }
 
     return voucher;
   }
 
-  protected void add(CBORObject c, Object key, Object val) {
+  protected void add(String keyName, Object val) {
+    Object key = voucher.getKey(keyName);
     if (val != null) {
-      c.Add(key, val);
+      if (parentSid > 0 && key instanceof Integer) { // if SID number key
+        key = ((Integer) key - parentSid);
+      }
+      container.Add(key, val);
     }
   }
 
-  protected CBORObject get(CBORObject c, Object key) {
-    return c.get(CBORObject.FromObject(key));
-  }
+  protected CBORObject get(String keyName) {
+    Object key = voucher.getKey(keyName);
+    CBORObject keyObj = CBORObject.FromObject(key);
+    if (key instanceof Integer) {
+      // it's a SID
+      int keyInt = (Integer) key;
+      // delta compression MAY be used now. Tag 47 indicates 'not delta' and absence
+      // of Tag 47
+      // indicates 'delta' value
+      // https://datatracker.ietf.org/doc/html/draft-ietf-core-yang-cbor-15#section-3.2
+      int deltaKey = keyInt - parentSid;
+      // look for either the uncompressed full number Tagged 47, or the delta number.
+      for (CBORObject k : container.getKeys()) {
+        CBORObject ku = k.Untag();
+        if (ku.isNumber() // Untag needed due to particularity in isNumber()
+            && ((ku.AsInt32() == keyInt && k.HasTag(47))
+                || (ku.AsInt32() == deltaKey && !k.HasTag(47)))) {
+          return container.get(k);
+        }
+      }
+    }
 
-  private static Logger logger = LoggerFactory.getLogger(CBORSerializer.class);
+    // if SID numbers not found for this item, try if full name is there. SIDs
+    // allowed to be
+    // mixed with full names.
+    CBORObject keyNameObj = CBORObject.FromObject(keyName);
+    if (container.ContainsKey(keyNameObj)) {
+      return container.get(keyNameObj);
+    }
+
+    // fallback case
+    return container.get(keyObj);
+  }
 }
