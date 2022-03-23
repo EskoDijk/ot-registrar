@@ -39,10 +39,12 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class RegistrarMain {
 
-  private RegistrarMain() {}
+  private static Logger logger = LoggerFactory.getLogger(RegistrarMain.class);
 
   public static void main(String args[]) {
 
@@ -82,6 +84,13 @@ public final class RegistrarMain {
             .desc("verbose mode with many logs")
             .build();
 
+    Option optForceMasaUri =
+        Option.builder("m")
+            .longOpt("masa")
+            .hasArg(true)
+            .desc("force the given MASA URI instead of the default one")
+            .build();
+
     Option helpOpt =
         Option.builder("h").longOpt("help").hasArg(false).desc("print this message").build();
 
@@ -90,6 +99,7 @@ public final class RegistrarMain {
         .addOption(fileOpt)
         .addOption(optPort)
         .addOption(optVerbose)
+        .addOption(optForceMasaUri)
         .addOption(helpOpt);
 
     Registrar registrar;
@@ -97,6 +107,8 @@ public final class RegistrarMain {
     try {
       CommandLineParser parser = new DefaultParser();
       CommandLine cmd = parser.parse(options, args);
+
+      LoggerInitializer.Init(cmd.hasOption('v'));
 
       if (cmd.hasOption('h')) {
         helper.printHelp(HELP_FORMAT, options);
@@ -118,9 +130,7 @@ public final class RegistrarMain {
         throw new IllegalArgumentException("need domain name!");
       }
 
-      LoggerInitializer.Init(cmd.hasOption('v'));
-
-      System.out.println("using keystore: " + keyStoreFile);
+      logger.info("using keystore: " + keyStoreFile);
 
       RegistrarBuilder builder = new RegistrarBuilder();
       Credentials cred =
@@ -150,6 +160,10 @@ public final class RegistrarMain {
         // FIXME if one MASA identity defined in credentials file, use that one as trusted MASA.
         if (masaCred.getCertificate() != null)
           builder.addMasaCertificate(masaCred.getCertificate());
+      }
+      
+      if (cmd.hasOption('m')) {
+        builder.setForcedMasaUri(cmd.getOptionValue('m'));
       }
 
       registrar = builder.build();

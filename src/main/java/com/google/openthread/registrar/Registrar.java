@@ -163,7 +163,10 @@ public class Registrar extends CoapServer {
 
   @Override
   public void start() {
-    logger.info("Registrar starting - Number of trusted MASA servers: " + masaTrustAnchors.length);
+    logger.info("Registrar starting - Number of trusted MASA servers: " + 
+          (this.masaTrustAnchors.length == 0 ? "ALL MASAs" : this.masaTrustAnchors.length) );
+    if (this.setForcedMasaUri != null)
+      logger.info("                   - MASA URI forced to: " + this.setForcedMasaUri + " (-masa parameter)");
     super.start();
   }
 
