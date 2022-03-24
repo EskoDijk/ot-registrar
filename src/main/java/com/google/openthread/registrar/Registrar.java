@@ -589,7 +589,7 @@ public class Registrar extends CoapServer {
     }
   }
 
-  /** CoAP-based MASA connector, acts as client towards MASA. */
+  /** HTTPS-based MASA connector, acts as client towards MASA. */
   public final class MASAConnectorHttp {
 
     protected SSLContext sc;
