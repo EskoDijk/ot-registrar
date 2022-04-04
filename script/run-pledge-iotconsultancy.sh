@@ -30,4 +30,11 @@
 # This runs a Pledge using IoTconsultancy IDevID, onboarding via cloud Registrar.
 # The script create-pledge-credentials-p12-iotconsultancy.sh can be used to create 
 # or recreate the credentials file.
-java -cp target/ot-registrar-0.1-SNAPSHOT-jar-with-dependencies.jar com.google.openthread.pledge.PledgeMain -f ./credentials/iotconsultancy-masa/credentials.p12 -r coaps://masa.iotconsultancy.nl/
+
+REGISTRAR="coaps://masa.iotconsultancy.nl/"
+if [ "$#" -eq 1 ]; then
+    REGISTRAR=$1
+fi
+
+echo "Pledge using IoTconsultancy credentials with Registrar: ${REGISTRAR}"
+java -cp target/ot-registrar-0.1-SNAPSHOT-jar-with-dependencies.jar com.google.openthread.pledge.PledgeMain -f ./credentials/iotconsultancy-masa/credentials.p12 -r ${REGISTRAR}

@@ -46,7 +46,10 @@ readonly JAR_FILE=./target/ot-registrar-0.1-SNAPSHOT-jar-with-dependencies.jar
 readonly JAR_TRI=./script/TRIserver.jar
 
 #readonly CREDENTIAL=credentials/threadgroup-5f9d307c.p12
-readonly CREDENTIAL=credentials/local-masa/test_credentials.p12
+#readonly CREDENTIAL=credentials/local-masa/test_credentials.p12
+readonly CREDENTIAL=credentials/iotconsultancy-masa/credentials.p12
+
+echo "Credentials file set to: ${CREDENTIAL}"
 
 # test if TRI exists
 if [ ! -f  "${JAR_TRI}" ]; then
@@ -79,3 +82,4 @@ java -cp $JAR_FILE \
     -p $MASA_PORT -f $CREDENTIAL \
     >> $MASA_LOG 2>&1 &
 
+echo "Done"
