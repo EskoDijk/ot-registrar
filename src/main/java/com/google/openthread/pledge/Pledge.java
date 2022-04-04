@@ -532,6 +532,10 @@ public class Pledge extends CoapClient {
 
   private void init(PrivateKey privateKey, X509Certificate[] certificateChain, String hostURI)
       throws PledgeException {
+    
+    // remove trailing slash from hostURI - avoid host//path situations leading to a leading, empty CoAP Uri-Path Option. (=bug)
+    while(hostURI.endsWith("/"))
+      hostURI=hostURI.substring(0, hostURI.length()-1);
     this.hostURI = hostURI;
 
     if (certificateChain.length < 2) {
