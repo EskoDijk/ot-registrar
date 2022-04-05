@@ -622,6 +622,7 @@ public class Registrar extends CoapServer {
       con.setRequestProperty("Content-Type", requestMediaType);
       con.setRequestProperty("Accept", Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR);
       con.setInstanceFollowRedirects(true);
+      con.connect();
       DataOutputStream out = new DataOutputStream(con.getOutputStream());
       out.write(body);
       out.flush();

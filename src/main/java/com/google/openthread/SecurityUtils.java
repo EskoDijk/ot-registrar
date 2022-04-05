@@ -208,7 +208,11 @@ public class SecurityUtils {
     try {
       X509CertificateHolder holder = new JcaX509CertificateHolder(cert);
       Extension masaUri = holder.getExtension(new ASN1ObjectIdentifier(Constants.MASA_URI_OID));
+      // TODO check if the below can also handle UTF-8 String types. (Not all use IA5String)
       String sUri = DERIA5String.fromByteArray(masaUri.getExtnValue().getOctets()).toString();
+      // remove trailing slashes, if any, from MASA URI.
+      while(sUri.endsWith("/"))
+        sUri = sUri.substring(0,sUri.length()-1);
       return sUri;
     } catch (IOException e) {
       // TODO throw exception from this method, remove the prints.
