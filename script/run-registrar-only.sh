@@ -32,7 +32,7 @@ set -e
 readonly DOMAIN_NAME=TestDomainTCE
 readonly REGISTRAR_PORT=5684
 readonly JAR_FILE=./target/ot-registrar-0.1-SNAPSHOT-jar-with-dependencies.jar
-readonly CREDENTIAL=credentials/local-masa/test_credentials.p12
+readonly CREDENTIAL=credentials/iotconsultancy-masa/test_credentials.p12
 
 # test if Registrar JAR exists
 if [ ! -f  "${JAR_FILE}" ]; then
