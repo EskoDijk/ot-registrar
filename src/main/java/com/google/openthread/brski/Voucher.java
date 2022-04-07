@@ -255,12 +255,12 @@ public class Voucher {
   protected int baseSid;
 
   protected boolean isConstr = false;
-  
+
   public Voucher() {
     baseSid = VOUCHER_SID;
     sidMap = voucherSIDMap;
   }
-  
+
   /**
    * Validates this Voucher, if the right fields are present/absent.
    *
@@ -279,9 +279,8 @@ public class Voucher {
     if (lastRenewalDate != null && expiresOn == null) {
       return false;
     }
-    if (proximityRegistrarCert != null || proximityRegistrarSPKI != null)
-      return false;
-    
+    if (proximityRegistrarCert != null || proximityRegistrarSPKI != null) return false;
+
     return true;
   }
 
@@ -311,7 +310,7 @@ public class Voucher {
     DateAdapter adapter = new TimestampAdapter();
     return adapter.parse(young);
   }
-  
+
   public boolean isConstrained() {
     return isConstr;
   }
@@ -319,10 +318,8 @@ public class Voucher {
   public void setConstrained(boolean isConstrained) {
     isConstr = isConstrained;
   }
-  
+
   public String getName() {
     return VOUCHER;
   }
-
-
 }

@@ -153,13 +153,13 @@ public class SecurityUtils {
     if (serialNumbers == null || serialNumbers.length == 0) {
       return null;
     }
-    try { 
+    try {
       ASN1String str = DERPrintableString.getInstance(serialNumbers[0].getFirst().getValue());
       return str.getString();
-    }catch(IllegalArgumentException ex) {
-      // try converting from DERUTF8String, if it wasn't DERPrintableString. 
+    } catch (IllegalArgumentException ex) {
+      // try converting from DERUTF8String, if it wasn't DERPrintableString.
       ASN1String str = DERUTF8String.getInstance(serialNumbers[0].getFirst().getValue());
-      return str.getString();      
+      return str.getString();
     }
   }
 
@@ -211,8 +211,7 @@ public class SecurityUtils {
       // TODO check if the below can also handle UTF-8 String types. (Not all use IA5String)
       String sUri = DERIA5String.fromByteArray(masaUri.getExtnValue().getOctets()).toString();
       // remove trailing slashes, if any, from MASA URI.
-      while(sUri.endsWith("/"))
-        sUri = sUri.substring(0,sUri.length()-1);
+      while (sUri.endsWith("/")) sUri = sUri.substring(0, sUri.length() - 1);
       return sUri;
     } catch (IOException e) {
       // TODO throw exception from this method, remove the prints.
@@ -244,7 +243,8 @@ public class SecurityUtils {
     return str.toString();
   }
 
-  public static X509Certificate parseCertFromPem(Reader reader) throws CertificateException , IOException {
+  public static X509Certificate parseCertFromPem(Reader reader)
+      throws CertificateException, IOException {
     PEMParser parser = new PEMParser(reader);
     return new JcaX509CertificateConverter()
         .getCertificate((X509CertificateHolder) parser.readObject());
@@ -279,12 +279,11 @@ public class SecurityUtils {
   }
 
   /**
-   * get the entire Authority Key Identifier OCTET STRING from the certificate.
-   * This is an octet string that contains an embedded SEQUENCE that defines the AKI
-   * extension structure.
-   * See RFC 5280.
-   * 
-   * @param cert 
+   * get the entire Authority Key Identifier OCTET STRING from the certificate. This is an octet
+   * string that contains an embedded SEQUENCE that defines the AKI extension structure. See RFC
+   * 5280.
+   *
+   * @param cert
    * @return the entire Authority Key Identifier ASN.1 SEQUENCE, or null if not present.
    */
   public static byte[] getAuthorityKeyIdentifier(X509Certificate cert) {
@@ -296,14 +295,14 @@ public class SecurityUtils {
    * certificate. See RFC 5280.
    *
    * @param cert
-   * @return only the KeyIdentifier OCTET STRING bytes part of the AKI of the certificate, or null if not found.
+   * @return only the KeyIdentifier OCTET STRING bytes part of the AKI of the certificate, or null
+   *     if not found.
    */
   public static byte[] getAuthorityKeyIdentifierKeyId(X509Certificate cert) {
     ASN1OctetString octets =
         DEROctetString.getInstance(
             cert.getExtensionValue(Extension.authorityKeyIdentifier.getId()));
-    if (octets == null)
-      return null;
+    if (octets == null) return null;
     AuthorityKeyIdentifier aki = AuthorityKeyIdentifier.getInstance(octets.getOctets());
     return aki.getKeyIdentifier();
   }

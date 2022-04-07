@@ -127,8 +127,7 @@ public class Pledge extends CoapClient {
    * @param hostURI uri of host (registrar)
    * @throws PledgeException
    */
-  public Pledge(Credentials creds, String hostURI)
-      throws PledgeException {
+  public Pledge(Credentials creds, String hostURI) throws PledgeException {
     super(hostURI);
     init(creds, hostURI, this.isLightweightClientCerts);
     this.credentials = creds;
@@ -138,8 +137,7 @@ public class Pledge extends CoapClient {
     return hostURI;
   }
 
-  public Pledge(Credentials creds, String host, int port)
-      throws PledgeException {
+  public Pledge(Credentials creds, String host, int port) throws PledgeException {
     this(creds, host + ":" + port);
   }
 
@@ -284,15 +282,16 @@ public class Pledge extends CoapClient {
       }
 
       // 2.1 verify the voucher
-      Voucher voucher =
-          (Voucher) new CBORSerializer().deserialize(msg.GetContent());
+      Voucher voucher = (Voucher) new CBORSerializer().deserialize(msg.GetContent());
       if (!voucher.validate()) {
         throw new PledgeException("unexpected combination of fields in the Voucher");
       }
 
       if (!voucher.serialNumber.equals(req.serialNumber)
-          || (voucher.idevidIssuer != null && !Arrays.equals(
-              voucher.idevidIssuer, SecurityUtils.getAuthorityKeyIdentifier(getCertificate())))) {
+          || (voucher.idevidIssuer != null
+              && !Arrays.equals(
+                  voucher.idevidIssuer,
+                  SecurityUtils.getAuthorityKeyIdentifier(getCertificate())))) {
         throw new PledgeException("serial number or idevid-issuer not matched");
       }
       if (req.nonce != null
@@ -386,46 +385,55 @@ public class Pledge extends CoapClient {
 
   /**
    * Send Voucher Status telemetry message
-   * @param isSuccess true if success voucher-status is to be reported, false if error is to be reported.
-   * @param failureReason human-readable failure reason string to be reported, usually only if isSuccess==false.
+   *
+   * @param isSuccess true if success voucher-status is to be reported, false if error is to be
+   *     reported.
+   * @param failureReason human-readable failure reason string to be reported, usually only if
+   *     isSuccess==false.
    * @throws Exception
    */
-  public ResponseCode sendVoucherStatusTelemetry(boolean isSuccess, String failureReason) throws Exception {
+  public ResponseCode sendVoucherStatusTelemetry(boolean isSuccess, String failureReason)
+      throws Exception {
     // create CBOR data structure
     StatusTelemetry st = StatusTelemetry.create(isSuccess, failureReason);
     setURI(getBRSKIPath() + "/" + Constants.VOUCHER_STATUS);
     CoapResponse resp = post(st.serializeToBytes(), ExtendedMediaTypeRegistry.APPLICATION_CBOR);
     return resp.getCode();
-
   }
-  
+
   /**
    * Send Enroll Status telemetry message
-   * @param isSuccess true if success enroll-status is to be reported, false if error is to be reported.
-   * @param failureReason human-readable failure reason string to be reported, usually only if isSuccess==false.
+   *
+   * @param isSuccess true if success enroll-status is to be reported, false if error is to be
+   *     reported.
+   * @param failureReason human-readable failure reason string to be reported, usually only if
+   *     isSuccess==false.
    * @throws Exception
    */
-  public ResponseCode sendEnrollStatusTelemetry(boolean isSuccess, String failureReason) throws Exception {
+  public ResponseCode sendEnrollStatusTelemetry(boolean isSuccess, String failureReason)
+      throws Exception {
     // create CBOR data structure
     StatusTelemetry st = StatusTelemetry.create(isSuccess, failureReason);
     setURI(getBRSKIPath() + "/" + Constants.ENROLL_STATUS);
     CoapResponse resp = post(st.serializeToBytes(), ExtendedMediaTypeRegistry.APPLICATION_CBOR);
     return resp.getCode();
   }
-  
+
   /**
    * Send generic status telemetry message - for testing.
+   *
    * @param resource
    * @param payload
    * @return
    * @throws Exception
    */
-  public ResponseCode sendStatusTelemetry(String resource, byte[] payload, int contentFormat) throws Exception {
+  public ResponseCode sendStatusTelemetry(String resource, byte[] payload, int contentFormat)
+      throws Exception {
     setURI(getBRSKIPath() + "/" + resource);
     CoapResponse resp = post(payload, contentFormat);
-    return resp.getCode();    
+    return resp.getCode();
   }
-  
+
   /**
    * The EST simpleEnrollment process.
    *
@@ -532,7 +540,9 @@ public class Pledge extends CoapClient {
   }
 
   /**
-   * Set the checking of the CMC-RA (Registration Authority) flag in the Registrar's certificate to on (true) or off (false).
+   * Set the checking of the CMC-RA (Registration Authority) flag in the Registrar's certificate to
+   * on (true) or off (false).
+   *
    * @param doCheckCmcRa
    */
   public void setCmcRaCheck(boolean doCheckCmcRa) {
@@ -540,11 +550,12 @@ public class Pledge extends CoapClient {
   }
 
   /**
-   * Set the use of 'lightweight' client certificates in the DTLS handshake for this Pledge. If 'lightweight', then
-   * the MASA CA root certificate will be omitted from the client's Certificate message in the DTLS handshake to 
-   * reduce network load. The Registrar will anyhow have means to obtain MASA CA certificates (e.g. by contacting the 
-   * MASA via the MASA URI, or a sales integration process, etc.
-   * 
+   * Set the use of 'lightweight' client certificates in the DTLS handshake for this Pledge. If
+   * 'lightweight', then the MASA CA root certificate will be omitted from the client's Certificate
+   * message in the DTLS handshake to reduce network load. The Registrar will anyhow have means to
+   * obtain MASA CA certificates (e.g. by contacting the MASA via the MASA URI, or a sales
+   * integration process, etc.
+   *
    * @param isSetLightweight whether to use 'lightweight' (true) client certificates or not (false)
    * @throws PledgeException in case reconfiguration of the Pledge failed for some reason
    */
@@ -566,23 +577,24 @@ public class Pledge extends CoapClient {
     return nonce;
   }
 
-  private void init(Credentials creds, String hostURI, boolean isLightweightClientCerts) throws PledgeException {
-    
-    // remove trailing slash from hostURI - avoid host//path situations leading to a leading, empty CoAP Uri-Path Option. (=bug)
-    while(hostURI.endsWith("/"))
-      hostURI=hostURI.substring(0, hostURI.length()-1);
+  private void init(Credentials creds, String hostURI, boolean isLightweightClientCerts)
+      throws PledgeException {
+
+    // remove trailing slash from hostURI - avoid host//path situations leading to a leading, empty
+    // CoAP Uri-Path Option. (=bug)
+    while (hostURI.endsWith("/")) hostURI = hostURI.substring(0, hostURI.length() - 1);
     this.hostURI = hostURI;
 
     try {
       this.privateKey = creds.getPrivateKey();
       this.certificateChain = creds.getCertificateChain();
-    }
-    catch(GeneralSecurityException ex) {
+    } catch (GeneralSecurityException ex) {
       logger.error("Exception accessing credentials", ex);
       throw new PledgeException("Exception accessing credentials: " + ex.getMessage());
     }
     if (certificateChain.length < 2) {
-      throw new PledgeException("error in Pledge certificate chain (MASA CA and/or IDevID cert missing?)");
+      throw new PledgeException(
+          "error in Pledge certificate chain (MASA CA and/or IDevID cert missing?)");
     }
 
     this.trustAnchors = new HashSet<>();
@@ -623,7 +635,7 @@ public class Pledge extends CoapClient {
   private CoapResponse sendCSR(PKCS10CertificationRequest csr, String resource)
       throws IOException, ConnectorException {
     setURI(getESTPath() + "/" + resource);
-    return post(csr.getEncoded(), csrContentFormat );
+    return post(csr.getEncoded(), csrContentFormat);
   }
 
   private X509Certificate requestSigning(PKCS10CertificationRequest csr, String resource)
@@ -682,7 +694,8 @@ public class Pledge extends CoapClient {
     return null;
   }
 
-  private void initEndpoint(PrivateKey privateKey, X509Certificate[] certificateChain, CertificateVerifier verifier) {
+  private void initEndpoint(
+      PrivateKey privateKey, X509Certificate[] certificateChain, CertificateVerifier verifier) {
     CoapEndpoint endpoint =
         SecurityUtils.genCoapClientEndPoint(
             new X509Certificate[] {}, privateKey, certificateChain, verifier, false);
@@ -744,7 +757,7 @@ public class Pledge extends CoapClient {
   PledgeCertificateVerifier certVerifier;
 
   private CertPath registrarCertPath;
-  
+
   /** the Content Format to use for a CSR request */
   public int csrContentFormat = ExtendedMediaTypeRegistry.APPLICATION_PKCS10;
 
@@ -758,5 +771,4 @@ public class Pledge extends CoapClient {
   private CsrAttrs csrAttrs;
 
   private static Logger logger = LoggerFactory.getLogger(Pledge.class);
-
 }

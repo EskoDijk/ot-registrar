@@ -7,9 +7,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import org.bouncycastle.util.encoders.Hex;
 
-/**
- * Class to parse a byte[] into a generic set of TLVs and store them as HashMap<Type,Value>
- */
+/** Class to parse a byte[] into a generic set of TLVs and store them as HashMap<Type,Value> */
 public class TLVset extends HashMap<Integer, byte[]> {
 
   private static final long serialVersionUID = 3955356716921778844L;
@@ -62,7 +60,7 @@ public class TLVset extends HashMap<Integer, byte[]> {
 
   /**
    * serialize TLVset into byte array
-   * 
+   *
    * @return byte array serialized form
    */
   public byte[] serialize() {
@@ -86,8 +84,7 @@ public class TLVset extends HashMap<Integer, byte[]> {
       System.arraycopy(this.get(t), 0, buf, i, L);
       i += L;
     }
-    if (i == 0)
-      return new byte[] {};
+    if (i == 0) return new byte[] {};
     byte[] s = new byte[i]; // create end result of length 'i'
     System.arraycopy(buf, 0, s, 0, i); // from buffer
     return s;
@@ -101,8 +98,15 @@ public class TLVset extends HashMap<Integer, byte[]> {
     StringBuilder sb = new StringBuilder();
     sb.append(indentSpace + "{\n");
     for (Integer key : this.keySet()) {
-      sb.append(indentSpace + "  " + key + ": " + Hex.toHexString(this.get(key)) + " ("
-          + this.get(key).length + " bytes)\n");
+      sb.append(
+          indentSpace
+              + "  "
+              + key
+              + ": "
+              + Hex.toHexString(this.get(key))
+              + " ("
+              + this.get(key).length
+              + " bytes)\n");
     }
     sb.append(indentSpace + "}");
     return sb.toString();
@@ -110,7 +114,7 @@ public class TLVset extends HashMap<Integer, byte[]> {
 
   /**
    * parse a byte array set of TLVs into a TLVset structure
-   * 
+   *
    * @param b byte array to parse
    * @return new TLVset with all the TLVs in it
    */
@@ -140,5 +144,4 @@ public class TLVset extends HashMap<Integer, byte[]> {
     }
     return tlvs;
   }
-
 }

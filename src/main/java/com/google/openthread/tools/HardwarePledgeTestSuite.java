@@ -37,23 +37,24 @@ import com.google.openthread.domainca.*;
 import com.google.openthread.masa.*;
 import com.google.openthread.pledge.*;
 import com.google.openthread.registrar.*;
-import se.sics.ace.cwt.CWT;
 import java.security.Principal;
 import java.security.cert.X509Certificate;
 import org.junit.*;
 import org.junit.runners.*;
 import org.slf4j.*;
+import se.sics.ace.cwt.CWT;
 
 /**
- * A tool to test a Hardware Pledge DUT (OpenThread CLI device) against the Registrar/MASA. The specific
- * network setup so that the Pledge can reach the Registrar, is to be done by the user and out of
- * scope of this tool. It uses JUnit framework for easy GUI usage e.g. in Eclipse; consider these as
- * integration tests of the hardware Pledge.
+ * A tool to test a Hardware Pledge DUT (OpenThread CLI device) against the Registrar/MASA. The
+ * specific network setup so that the Pledge can reach the Registrar, is to be done by the user and
+ * out of scope of this tool. It uses JUnit framework for easy GUI usage e.g. in Eclipse; consider
+ * these as integration tests of the hardware Pledge.
  *
  * <p>Using Maven, this test suite is NOT executed during Maven test phase unit testing. So, it
  * needs to be explicitly invoked.
  */
-// One can enable this line to let Eclipse JUnit ignore this test when running all unit tests from the GUI.
+// One can enable this line to let Eclipse JUnit ignore this test when running all unit tests from
+// the GUI.
 // @Ignore("The PledgeHw* tests can only be run with hardware Pledge and network setup, skipping.")
 // Below test order is not mandatory, but saves time if executed in order.
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
@@ -61,18 +62,22 @@ public class HardwarePledgeTestSuite {
 
   public static final String THREAD_DOMAIN_NAME = "TestDomainTCE";
   public static final int IEEE_802154_CHANNEL = 19;
-  public static final String[] MASA_CREDENTIAL_FILES = new String[] {
+  public static final String[] MASA_CREDENTIAL_FILES =
+      new String[] {
         "./credentials/local-masa/masa_cert.pem", "./credentials/local-masa/masa_private.pem"
       };
-  public static final String[] MASACA_CREDENTIAL_FILES = new String[] {
-      "./credentials/local-masa/masaca_cert.pem", "./credentials/local-masa/masaca_private.pem"
-    };
-  public static final String[] DOMAIN_CREDENTIAL_FILES = new String[] {
-        "./credentials/local-masa/domainca_cert.pem", "./credentials/local-masa/domainca_private.pem"
+  public static final String[] MASACA_CREDENTIAL_FILES =
+      new String[] {
+        "./credentials/local-masa/masaca_cert.pem", "./credentials/local-masa/masaca_private.pem"
+      };
+  public static final String[] DOMAIN_CREDENTIAL_FILES =
+      new String[] {
+        "./credentials/local-masa/domainca_cert.pem",
+        "./credentials/local-masa/domainca_private.pem"
       };
   public static final String BORDER_ROUTER_AUTHORITY = "[fd00:910b::3285:1958:d0c9:d06]:49191";
-  
-  private static final String REGISTRAR_URI = "[::1]:" + Constants.DEFAULT_REGISTRAR_COAPS_PORT ;  
+
+  private static final String REGISTRAR_URI = "[::1]:" + Constants.DEFAULT_REGISTRAR_COAPS_PORT;
   private DomainCA domainCA;
   private Registrar registrar;
   private Commissioner commissioner;
@@ -84,7 +89,8 @@ public class HardwarePledgeTestSuite {
   @BeforeClass
   public static void setup() throws Exception {
     credGen = new CredentialGenerator();
-    credGen.make(DOMAIN_CREDENTIAL_FILES, MASACA_CREDENTIAL_FILES, MASA_CREDENTIAL_FILES, null, null);
+    credGen.make(
+        DOMAIN_CREDENTIAL_FILES, MASACA_CREDENTIAL_FILES, MASA_CREDENTIAL_FILES, null, null);
     pledge = new PledgeHardware();
     assertTrue(pledge.factoryReset());
     assertTrue(pledge.execCommandDone("channel " + IEEE_802154_CHANNEL));
@@ -106,13 +112,16 @@ public class HardwarePledgeTestSuite {
             credGen.getCredentials(CredentialGenerator.MASACA_ALIAS),
             Constants.DEFAULT_MASA_HTTPS_PORT);
 
-    domainCA = new DomainCA(THREAD_DOMAIN_NAME, credGen.domaincaKeyPair.getPrivate(), credGen.domaincaCert);
+    domainCA =
+        new DomainCA(
+            THREAD_DOMAIN_NAME, credGen.domaincaKeyPair.getPrivate(), credGen.domaincaCert);
 
     RegistrarBuilder registrarBuilder = new RegistrarBuilder();
     registrar =
         registrarBuilder
             .setPrivateKey(credGen.registrarKeyPair.getPrivate())
-            .setCertificateChain(new X509Certificate[] {credGen.registrarCert, credGen.domaincaCert})
+            .setCertificateChain(
+                new X509Certificate[] {credGen.registrarCert, credGen.domaincaCert})
             .addMasaCertificate(credGen.masaCert)
             .setMasaClientCredentials(credGen.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
             .setForcedMasaUri(Constants.DEFAULT_MASA_URI)
@@ -136,9 +145,7 @@ public class HardwarePledgeTestSuite {
     masa.stop();
   }
 
-  /**
-   * Basic test for DUT Pledge response
-   */
+  /** Basic test for DUT Pledge response */
   @Test
   public void testDUT_responds() throws Exception {
     assertEquals(PledgeHardware.THREAD_VERSION_PLEDGE, pledge.execCommand("thread version"));
@@ -148,9 +155,7 @@ public class HardwarePledgeTestSuite {
     assertTrue(nkey.length() == 32);
   }
 
-  /**
-   * DISC-TC-01:
-   */
+  /** DISC-TC-01: */
   @Test
   public void test_5_02_DISC_TC_01() throws Exception {
     if (pledge.isEnrolled()) pledge.factoryReset();
@@ -161,25 +166,20 @@ public class HardwarePledgeTestSuite {
     // only check that handshake went well.
     assertFalse(OpenThreadUtils.detectEnrollFailure(res));
   }
-  
-  /**
-   * DISC-TC-02:
-   */
+
+  /** DISC-TC-02: */
   @Test
   public void test_5_02_DISC_TC_02() throws Exception {
-    if (!pledge.isEnrolled())
-      pledge.enroll();
+    if (!pledge.isEnrolled()) pledge.enroll();
     assertTrue(pledge.isEnrolled());
     assertTrue(pledge.execCommandDone("joiner startae"));
     String res = pledge.waitForMessage(20000);
     assertNotNull(res);
     assertFalse(OpenThreadUtils.detectNkpFailure(res));
-    //assertTrue(OpenThreadUtils.detectNkpSuccess(res));
+    // assertTrue(OpenThreadUtils.detectNkpSuccess(res));
   }
-  
-  /**
-   * AE-TC-01: Regular BRSKI + EST enrollment
-   */
+
+  /** AE-TC-01: Regular BRSKI + EST enrollment */
   @Test
   public void test_5_05_AE_TC_01() throws Exception {
 
@@ -211,17 +211,13 @@ public class HardwarePledgeTestSuite {
     assertTrue(pledge.isEnrolled());
   }
 
-  /**
-   * NKP-TC-01:
-   */
+  /** NKP-TC-01: */
   @Test
   public void test_5_06_NKP_TC_01() throws Exception {
-     assertTrue(false);
+    assertTrue(false);
   }
 
-  /**
-   * NKP-TC-01a:
-   */
+  /** NKP-TC-01a: */
   @Test
   public void test_5_06_NKP_TC_01a() throws Exception {
     // Need to be enrolled to do NKP.
@@ -232,9 +228,7 @@ public class HardwarePledgeTestSuite {
     assertTrue(false);
   }
 
-  /**
-   * NKP-TC-02: Network Key Provisioning (NKP) after enrollment.
-   */
+  /** NKP-TC-02: Network Key Provisioning (NKP) after enrollment. */
   @Test
   public void test_5_06_NKP_TC_02() throws Exception {
 
@@ -256,20 +250,18 @@ public class HardwarePledgeTestSuite {
     assertNotEquals("disabled", pledge.execCommand("state")); // verify thread is started
     assertEquals("false", pledge.execCommand("singleton")); // verify I joined with BR.
   }
-  
-  /**
-   * RE-TC-01:
-   */
+
+  /** RE-TC-01: */
   @Test
   public void test_5_07_RE_TC_01() throws Exception {
     assertTrue(false);
   }
-   
+
   @Test
   public void test_5_12_COMM_TC_01() throws Exception {
-    
+
     CWT token = commissioner.requestToken(THREAD_DOMAIN_NAME, REGISTRAR_URI);
-    assertTrue(token.getClaims().size()>0);    
+    assertTrue(token.getClaims().size() > 0);
     assertTrue(commissioner.start(BORDER_ROUTER_AUTHORITY));
   }
 }

@@ -225,7 +225,8 @@ public class DomainCA {
     claims.put(se.sics.ace.Constants.ISS, CBORObject.FromObject(keyId));
 
     // see rfc8392 NumericDate format
-    Date expire = new Date(System.currentTimeMillis() + 3600 * 24 * 1000 * Constants.COM_TOK_VALIDITY);
+    Date expire =
+        new Date(System.currentTimeMillis() + 3600 * 24 * 1000 * Constants.COM_TOK_VALIDITY);
     claims.put(se.sics.ace.Constants.EXP, CBORObject.FromObject(expire.getTime()));
 
     OneKey oneKey = new OneKey(null, signingKey);

@@ -38,12 +38,9 @@ import java.security.KeyStoreException;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
-import java.util.Enumeration;
 import org.eclipse.californium.elements.util.SslContextUtil;
 
-/**
- * A set of credentials (certificate and private key) for a single named entity ("alias"). 
- */
+/** A set of credentials (certificate and private key) for a single named entity ("alias"). */
 public class Credentials {
 
   public Credentials(String file, String alias, String password) throws Exception {
@@ -54,16 +51,15 @@ public class Credentials {
     try (InputStream in = new FileInputStream(file)) {
       ksAll.load(in, password.toCharArray());
     }
-    if(!ksAll.containsAlias(alias))
-      throw new KeyStoreException("Alias "+alias+" not found in keystore: "+file);
+    if (!ksAll.containsAlias(alias))
+      throw new KeyStoreException("Alias " + alias + " not found in keystore: " + file);
 
     // set the single right entry in a new keystore
     keyStore = KeyStore.getInstance(Constants.KEY_STORE_FORMAT);
     keyStore.load(null, password.toCharArray());
-    Key privKey = ksAll.getKey(alias, password.toCharArray() );
+    Key privKey = ksAll.getKey(alias, password.toCharArray());
     Certificate[] certChain = ksAll.getCertificateChain(alias);
     keyStore.setKeyEntry(alias, privKey, password.toCharArray(), certChain);
-
   }
 
   public Credentials(KeyStore ksAll, String alias, String password) throws Exception {
@@ -73,11 +69,10 @@ public class Credentials {
     // set the single right entry in a new keystore
     keyStore = KeyStore.getInstance(Constants.KEY_STORE_FORMAT);
     keyStore.load(null, password.toCharArray());
-    Key privKey = ksAll.getKey(alias, password.toCharArray() );
+    Key privKey = ksAll.getKey(alias, password.toCharArray());
     Certificate[] certChain = ksAll.getCertificateChain(alias);
     keyStore.setKeyEntry(alias, privKey, password.toCharArray(), certChain);
-
-}
+  }
 
   public Credentials(PrivateKey privKey, X509Certificate[] certChain, String alias, String password)
       throws GeneralSecurityException, IOException {
@@ -114,14 +109,16 @@ public class Credentials {
 
   /**
    * returns the password of the KeyStore used to fetch the credentials.
+   *
    * @return
    */
   public String getPassword() {
     return password;
   }
-  
+
   /**
    * returns the alias for the credentials indicated by this Credentials object.
+   *
    * @return alias String associated to the current credentials
    */
   public String getAlias() {

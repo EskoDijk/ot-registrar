@@ -33,9 +33,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Utility class to serialize/deserialize Vouchers to or from CBOR,
- * either as byte array or CBORObject. 
- * Create a new instance for each serialization/deserialization job. 
+ * Utility class to serialize/deserialize Vouchers to or from CBOR, either as byte array or
+ * CBORObject. Create a new instance for each serialization/deserialization job.
  */
 public class CBORSerializer implements VoucherSerializer {
 
@@ -115,9 +114,7 @@ public class CBORSerializer implements VoucherSerializer {
             String msg =
                 String.format(
                     "wrong voucher sid: %d, expecting %d for voucher or %d for voucher request",
-                    ku.AsInt32(),
-                    Voucher.VOUCHER_SID,
-                    VoucherRequest.VOUCHER_REQUEST_SID);
+                    ku.AsInt32(), Voucher.VOUCHER_SID, VoucherRequest.VOUCHER_REQUEST_SID);
             throw new IllegalArgumentException(msg);
           }
         } else if (key.AsString().equals(Voucher.VOUCHER)) {

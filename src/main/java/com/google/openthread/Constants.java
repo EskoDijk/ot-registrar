@@ -50,7 +50,7 @@ public class Constants {
   public static final String CA_CERTIFICATES = "crts";
   public static final String SIMPLE_ENROLL = "sen";
   public static final String SIMPLE_REENROLL = "sren";
-  
+
   // --- Other resources and paths
   public static final String HELLO = "hello";
   public static final String COMM_PET_REQ_PATH = "/c/cp";
@@ -59,7 +59,8 @@ public class Constants {
   public static final String HTTP_APPLICATION_VOUCHER_CMS_JSON = "application/voucher-cms+json";
   public static final String HTTP_APPLICATION_VOUCHER_CMS_CBOR = "application/voucher-cms+cbor";
 
-  public static final String HTTP_APPLICATION_COSE_SIGN1 = "application/cose; cose-type=\"cose-sign1\"";
+  public static final String HTTP_APPLICATION_COSE_SIGN1 =
+      "application/cose; cose-type=\"cose-sign1\"";
   public static final String HTTP_APPLICATION_COSE = "application/cose";
   public static final String HTTP_APPLICATION_VOUCHER_COSE_CBOR = "application/voucher-cose+cbor";
   public static final String HTTP_APPLICATION_VOUCHER_COSE_JSON = "application/voucher-cose+json";
@@ -96,7 +97,8 @@ public class Constants {
   public static final String DEFAULT_MASA_URI_HOST = "localhost";
 
   // In case the MASA URI is not specified, this default value will be used.
-  public static final String DEFAULT_MASA_URI = DEFAULT_MASA_URI_HOST + ":" + DEFAULT_MASA_HTTPS_PORT;
+  public static final String DEFAULT_MASA_URI =
+      DEFAULT_MASA_URI_HOST + ":" + DEFAULT_MASA_HTTPS_PORT;
 
   // -- Other items
   // Default Thread Domain Name per Thread 1.2 spec. Must not be changed, unless spec changes.

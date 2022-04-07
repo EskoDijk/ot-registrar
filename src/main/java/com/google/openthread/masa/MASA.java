@@ -79,14 +79,10 @@ public class MASA {
 
   protected Undertow httpServer;
 
-  protected Credentials credentials;    // MASA server credentials
-  protected Credentials credentialsCa;    // MASA CA credentials (for signing)
+  protected Credentials credentials; // MASA server credentials
+  protected Credentials credentialsCa; // MASA CA credentials (for signing)
 
-  public MASA(
-      Credentials credentials,
-      Credentials credentialsCa,
-      int port)
-      throws Exception {
+  public MASA(Credentials credentials, Credentials credentialsCa, int port) throws Exception {
     this.credentials = credentials;
     this.credentialsCa = credentialsCa;
     this.listenPort = port;
@@ -151,7 +147,7 @@ public class MASA {
           try {
             reqContent =
                 SecurityUtils.decodeCMSSignedMessage(
-                    body, reqCerts); // decode CMS and get the embedded reqCerts back.
+                    body, reqCerts); // decode CMS, get embedded reqCerts back.
           } catch (Exception e) {
             logger.error("CMS signed voucher request error: " + e.getMessage(), e);
             exchange.setStatusCode(403);

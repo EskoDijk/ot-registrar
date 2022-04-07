@@ -145,7 +145,7 @@ public class SecurityUtilsTest {
     Assert.assertEquals(certList.get(0), cert);
     Assert.assertEquals(certList.get(1), cert2);
   }
-  
+
   @Test
   public void testAuthorityKeyIdentifier() throws Exception {
     CredentialGenerator cg = new CredentialGenerator();
@@ -154,10 +154,10 @@ public class SecurityUtilsTest {
     byte[] keyId = SecurityUtils.getAuthorityKeyIdentifierKeyId(cg.pledgeCert);
     Assert.assertTrue(akiOctetString.length == 26);
     Assert.assertTrue(keyId.length == 20);
-    
+
     // verify that the last part of akiOctetString in fact contains the keyId.
     byte[] akiOctetStringLastPart = new byte[20];
     System.arraycopy(akiOctetString, 6, akiOctetStringLastPart, 0, 20);
-    Assert.assertTrue(Arrays.equals(keyId, akiOctetStringLastPart) );
+    Assert.assertTrue(Arrays.equals(keyId, akiOctetStringLastPart));
   }
 }

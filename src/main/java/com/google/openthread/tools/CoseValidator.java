@@ -21,6 +21,10 @@
 
 package com.google.openthread.tools;
 
+import COSE.MessageTag;
+import COSE.OneKey;
+import COSE.Sign1Message;
+import com.upokecenter.cbor.CBORObject;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -29,10 +33,6 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.upokecenter.cbor.CBORObject;
-import COSE.MessageTag;
-import COSE.OneKey;
-import COSE.Sign1Message;
 
 /**
  * Tool (CLI) to validate COSE_Sign1 signature, loading the COSE from binary .cbor file; and loading
@@ -48,8 +48,7 @@ public class CoseValidator {
 
     if (args.length != 2) {
       System.out.println("CoseValidator");
-      System.out.println(
-          "Usage: CoseValidator <cose-file.cbor> <signer-x509-cert.der/pem>");
+      System.out.println("Usage: CoseValidator <cose-file.cbor> <signer-x509-cert.der/pem>");
       return;
     }
 
@@ -65,7 +64,6 @@ public class CoseValidator {
     } catch (Exception ex) {
       logger.error("Internal error", ex);
     }
-
   }
 
   public X509Certificate loadX509Certificate(String fn) throws Exception {
@@ -76,8 +74,7 @@ public class CoseValidator {
       X509Certificate cert = (X509Certificate) cf.generateCertificate(in);
       return cert;
     } finally {
-      if (in != null)
-        in.close();
+      if (in != null) in.close();
     }
   }
 
@@ -102,5 +99,4 @@ public class CoseValidator {
     }
     return false;
   }
-
 }

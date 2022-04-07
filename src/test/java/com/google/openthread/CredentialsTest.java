@@ -55,7 +55,7 @@ public class CredentialsTest {
 
   public static final String KEY_STORE_FILE = "test-credentials.p12";
   private static String pledgeSn;
-  
+
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @BeforeClass

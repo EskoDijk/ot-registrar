@@ -75,11 +75,7 @@ public class MASAMain {
     Option optHelp =
         Option.builder("h").longOpt("help").hasArg(false).desc("print this message").build();
 
-    options
-        .addOption(fileOpt)
-        .addOption(optPort)
-        .addOption(optVerbose)
-        .addOption(optHelp);
+    options.addOption(fileOpt).addOption(optPort).addOption(optVerbose).addOption(optHelp);
 
     MASA masa;
 
@@ -104,8 +100,12 @@ public class MASAMain {
       LoggerInitializer.Init(cmd.hasOption('v'));
 
       System.out.println("using keystore: " + keyStoreFile);
-      Credentials cred   = new Credentials(keyStoreFile, CredentialGenerator.MASA_ALIAS, CredentialGenerator.PASSWORD);
-      Credentials credCa = new Credentials(keyStoreFile, CredentialGenerator.MASACA_ALIAS, CredentialGenerator.PASSWORD);
+      Credentials cred =
+          new Credentials(
+              keyStoreFile, CredentialGenerator.MASA_ALIAS, CredentialGenerator.PASSWORD);
+      Credentials credCa =
+          new Credentials(
+              keyStoreFile, CredentialGenerator.MASACA_ALIAS, CredentialGenerator.PASSWORD);
 
       if (cred.getPrivateKey() == null || cred.getCertificate() == null) {
         throw new KeyStoreException("can't find MASA key or certificate");

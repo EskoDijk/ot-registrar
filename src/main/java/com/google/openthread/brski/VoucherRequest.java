@@ -73,11 +73,10 @@ public class VoucherRequest extends Voucher {
       return false;
     }
     // only constrained voucher req may have SPKI
-    if (!isConstr && proximityRegistrarSPKI != null)
-      return false;
+    if (!isConstr && proximityRegistrarSPKI != null) return false;
     // no proximity fields allowed while there's no proximity assertion.
-    if (assertion != Assertion.PROXIMITY && (proximityRegistrarCert != null || proximityRegistrarSPKI != null))
-      return false;
+    if (assertion != Assertion.PROXIMITY
+        && (proximityRegistrarCert != null || proximityRegistrarSPKI != null)) return false;
 
     return true;
   }

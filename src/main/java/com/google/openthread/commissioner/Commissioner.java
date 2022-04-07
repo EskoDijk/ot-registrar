@@ -67,30 +67,30 @@ public class Commissioner {
     // TODO(wgtdkp): verify public and private key are match
     this.privateKey = privateKey;
     this.certificateChain = certificateChain;
-    this.certVerifier = new CommissionerCertificateVerifier(getDomainCertificate());    
+    this.certVerifier = new CommissionerCertificateVerifier(getDomainCertificate());
     this.client = new CoapClient();
     initEndpoint();
   }
 
   public boolean start(String borderAgentHost) {
-    baClient = new ThreadCoapClient(borderAgentHost, comTok );
-    try{
+    baClient = new ThreadCoapClient(borderAgentHost, comTok);
+    try {
       CoapResponse resp = baClient.sendCOMM_PET_req("JavaCommissioner" + allocateClientId());
       if (resp == null || !resp.isSuccess()) {
         logger.warn("Petitioning unsuccessfull: " + resp);
         return false;
       }
-    }catch(Exception ex) {
-      logger.warn("Petitioning error to " + borderAgentHost , ex);
+    } catch (Exception ex) {
+      logger.warn("Petitioning error to " + borderAgentHost, ex);
       return false;
     }
     return true;
   }
-  
+
   public void shutdown() {
     client.shutdown();
   }
-  
+
   public CWT requestToken(String domainName, String registrarURI)
       throws CommissionerException, IOException, ConnectorException {
     // 0. build COM_TOK.req
@@ -207,5 +207,4 @@ public class Commissioner {
   private X509Certificate[] certificateChain;
   private CommissionerCertificateVerifier certVerifier;
   private static Logger logger = LoggerFactory.getLogger(Commissioner.class);
-  
 }

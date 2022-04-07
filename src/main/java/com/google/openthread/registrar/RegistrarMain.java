@@ -139,7 +139,7 @@ public final class RegistrarMain {
       Credentials domainCred =
           new Credentials(
               keyStoreFile, CredentialGenerator.DOMAINCA_ALIAS, CredentialGenerator.PASSWORD);
-      //Credentials masaCred =
+      // Credentials masaCred =
       //    new Credentials(
       //        keyStoreFile, CredentialGenerator.MASA_ALIAS, CredentialGenerator.PASSWORD);
 
@@ -157,15 +157,15 @@ public final class RegistrarMain {
       builder.setMasaClientCredentials(cred);
       builder.setPort(Integer.parseInt(port));
 
-      //if (true) {
-        // trust all MASAs by default
-        builder.setTrustAllMasas(true);
-      //} else {
-        // FIXME if one MASA identity defined in credentials file, use that one as trusted MASA.
-        //if (masaCred.getCertificate() != null)
-        //  builder.addMasaCertificate(masaCred.getCertificate());
-      //}
-      
+      // if (true) {
+      // trust all MASAs by default
+      builder.setTrustAllMasas(true);
+      // } else {
+      // FIXME if one MASA identity defined in credentials file, use that one as trusted MASA.
+      // if (masaCred.getCertificate() != null)
+      //  builder.addMasaCertificate(masaCred.getCertificate());
+      // }
+
       if (cmd.hasOption('m')) {
         builder.setForcedMasaUri(cmd.getOptionValue('m'));
       }

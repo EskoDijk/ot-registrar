@@ -30,16 +30,9 @@ package com.google.openthread.pledge;
 
 import com.fazecast.jSerialComm.*;
 import com.google.openthread.OpenThreadUtils;
-import com.google.openthread.brski.StatusTelemetry;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.security.Principal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,13 +44,13 @@ public class PledgeHardware {
 
   /** default wait time in ms after sending a serial command, to allow time for command execution */
   public static final int DEFAULT_SERIAL_CMD_WAIT_MS = 20;
-  
+
   /** COM port baud rate */
   public static final int COM_BAUD_RATE = 115200;
-  
+
   /** Expected Thread version of DUT Pledge */
   public static final String THREAD_VERSION_PLEDGE = "1.2";
-  
+
   protected SerialPort serPort = null;
   protected PrintWriter serialWriter = null;
   protected InputStreamReader serialReader = null;
@@ -103,7 +96,10 @@ public class PledgeHardware {
     // reset the CLI to known state (of receiving input)
     serialWriter.write("\n\n");
     serialWriter.flush();
-    try { Thread.sleep(10); } catch (InterruptedException ex) {;}
+    try {
+      Thread.sleep(10);
+    } catch (InterruptedException ex) {;
+    }
     readSerialLines();
   }
 
@@ -116,11 +112,10 @@ public class PledgeHardware {
       waitForMessage(10);
     } catch (IOException ex) {
       logger.warn("shutdown() had an exception", ex);
-    }
-    finally{
+    } finally {
       serPort.closePort();
       serPort = null;
-    }    
+    }
   }
 
   /**
@@ -155,7 +150,8 @@ public class PledgeHardware {
    * @param consoleCmd the command
    * @param msWait milliseconds to wait after sending command, to try reading result over serial.
    * @param filterOutLogLines if true, filters out any log/empty/prompt lines from result.
-   * @return result of command as lines, or empty string if nothing was returned after the wait time.
+   * @return result of command as lines, or empty string if nothing was returned after the wait
+   *     time.
    * @throws IOException
    */
   public String execCommand(String consoleCmd, int msWait, boolean filterOutLogLines)
@@ -202,7 +198,8 @@ public class PledgeHardware {
    */
   public boolean factoryReset() throws IOException {
     execCommand("factoryreset", 250, false);
-    pledgeLog.append("\n----------------[Factory Reset by HardwarePledgeTestSuite]------------------");
+    pledgeLog.append(
+        "\n----------------[Factory Reset by HardwarePledgeTestSuite]------------------");
     statusIsEnrolled = false;
     String v = execCommand("thread version");
     if (v.equals(THREAD_VERSION_PLEDGE)) return true;
@@ -244,11 +241,9 @@ public class PledgeHardware {
     waitForMessage(20000);
 
     // verify same on pledge side.
-    if(!isEnrolled())
-      throw new IOException("enroll() failed");
-
+    if (!isEnrolled()) throw new IOException("enroll() failed");
   }
-  
+
   /**
    * returns the Pledge log, built during the session of using this Pledge.
    *
@@ -259,8 +254,8 @@ public class PledgeHardware {
   }
 
   /**
-   * helper method to read all available serial input from OT device, and store it in the log without further
-   * processing.
+   * helper method to read all available serial input from OT device, and store it in the log
+   * without further processing.
    *
    * @throws IOException
    */
@@ -275,11 +270,14 @@ public class PledgeHardware {
     }
   }
 
-  /** helper method to add string 'log' to the Pledge log. It will perform log analysis functions on the input. */
+  /**
+   * helper method to add string 'log' to the Pledge log. It will perform log analysis functions on
+   * the input.
+   */
   protected void addToPledgeLog(String log) {
     pledgeLog.append(log);
     if (!statusIsEnrolled)
-      statusIsEnrolled = OpenThreadUtils.detectEnrollSuccess(log) && !OpenThreadUtils.detectEnrollFailure(log);
+      statusIsEnrolled =
+          OpenThreadUtils.detectEnrollSuccess(log) && !OpenThreadUtils.detectEnrollFailure(log);
   }
-  
 }

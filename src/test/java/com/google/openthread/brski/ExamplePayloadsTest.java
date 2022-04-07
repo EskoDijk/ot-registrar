@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
 public class ExamplePayloadsTest {
 
   private static Logger logger = LoggerFactory.getLogger(ExamplePayloadsTest.class);
-  
+
   @Test
   public void voucherExamplePayload() throws Exception {
     VoucherRequest cvr = new VoucherRequest();
