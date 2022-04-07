@@ -32,56 +32,79 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.GeneralSecurityException;
+import java.security.Key;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.PrivateKey;
+import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.util.Enumeration;
 import org.eclipse.californium.elements.util.SslContextUtil;
 
+/**
+ * A set of credentials (certificate and private key) for a single named entity ("alias"). 
+ */
 public class Credentials {
 
   public Credentials(String file, String alias, String password) throws Exception {
     this.alias = alias;
     this.password = password;
-    this.keyStore = KeyStore.getInstance(Constants.KEY_STORE_FORMAT);
+    KeyStore ksAll = KeyStore.getInstance(Constants.KEY_STORE_FORMAT);
 
     try (InputStream in = new FileInputStream(file)) {
-      keyStore.load(in, password.toCharArray());
+      ksAll.load(in, password.toCharArray());
     }
+    if(!ksAll.containsAlias(alias))
+      throw new KeyStoreException("Alias "+alias+" not found in keystore: "+file);
+
+    // set the single right entry in a new keystore
+    keyStore = KeyStore.getInstance(Constants.KEY_STORE_FORMAT);
+    keyStore.load(null, password.toCharArray());
+    Key privKey = ksAll.getKey(alias, password.toCharArray() );
+    Certificate[] certChain = ksAll.getCertificateChain(alias);
+    keyStore.setKeyEntry(alias, privKey, password.toCharArray(), certChain);
+
   }
 
-  public Credentials(KeyStore ks, String alias, String password) throws Exception {
+  public Credentials(KeyStore ksAll, String alias, String password) throws Exception {
     this.alias = alias;
     this.password = password;
-    this.keyStore = ks;
-  }
+
+    // set the single right entry in a new keystore
+    keyStore = KeyStore.getInstance(Constants.KEY_STORE_FORMAT);
+    keyStore.load(null, password.toCharArray());
+    Key privKey = ksAll.getKey(alias, password.toCharArray() );
+    Certificate[] certChain = ksAll.getCertificateChain(alias);
+    keyStore.setKeyEntry(alias, privKey, password.toCharArray(), certChain);
+
+}
 
   public Credentials(PrivateKey privKey, X509Certificate[] certChain, String alias, String password)
       throws GeneralSecurityException, IOException {
-    // this.alias = alias;
+    this.alias = alias;
     this.password = password;
     this.keyStore = KeyStore.getInstance(Constants.KEY_STORE_FORMAT);
     keyStore.load(null, password.toCharArray());
     keyStore.setKeyEntry(alias, privKey, password.toCharArray(), certChain);
   }
 
-  // Returns null if alias not included.
+  // Returns null if alias not included i.e. key for alias was not found.
   public PrivateKey getPrivateKey() throws GeneralSecurityException {
     return (PrivateKey) keyStore.getKey(alias, password.toCharArray());
   }
 
-  // Returns null if alias not included.
+  // Returns null if alias not included i.e. key for alias was not found.
   public X509Certificate getCertificate() throws KeyStoreException {
     return (X509Certificate) keyStore.getCertificate(alias);
   }
 
-  // Returns null if alias not included.
+  // Returns null if alias not included i.e. key for alias was not found.
   public X509Certificate[] getCertificateChain() throws KeyStoreException {
     return SslContextUtil.asX509Certificates(keyStore.getCertificateChain(alias));
   }
 
   /**
-   * returns the entire KeyStore that was used to fetch these credentials.
+   * returns the KeyStore that is used to fetch the credentials.
    *
    * @return
    */
@@ -89,8 +112,20 @@ public class Credentials {
     return keyStore;
   }
 
+  /**
+   * returns the password of the KeyStore used to fetch the credentials.
+   * @return
+   */
   public String getPassword() {
     return password;
+  }
+  
+  /**
+   * returns the alias for the credentials indicated by this Credentials object.
+   * @return alias String associated to the current credentials
+   */
+  public String getAlias() {
+    return alias;
   }
 
   private String alias;

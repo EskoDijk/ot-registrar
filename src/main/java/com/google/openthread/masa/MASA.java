@@ -37,7 +37,6 @@ import com.google.openthread.BouncyCastleInitializer;
 import com.google.openthread.Constants;
 import com.google.openthread.Credentials;
 import com.google.openthread.DummyTrustManager;
-import com.google.openthread.ExtendedMediaTypeRegistry;
 import com.google.openthread.NetworkUtils;
 import com.google.openthread.RequestDumper;
 import com.google.openthread.SecurityUtils;
@@ -56,7 +55,6 @@ import io.undertow.util.HttpString;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.security.GeneralSecurityException;
-import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Date;
@@ -81,17 +79,16 @@ public class MASA {
 
   protected Undertow httpServer;
 
-  protected Credentials credentials;
+  protected Credentials credentials;    // MASA server credentials
+  protected Credentials credentialsCa;    // MASA CA credentials (for signing)
 
   public MASA(
-      PrivateKey privateKey,
-      X509Certificate certificate,
       Credentials credentials,
+      Credentials credentialsCa,
       int port)
       throws Exception {
-    this.privateKey = privateKey;
-    this.certificate = certificate;
     this.credentials = credentials;
+    this.credentialsCa = credentialsCa;
     this.listenPort = port;
     initHttpServer();
   }
@@ -237,7 +234,7 @@ public class MASA {
         byte[] content = new CBORSerializer().serialize(resp.getVoucher());
         byte[] payload =
             SecurityUtils.genCoseSign1Message(
-                privateKey, SecurityUtils.COSE_SIGNATURE_ALGORITHM, content);
+                credentialsCa.getPrivateKey(), SecurityUtils.COSE_SIGNATURE_ALGORITHM, content);
         exchange.getOutputStream().write(payload);
         exchange.getOutputStream().flush();
         exchange.getOutputStream().close();
@@ -422,10 +419,6 @@ public class MASA {
   }
 
   private final int listenPort;
-
-  private final PrivateKey privateKey;
-
-  private final X509Certificate certificate;
 
   private static final Logger logger = LoggerFactory.getLogger(MASA.class);
 }

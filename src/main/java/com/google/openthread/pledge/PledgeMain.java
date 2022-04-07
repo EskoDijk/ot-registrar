@@ -100,13 +100,9 @@ public class PledgeMain {
             String.format(
                 "can't find pledge key or certificate: %s", CredentialGenerator.PLEDGE_ALIAS));
       }
-
-      Pledge pledge = new Pledge(cred.getPrivateKey(), cred.getCertificateChain(), registrarUri);
-
-      cred =
-          new Credentials(
-              keyStoreFile, CredentialGenerator.COMMISSIONER_ALIAS, CredentialGenerator.PASSWORD);
-
+      Pledge pledge = new Pledge(cred, registrarUri);
+      
+      cred = new Credentials(keyStoreFile, CredentialGenerator.COMMISSIONER_ALIAS, CredentialGenerator.PASSWORD);
       Commissioner commissioner = null;
       if (cred != null && cred.getPrivateKey() != null && cred.getCertificateChain() != null) {
         commissioner = new Commissioner(cred.getPrivateKey(), cred.getCertificateChain());

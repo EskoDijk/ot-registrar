@@ -35,6 +35,7 @@ import COSE.OneKey;
 import COSE.Sign1Message;
 import com.google.openthread.BouncyCastleInitializer;
 import com.google.openthread.Constants;
+import com.google.openthread.Credentials;
 import com.google.openthread.ExtendedMediaTypeRegistry;
 import com.google.openthread.SecurityUtils;
 import com.google.openthread.brski.CBORSerializer;
@@ -126,19 +127,20 @@ public class Pledge extends CoapClient {
    * @param hostURI uri of host (registrar)
    * @throws PledgeException
    */
-  public Pledge(PrivateKey privateKey, X509Certificate[] certificateChain, String hostURI)
+  public Pledge(Credentials creds, String hostURI)
       throws PledgeException {
     super(hostURI);
-    init(privateKey, certificateChain, hostURI);
+    init(creds, hostURI, this.isLightweightClientCerts);
+    this.credentials = creds;
   }
 
   public String getHostURI() {
     return hostURI;
   }
 
-  public Pledge(PrivateKey privateKey, X509Certificate[] certificateChain, String host, int port)
+  public Pledge(Credentials creds, String host, int port)
       throws PledgeException {
-    this(privateKey, certificateChain, host + ":" + port);
+    this(creds, host + ":" + port);
   }
 
   public static String getSerialNumber(X509Certificate idevid) {
@@ -273,7 +275,7 @@ public class Pledge extends CoapClient {
       throw new PledgeException("unexpected null payload");
     }
 
-    // 2. Receive voucher signed by MASA
+    // 2. Receive voucher signed by MASA CA
     try {
       // 2.0 verify signature
       Sign1Message msg = (Sign1Message) Message.DecodeFromBytes(payload, MessageTag.Sign1);
@@ -514,8 +516,7 @@ public class Pledge extends CoapClient {
 
   public void reset() throws PledgeException {
     shutdown();
-    init(privateKey, certificateChain, hostURI);
-    initEndpoint(privateKey, certificateChain, certVerifier);
+    init(credentials, hostURI, this.isLightweightClientCerts);
   }
 
   public CertState getState() {
@@ -530,20 +531,59 @@ public class Pledge extends CoapClient {
     return certificateChain[certificateChain.length - 1];
   }
 
-  private void init(PrivateKey privateKey, X509Certificate[] certificateChain, String hostURI)
-      throws PledgeException {
+  /**
+   * Set the checking of the CMC-RA (Registration Authority) flag in the Registrar's certificate to on (true) or off (false).
+   * @param doCheckCmcRa
+   */
+  public void setCmcRaCheck(boolean doCheckCmcRa) {
+    this.certVerifier.setCmcRaCheck(doCheckCmcRa);
+  }
+
+  /**
+   * Set the use of 'lightweight' client certificates in the DTLS handshake for this Pledge. If 'lightweight', then
+   * the MASA CA root certificate will be omitted from the client's Certificate message in the DTLS handshake to 
+   * reduce network load. The Registrar will anyhow have means to obtain MASA CA certificates (e.g. by contacting the 
+   * MASA via the MASA URI, or a sales integration process, etc.
+   * 
+   * @param isSetLightweight whether to use 'lightweight' (true) client certificates or not (false)
+   * @throws PledgeException in case reconfiguration of the Pledge failed for some reason
+   */
+  public void setLightweightClientCertificates(boolean isSetLightweight) throws PledgeException {
+    if (isSetLightweight != this.isLightweightClientCerts) {
+      this.isLightweightClientCerts = isSetLightweight;
+      this.init(credentials, hostURI, this.isLightweightClientCerts);
+    }
+  }
+
+  // Generate 64-bit cryptographically strong random/pseudo-random number
+  public static byte[] generateNonce() {
+    SecureRandom random = new SecureRandom();
+
+    // FIXME(wgtdkp): generateSeed() will hang on GCE VM.
+    random = new SecureRandom(random.generateSeed(20));
+    byte[] nonce = new byte[8];
+    random.nextBytes(nonce);
+    return nonce;
+  }
+
+  private void init(Credentials creds, String hostURI, boolean isLightweightClientCerts) throws PledgeException {
     
     // remove trailing slash from hostURI - avoid host//path situations leading to a leading, empty CoAP Uri-Path Option. (=bug)
     while(hostURI.endsWith("/"))
       hostURI=hostURI.substring(0, hostURI.length()-1);
     this.hostURI = hostURI;
 
-    if (certificateChain.length < 2) {
-      throw new PledgeException("bad certificate");
+    try {
+      this.privateKey = creds.getPrivateKey();
+      this.certificateChain = creds.getCertificateChain();
     }
-
-    this.privateKey = privateKey;
-    this.certificateChain = certificateChain;
+    catch(GeneralSecurityException ex) {
+      logger.error("Exception accessing credentials", ex);
+      throw new PledgeException("Exception accessing credentials: " + ex.getMessage());
+    }
+    if (certificateChain.length < 2) {
+      throw new PledgeException("error in Pledge certificate chain (MASA CA and/or IDevID cert missing?)");
+    }
 
     this.trustAnchors = new HashSet<>();
     this.trustAnchors.add(new TrustAnchor(getMASACertificate(), null));
@@ -557,7 +597,10 @@ public class Pledge extends CoapClient {
     certState = CertState.NO_CONTACT;
     csrAttrs = null;
 
-    initEndpoint(this.privateKey, this.certificateChain, this.certVerifier);
+    X509Certificate[] clientCertChain = this.certificateChain;
+    if (isLightweightClientCerts)
+      clientCertChain = new X509Certificate[] {this.certificateChain[0]};
+    initEndpoint(this.privateKey, clientCertChain, this.certVerifier);
   }
 
   private CoapResponse sendRequestVoucher(VoucherRequest voucherRequest)
@@ -639,19 +682,7 @@ public class Pledge extends CoapClient {
     return null;
   }
 
-  // Generate 64-bit cryptographically strong random/pseudo-random number
-  public static byte[] generateNonce() {
-    SecureRandom random = new SecureRandom();
-
-    // FIXME(wgtdkp): geneateSeed() will hang on GCE VM.
-    random = new SecureRandom(random.generateSeed(20));
-    byte[] nonce = new byte[8];
-    random.nextBytes(nonce);
-    return nonce;
-  }
-
-  private void initEndpoint(
-      PrivateKey privateKey, X509Certificate[] certificateChain, CertificateVerifier verifier) {
+  private void initEndpoint(PrivateKey privateKey, X509Certificate[] certificateChain, CertificateVerifier verifier) {
     CoapEndpoint endpoint =
         SecurityUtils.genCoapClientEndPoint(
             new X509Certificate[] {}, privateKey, certificateChain, verifier, false);
@@ -704,8 +735,10 @@ public class Pledge extends CoapClient {
   private static final String SUBJECT_NAME = "C=CN,L=SH,O=GG,OU=OpenThread,CN=pledge_op";
 
   private String hostURI;
+  private Credentials credentials;
   private PrivateKey privateKey;
   private X509Certificate[] certificateChain;
+  private boolean isLightweightClientCerts = false;
 
   private Set<TrustAnchor> trustAnchors;
   PledgeCertificateVerifier certVerifier;
@@ -726,7 +759,4 @@ public class Pledge extends CoapClient {
 
   private static Logger logger = LoggerFactory.getLogger(Pledge.class);
 
-  public void setCmcRaCheck(boolean b) {
-    this.certVerifier.setCmcRaCheck(b);
-  }
 }

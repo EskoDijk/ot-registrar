@@ -64,6 +64,9 @@ public class HardwarePledgeTestSuite {
   public static final String[] MASA_CREDENTIAL_FILES = new String[] {
         "./credentials/local-masa/masa_cert.pem", "./credentials/local-masa/masa_private.pem"
       };
+  public static final String[] MASACA_CREDENTIAL_FILES = new String[] {
+      "./credentials/local-masa/masaca_cert.pem", "./credentials/local-masa/masaca_private.pem"
+    };
   public static final String[] DOMAIN_CREDENTIAL_FILES = new String[] {
         "./credentials/local-masa/domainca_cert.pem", "./credentials/local-masa/domainca_private.pem"
       };
@@ -81,7 +84,7 @@ public class HardwarePledgeTestSuite {
   @BeforeClass
   public static void setup() throws Exception {
     credGen = new CredentialGenerator();
-    credGen.make(DOMAIN_CREDENTIAL_FILES, MASA_CREDENTIAL_FILES, null, null);
+    credGen.make(DOMAIN_CREDENTIAL_FILES, MASACA_CREDENTIAL_FILES, MASA_CREDENTIAL_FILES, null, null);
     pledge = new PledgeHardware();
     assertTrue(pledge.factoryReset());
     assertTrue(pledge.execCommandDone("channel " + IEEE_802154_CHANNEL));
@@ -99,9 +102,8 @@ public class HardwarePledgeTestSuite {
   public void init() throws Exception {
     masa =
         new MASA(
-            credGen.masaKeyPair.getPrivate(),
-            credGen.masaCert,
             credGen.getCredentials(CredentialGenerator.MASA_ALIAS),
+            credGen.getCredentials(CredentialGenerator.MASACA_ALIAS),
             Constants.DEFAULT_MASA_HTTPS_PORT);
 
     domainCA = new DomainCA(THREAD_DOMAIN_NAME, credGen.domaincaKeyPair.getPrivate(), credGen.domaincaCert);

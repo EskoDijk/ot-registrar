@@ -149,7 +149,7 @@ public class SecurityUtilsTest {
   @Test
   public void testAuthorityKeyIdentifier() throws Exception {
     CredentialGenerator cg = new CredentialGenerator();
-    cg.make(null, null, null, null);
+    cg.make(null, null, null, null, null);
     byte[] akiOctetString = SecurityUtils.getAuthorityKeyIdentifier(cg.pledgeCert);
     byte[] keyId = SecurityUtils.getAuthorityKeyIdentifierKeyId(cg.pledgeCert);
     Assert.assertTrue(akiOctetString.length == 26);

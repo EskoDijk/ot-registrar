@@ -63,12 +63,14 @@ public class FunctionalTest {
 
   public static final String DEFAULT_DOMAIN_NAME = "Thread-Test";
 
+  // the acting entities
   private DomainCA domainCA;
   private Registrar registrar, registrar2;
   private Commissioner commissioner;
   private Pledge pledge;
   private MASA masa;
 
+  // credentials used
   private static CredentialGenerator cg;
 
   private static Logger logger = LoggerFactory.getLogger(FunctionalTest.class);
@@ -78,7 +80,7 @@ public class FunctionalTest {
   @BeforeClass
   public static void setup() throws Exception {
     cg = new CredentialGenerator();
-    cg.make(null, null, null, null);
+    cg.make(null, null, null, null, null);
   }
 
   @AfterClass
@@ -88,16 +90,15 @@ public class FunctionalTest {
   public void init() throws Exception {
     masa =
         new MASA(
-            cg.masaKeyPair.getPrivate(),
-            cg.masaCert,
             cg.getCredentials(CredentialGenerator.MASA_ALIAS),
+            cg.getCredentials(CredentialGenerator.MASACA_ALIAS),
             Constants.DEFAULT_MASA_HTTPS_PORT);
     pledge =
         new Pledge(
-            cg.pledgeKeyPair.getPrivate(),
-            new X509Certificate[] {cg.pledgeCert, cg.masaCert},
+            cg.getCredentials(CredentialGenerator.PLEDGE_ALIAS),
             REGISTRAR_URI);
-
+    pledge.setLightweightClientCertificates(true);
+    
     domainCA = new DomainCA(DEFAULT_DOMAIN_NAME, cg.domaincaKeyPair.getPrivate(), cg.domaincaCert);
 
     RegistrarBuilder registrarBuilder = new RegistrarBuilder();
@@ -105,7 +106,8 @@ public class FunctionalTest {
         registrarBuilder
             .setPrivateKey(cg.registrarKeyPair.getPrivate())
             .setCertificateChain(new X509Certificate[] {cg.registrarCert, cg.domaincaCert})
-            .addMasaCertificate(cg.masaCert)
+            //.addMasaCertificate(cg.masaCaCert)   // enable this, to trust a single MASA CA only
+            .setTrustAllMasas(true)                // or enable this, to trust all MASAs.
             .setMasaClientCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
             .build();
     registrar.setDomainCA(domainCA);
@@ -177,6 +179,18 @@ public class FunctionalTest {
 
   @Test
   public void testConnectionToRegistrar() throws Exception {
+    CoapResponse response = pledge.sayHello();
+    assertSame(CoAP.ResponseCode.CONTENT, response.getCode());
+    response = pledge.discoverResources();
+    assertSame(CoAP.ResponseCode.CONTENT, response.getCode());
+    assertSame(MediaTypeRegistry.APPLICATION_LINK_FORMAT, response.getOptions().getContentFormat());
+  }
+
+  @Test
+  public void testConnectionToRegistrarWithFullCertChain() throws Exception {
+
+    pledge.setLightweightClientCertificates(false);
+    
     CoapResponse response = pledge.sayHello();
     assertSame(CoAP.ResponseCode.CONTENT, response.getCode());
     response = pledge.discoverResources();
@@ -298,13 +312,18 @@ public class FunctionalTest {
   public void testMultiPledges() throws Exception {
     PledgeThread[] threads = new PledgeThread[12];
 
+    // create multiple PledgeThreads, each with own Pledge and own credentials.
     for (int i = 0; i < threads.length; ++i) {
       threads[i] = new PledgeThread();
     }
+    
+    // run the Pledges
     for (PledgeThread thread : threads) {
       thread.start();
       Thread.sleep(20);
     }
+    
+    // wait for each Pledge to finish
     for (PledgeThread thread : threads) {
       try {
         thread.join();
@@ -327,29 +346,29 @@ public class FunctionalTest {
   private class PledgeThread extends Thread {
 
     public Throwable errorState = null;
+    public Pledge pledge = null;
 
+    public PledgeThread() throws Exception {
+      cg.makePledge(null);    // create a new Pledge identity and serial number
+      pledge = new Pledge( cg.getCredentials(CredentialGenerator.PLEDGE_ALIAS), REGISTRAR_URI);
+    }
+    
     @Override
-    public void run() {
-      Pledge p = null;
+    public void run() {    
       try {
-        p =
-            new Pledge(
-                cg.pledgeKeyPair.getPrivate(),
-                new X509Certificate[] {cg.pledgeCert, cg.masaCert},
-                REGISTRAR_URI);
-        p.requestVoucher();
+        pledge.requestVoucher();
         Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
-        p.enroll();
-        VerifyEnroll(p);
+        pledge.enroll();
+        VerifyEnroll(pledge);
         Assert.assertEquals(ResponseCode.CHANGED, pledge.sendEnrollStatusTelemetry(true, null));
         
-        p.reenroll();
-        VerifyEnroll(p);
+        pledge.reenroll();
+        VerifyEnroll(pledge);
         
       } catch (Throwable e) {
         errorState = e;
       } finally {
-        if (p != null) p.shutdown();
+        if (pledge != null) pledge.shutdown();
       }
     }
   }

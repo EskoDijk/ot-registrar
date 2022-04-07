@@ -54,14 +54,16 @@ import org.junit.rules.ExpectedException;
 public class CredentialsTest {
 
   public static final String KEY_STORE_FILE = "test-credentials.p12";
-
+  private static String pledgeSn;
+  
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @BeforeClass
   public static void createCredentialFile() throws Exception {
     CredentialGenerator cg = new CredentialGenerator();
-    cg.make(null, null, null, null);
+    cg.make(null, null, null, null, null);
     cg.store(KEY_STORE_FILE);
+    pledgeSn = cg.getPledgeSerialNumber();
   }
 
   @AfterClass
@@ -121,7 +123,7 @@ public class CredentialsTest {
   public void testMASACredentials() throws Exception {
     Credentials masaCred =
         new Credentials(
-            KEY_STORE_FILE, CredentialGenerator.MASA_ALIAS, CredentialGenerator.PASSWORD);
+            KEY_STORE_FILE, CredentialGenerator.MASACA_ALIAS, CredentialGenerator.PASSWORD);
 
     Credentials pledgeCred =
         new Credentials(
@@ -135,12 +137,11 @@ public class CredentialsTest {
 
     String pledgeSN = SecurityUtils.getSerialNumber(pledgeCred.getCertificate());
     Assert.assertTrue(pledgeSN != null);
-    Assert.assertTrue(pledgeSN.equals(CredentialGenerator.PLEDGE_SN));
+    Assert.assertTrue(pledgeSN.equals(pledgeSn));
     HardwareModuleName hwsn = SecurityUtils.getHWModuleName(pledgeCred.getCertificate());
 
     Assert.assertTrue(hwsn != null);
-    Assert.assertTrue(
-        new String(hwsn.getSerialNumber().getOctets()).equals(CredentialGenerator.PLEDGE_SN));
+    Assert.assertTrue(new String(hwsn.getSerialNumber().getOctets()).equals(pledgeSn));
   }
 
   @Test

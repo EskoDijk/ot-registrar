@@ -104,19 +104,14 @@ public class MASAMain {
       LoggerInitializer.Init(cmd.hasOption('v'));
 
       System.out.println("using keystore: " + keyStoreFile);
-      Credentials cred =
-          new Credentials(
-              keyStoreFile, CredentialGenerator.MASA_ALIAS, CredentialGenerator.PASSWORD);
+      Credentials cred   = new Credentials(keyStoreFile, CredentialGenerator.MASA_ALIAS, CredentialGenerator.PASSWORD);
+      Credentials credCa = new Credentials(keyStoreFile, CredentialGenerator.MASACA_ALIAS, CredentialGenerator.PASSWORD);
 
       if (cred.getPrivateKey() == null || cred.getCertificate() == null) {
         throw new KeyStoreException("can't find MASA key or certificate");
       }
 
-      masa = new MASA(
-              cred.getPrivateKey(),
-              cred.getCertificate(),
-              cred,
-              Integer.parseInt(port));
+      masa = new MASA(cred, credCa, Integer.parseInt(port));
     } catch (Exception e) {
       System.err.println("error: " + e.getMessage());
       helper.printHelp(HELP_FORMAT, options);

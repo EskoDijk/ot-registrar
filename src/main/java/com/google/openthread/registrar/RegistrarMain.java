@@ -139,12 +139,16 @@ public final class RegistrarMain {
       Credentials domainCred =
           new Credentials(
               keyStoreFile, CredentialGenerator.DOMAINCA_ALIAS, CredentialGenerator.PASSWORD);
-      Credentials masaCred =
-          new Credentials(
-              keyStoreFile, CredentialGenerator.MASA_ALIAS, CredentialGenerator.PASSWORD);
+      //Credentials masaCred =
+      //    new Credentials(
+      //        keyStoreFile, CredentialGenerator.MASA_ALIAS, CredentialGenerator.PASSWORD);
 
       if (cred.getPrivateKey() == null || cred.getCertificateChain() == null) {
-        throw new KeyStoreException("can't find registrar key or certificate");
+        throw new KeyStoreException("can't find registrar key or certificate in keystore");
+      }
+
+      if (domainCred.getPrivateKey() == null || domainCred.getCertificateChain() == null) {
+        throw new KeyStoreException("can't find domain CA key or certificate in keystore");
       }
 
       // re-use the same creds for Pledge-facing identity and MASA-facing identity.
@@ -153,14 +157,14 @@ public final class RegistrarMain {
       builder.setMasaClientCredentials(cred);
       builder.setPort(Integer.parseInt(port));
 
-      if (true) {
+      //if (true) {
         // trust all MASAs by default
         builder.setTrustAllMasas(true);
-      } else {
+      //} else {
         // FIXME if one MASA identity defined in credentials file, use that one as trusted MASA.
-        if (masaCred.getCertificate() != null)
-          builder.addMasaCertificate(masaCred.getCertificate());
-      }
+        //if (masaCred.getCertificate() != null)
+        //  builder.addMasaCertificate(masaCred.getCertificate());
+      //}
       
       if (cmd.hasOption('m')) {
         builder.setForcedMasaUri(cmd.getOptionValue('m'));
