@@ -108,7 +108,10 @@ public class MASAMain {
               keyStoreFile, CredentialGenerator.MASACA_ALIAS, CredentialGenerator.PASSWORD);
 
       if (cred.getPrivateKey() == null || cred.getCertificate() == null) {
-        throw new KeyStoreException("can't find MASA key or certificate");
+        throw new KeyStoreException("can't find MASA server key or certificate");
+      }
+      if (credCa.getPrivateKey() == null || credCa.getCertificate() == null) {
+        throw new KeyStoreException("can't find MASA CA key or certificate");
       }
 
       masa = new MASA(cred, credCa, Integer.parseInt(port));

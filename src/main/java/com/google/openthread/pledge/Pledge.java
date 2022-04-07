@@ -277,8 +277,8 @@ public class Pledge extends CoapClient {
     try {
       // 2.0 verify signature
       Sign1Message msg = (Sign1Message) Message.DecodeFromBytes(payload, MessageTag.Sign1);
-      if (!msg.validate(new OneKey(getMASACertificate().getPublicKey(), null))) {
-        throw new CoseException("COSE-sign1 voucher validation failed");
+      if (!msg.validate(new OneKey(getMASACaCertificate().getPublicKey(), null))) {
+        throw new CoseException("COSE-sign1 voucher validation against MASA CA failed");
       }
 
       // 2.1 verify the voucher
@@ -535,7 +535,7 @@ public class Pledge extends CoapClient {
     return certificateChain[0];
   }
 
-  X509Certificate getMASACertificate() {
+  X509Certificate getMASACaCertificate() {
     return certificateChain[certificateChain.length - 1];
   }
 
@@ -598,7 +598,7 @@ public class Pledge extends CoapClient {
     }
 
     this.trustAnchors = new HashSet<>();
-    this.trustAnchors.add(new TrustAnchor(getMASACertificate(), null));
+    this.trustAnchors.add(new TrustAnchor(getMASACaCertificate(), null));
 
     this.certVerifier = new PledgeCertificateVerifier(this.trustAnchors);
 
