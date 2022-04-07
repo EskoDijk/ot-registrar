@@ -349,8 +349,8 @@ public class CredentialGenerator {
 
     if (masaCaCertKeyFiles != null) {
       masaCaCert = loadCertAndLogErrors(masaCaCertKeyFiles[0]);
-      if (masaCertKeyFiles.length > 1) {
-        masaCaKeyPair = loadPrivateKeyAndLogErrors(masaCaCert, masaCertKeyFiles[1]);
+      if (masaCaCertKeyFiles.length > 1) {
+        masaCaKeyPair = loadPrivateKeyAndLogErrors(masaCaCert, masaCaCertKeyFiles[1]);
       } else {
         masaCaKeyPair =
             SecurityUtils
@@ -548,13 +548,10 @@ public class CredentialGenerator {
 
   public static void main(String[] args) {
     final String HELP_FORMAT =
-        "CredentialGenerator [-c <domain-ca-cert> <domain-ca-key>] [-r <registrar-cert> <registrar-key>] [-p <pledge-cert> <pledge-key>]\n"
-            + "                    [-ms <masa-server-cert> <masa-server-key>]\n"
-            + "                    [-m <masa-ca-cert> <masa-ca-key>] [-u <masa-uri>] [-d] -o <output-file>\n"
-            + "\nOR:\n\n"
-            + "CredentialGenerator [-c <domain-ca-cert> <domain-ca-key>] [-r <registrar-cert> <registrar-key>] [-p <pledge-cert> <pledge-key>]\n"
-            + "                    [-ms <masa-server-cert> <masa-server-key>]\n"
-            + "                    [-m <masa-ca-cert>] [-u <masa-uri>] [-d] -o <output-file>\n"
+        "\n"
+            + "CredentialGenerator [-c <domain-ca-cert> <domain-ca-key>]\n[-r <registrar-cert> <registrar-key>]\n[-p <pledge-cert> <pledge-key>]\n"
+            + "[-ms <masa-server-cert> <masa-server-key>]\n"
+            + "[-m <masa-ca-cert> <masa-ca-key>]\n[-u <masa-uri>]\n[-d] -o <output-file>\n"
             + "";
 
     HelpFormatter helper = new HelpFormatter();
