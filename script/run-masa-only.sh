@@ -29,10 +29,9 @@
 
 set -e
 
-readonly DOMAIN_NAME=TestDomainTCE
-readonly REGISTRAR_PORT=5684
+readonly PORT=9443
 readonly JAR_FILE=./target/ot-registrar-0.1-SNAPSHOT-jar-with-dependencies.jar
-readonly CREDENTIAL=credentials/local-masa/test_credentials.p12
+readonly CREDENTIAL=credentials/iotconsultancy-masa/credentials.p12
 
 # test if Registrar JAR exists
 if [ ! -f  "${JAR_FILE}" ]; then
@@ -40,8 +39,8 @@ if [ ! -f  "${JAR_FILE}" ]; then
   exit 1
 fi
 
-echo "starting registrar server, port=${REGISTRAR_PORT} ..."
+echo "starting MASA server, port=${PORT} ..."
 java -cp $JAR_FILE \
-    com.google.openthread.registrar.RegistrarMain \
-    -v -d $DOMAIN_NAME -p $REGISTRAR_PORT -f $CREDENTIAL \
+    com.google.openthread.masa.MASAMain \
+    -v -p $PORT -f $CREDENTIAL \
     "$@"
