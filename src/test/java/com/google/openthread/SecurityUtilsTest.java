@@ -150,8 +150,10 @@ public class SecurityUtilsTest {
   public void testAuthorityKeyIdentifier() throws Exception {
     CredentialGenerator cg = new CredentialGenerator();
     cg.make(null, null, null, null, null);
-    byte[] akiOctetString = SecurityUtils.getAuthorityKeyIdentifier(cg.pledgeCert);
-    byte[] keyId = SecurityUtils.getAuthorityKeyIdentifierKeyId(cg.pledgeCert);
+    X509Certificate pledgeCert =
+        cg.getCredentials(CredentialGenerator.PLEDGE_ALIAS).getCertificate();
+    byte[] akiOctetString = SecurityUtils.getAuthorityKeyIdentifier(pledgeCert);
+    byte[] keyId = SecurityUtils.getAuthorityKeyIdentifierKeyId(pledgeCert);
     Assert.assertTrue(akiOctetString.length == 26);
     Assert.assertTrue(keyId.length == 20);
 

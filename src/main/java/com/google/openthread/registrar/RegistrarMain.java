@@ -154,7 +154,6 @@ public final class RegistrarMain {
       // re-use the same creds for Pledge-facing identity and MASA-facing identity.
       builder.setPrivateKey(cred.getPrivateKey());
       builder.setCertificateChain(cred.getCertificateChain());
-      builder.setMasaClientCredentials(cred);
       builder.setPort(Integer.parseInt(port));
 
       // if (true) {
@@ -166,14 +165,13 @@ public final class RegistrarMain {
       //  builder.addMasaCertificate(masaCred.getCertificate());
       // }
 
-      if (cmd.hasOption('m')) {
-        builder.setForcedMasaUri(cmd.getOptionValue('m'));
-      }
-
       registrar = builder.build();
 
-      DomainCA ca =
-          new DomainCA(domainName, domainCred.getPrivateKey(), domainCred.getCertificate());
+      if (cmd.hasOption('m')) {
+        registrar.setForcedMasaUri(cmd.getOptionValue('m'));
+      }
+
+      DomainCA ca = new DomainCA(domainName, domainCred);
       registrar.setDomainCA(ca);
     } catch (Exception e) {
       System.err.println("error: " + e.getMessage());

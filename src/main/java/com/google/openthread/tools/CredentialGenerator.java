@@ -30,19 +30,20 @@ package com.google.openthread.tools;
 
 import com.google.openthread.Constants;
 import com.google.openthread.Credentials;
+import com.google.openthread.CredentialsSet;
 import com.google.openthread.HardwareModuleName;
 import com.google.openthread.SecurityUtils;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.security.KeyPair;
 import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -67,7 +68,8 @@ import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CredentialGenerator {
+public class CredentialGenerator extends CredentialsSet {
+
   public static final String PASSWORD = "OpenThread";
 
   public static final String DNAME_PREFIX = "C=CN,L=SH,O=Google,OU=OpenThread,CN=";
@@ -90,25 +92,15 @@ public class CredentialGenerator {
   public static final String PLEDGE_SN = "OT-";
   public static final String PLEDGE_DNAME = DNAME_PREFIX + PLEDGE_ALIAS + ",SERIALNUMBER=";
 
-  // Fields provided for testing, shouldn't reference outside of tests.
-  public KeyPair masaKeyPair;
-  public X509Certificate masaCert;
-  public KeyPair masaCaKeyPair;
-  public X509Certificate masaCaCert;
-  public KeyPair pledgeKeyPair;
-  public X509Certificate pledgeCert;
-
-  public KeyPair domaincaKeyPair;
-  public X509Certificate domaincaCert;
-  public KeyPair registrarKeyPair;
-  public X509Certificate registrarCert;
-  public KeyPair commissionerKeyPair;
-  public X509Certificate commissionerCert;
-
   private String masaUri = Constants.DEFAULT_MASA_URI;
+  private KeyPair DUMMY_KEYPAIR = SecurityUtils.genKeyPair();
   private boolean isIncludeExtKeyUsage = true;
   private static int pledgeSerialNumber = 9528;
   private static Logger logger = LoggerFactory.getLogger(CredentialGenerator.class);
+
+  public CredentialGenerator() throws Exception {
+    super(CredentialGenerator.PASSWORD);
+  }
 
   /**
    * Set the MASA URI that will be included in a generated Pledge certificate, in the MASA URI
@@ -122,66 +114,14 @@ public class CredentialGenerator {
   }
 
   /**
-   * Sets whether the Extended Key Usage (EKU) extensions is included in a generated Registrar cert.
-   * By default, it is included and must be included to comply to specifications. For testing
+   * Sets whether the Extended Key Usage (EKU) extensions is included in any generated Registrar
+   * cert. By default, it is included and must be included to comply to specifications. For testing
    * situations it can be excluded.
    *
    * @param isIncluded true if EKU is included (should be used by default), false if not.
    */
   public void setRegistrarExtendedKeyUsage(boolean isIncluded) {
     this.isIncludeExtKeyUsage = isIncluded;
-  }
-
-  public Credentials getCredentials(String alias) throws Exception {
-    return new Credentials(getKeyStore(), alias, PASSWORD);
-  }
-
-  /**
-   * Return all the credentials in form of a Java KeyStore object, password protected with
-   * CredentialGenerator.PASSWORD.
-   *
-   * @return
-   * @throws KeyStoreException
-   * @throws CertificateException
-   * @throws NoSuchAlgorithmException
-   * @throws IOException
-   */
-  public KeyStore getKeyStore()
-      throws KeyStoreException, CertificateException, NoSuchAlgorithmException, IOException {
-
-    char[] password = PASSWORD.toCharArray();
-
-    KeyStore ks = KeyStore.getInstance(Constants.KEY_STORE_FORMAT);
-    ks.load(null, password); // create empty keystore
-
-    ks.setKeyEntry(
-        DOMAINCA_ALIAS,
-        domaincaKeyPair.getPrivate(),
-        password,
-        new X509Certificate[] {domaincaCert});
-    ks.setKeyEntry(
-        MASACA_ALIAS, masaCaKeyPair.getPrivate(), password, new X509Certificate[] {masaCaCert});
-    ks.setKeyEntry(
-        MASA_ALIAS,
-        masaKeyPair.getPrivate(),
-        password,
-        new X509Certificate[] {masaCert, masaCaCert});
-    ks.setKeyEntry(
-        PLEDGE_ALIAS,
-        pledgeKeyPair.getPrivate(),
-        password,
-        new X509Certificate[] {pledgeCert, masaCaCert});
-    ks.setKeyEntry(
-        REGISTRAR_ALIAS,
-        registrarKeyPair.getPrivate(),
-        password,
-        new X509Certificate[] {registrarCert, domaincaCert});
-    ks.setKeyEntry(
-        COMMISSIONER_ALIAS,
-        commissionerKeyPair.getPrivate(),
-        password,
-        new X509Certificate[] {commissionerCert, domaincaCert});
-    return ks;
   }
 
   public X509Certificate genSelfSignedCert(KeyPair keyPair, String dname) throws Exception {
@@ -236,18 +176,16 @@ public class CredentialGenerator {
   }
 
   /**
-   * generate a Registrar's certificate which has the cmcRA extended key usage (EKU) set. Due to RFC
-   * 5280 4.2.1.12 rules, if the EKU is present also the 'server' EKU must be present or else the
-   * identity is not allowed to operate as server. Similar for 'client' EKU; as the Registrar also
-   * must operate as a client towards MASA potentially with same identity (or potentially with
-   * another.)
+   * generate a Registrar's certificate which has the cmcRA extended key usage (EKU) set by default.
+   * Due to RFC 5280 4.2.1.12 rules, if the EKU is present also the 'server' EKU must be present or
+   * else the identity is not allowed to operate as server. Similar for 'client' EKU; as the
+   * Registrar also must operate as a client towards MASA potentially with same identity (or
+   * potentially with another.)
    *
    * @param subKeyPair
    * @param subName
    * @param issuerKeyPair
    * @param issuerName
-   * @param isIncludeExtKeyUsage if true (default), include Extended Key Usage (EKU) extension in
-   *     cert with the cmcRA flag set. Use only 'false' for test purposes.
    * @return
    * @throws Exception
    */
@@ -283,6 +221,24 @@ public class CredentialGenerator {
     extensions.add(extKeyUsage);
     return SecurityUtils.genCertificate(
         subKeyPair, subName, issuerKeyPair, issuerName, false, extensions);
+  }
+
+  /**
+   * Generate a new Registrar certificate using default Registrar/DomainCA credentials stored in
+   * this object.
+   *
+   * @return
+   */
+  public X509Certificate genRegistrarCredentials() throws Exception {
+    Credentials regCreds = getCredentials(REGISTRAR_ALIAS);
+    Credentials domainCa = getCredentials(DOMAINCA_ALIAS);
+    X509Certificate cert =
+        genRegistrarCertificate(
+            regCreds.getKeyPair(),
+            REGISTRAR_DNAME,
+            domainCa.getKeyPair(),
+            domainCa.getCertificate().getSubjectX500Principal().toString());
+    return cert;
   }
 
   public X509Certificate genMasaServerCertificate(
@@ -323,7 +279,7 @@ public class CredentialGenerator {
   }
 
   /**
-   * Make/generate a complete set of certificates and store locally in this object.
+   * Make/generate a complete set of certificates and store locally within this CredentialsSet.
    *
    * @param domaincaCertKeyFiles filenames for CA cert file and private key file, respectively, or
    *     null to generate this key/cert
@@ -347,41 +303,48 @@ public class CredentialGenerator {
       String[] pledgeCertKeyFiles)
       throws Exception {
 
+    X509Certificate masaCaCert;
+    KeyPair masaCaKeyPair;
+
+    // MASA CA
     if (masaCaCertKeyFiles != null) {
       masaCaCert = loadCertAndLogErrors(masaCaCertKeyFiles[0]);
       if (masaCaCertKeyFiles.length > 1) {
         masaCaKeyPair = loadPrivateKeyAndLogErrors(masaCaCert, masaCaCertKeyFiles[1]);
       } else {
-        masaCaKeyPair =
-            SecurityUtils
-                .genKeyPair(); // dummy random key - MUST NOT be used in resulting credentials file.
+        masaCaKeyPair = DUMMY_KEYPAIR;
       }
     } else {
       masaCaKeyPair = SecurityUtils.genKeyPair();
       masaCaCert = genSelfSignedCert(masaCaKeyPair, MASACA_DNAME);
     }
+    this.setCredentials(
+        MASACA_ALIAS, new X509Certificate[] {masaCaCert}, masaCaKeyPair.getPrivate());
 
+    // MASA server
+    X509Certificate cert;
+    KeyPair keyPair;
     if (masaCertKeyFiles != null) {
-      masaCert = loadCertAndLogErrors(masaCertKeyFiles[0]);
+      cert = loadCertAndLogErrors(masaCertKeyFiles[0]);
       if (masaCertKeyFiles.length > 1) {
-        masaKeyPair = loadPrivateKeyAndLogErrors(masaCert, masaCertKeyFiles[1]);
+        keyPair = loadPrivateKeyAndLogErrors(cert, masaCertKeyFiles[1]);
       } else {
-        masaKeyPair =
-            SecurityUtils
-                .genKeyPair(); // dummy random key - MUST NOT be used in resulting credentials file.
+        keyPair = DUMMY_KEYPAIR;
       }
     } else {
-      masaKeyPair = SecurityUtils.genKeyPair();
-      masaCert =
+      keyPair = SecurityUtils.genKeyPair();
+      cert =
           genMasaServerCertificate(
-              masaKeyPair,
-              MASA_DNAME,
-              masaCaKeyPair,
-              masaCaCert.getSubjectX500Principal().getName());
+              keyPair, MASA_DNAME, masaCaKeyPair, masaCaCert.getSubjectX500Principal().getName());
     }
+    this.setCredentials(MASA_ALIAS, new X509Certificate[] {cert, masaCaCert}, keyPair.getPrivate());
 
+    // Pledge
     makePledge(pledgeCertKeyFiles);
 
+    // Domain CA
+    X509Certificate domaincaCert;
+    KeyPair domaincaKeyPair;
     if (domaincaCertKeyFiles != null) {
       domaincaCert = loadCertAndLogErrors(domaincaCertKeyFiles[0]);
       domaincaKeyPair = loadPrivateKeyAndLogErrors(domaincaCert, domaincaCertKeyFiles[1]);
@@ -389,28 +352,37 @@ public class CredentialGenerator {
       domaincaKeyPair = SecurityUtils.genKeyPair();
       domaincaCert = genSelfSignedCert(domaincaKeyPair, DOMAINCA_DNAME);
     }
+    this.setCredentials(
+        DOMAINCA_ALIAS, new X509Certificate[] {domaincaCert}, domaincaKeyPair.getPrivate());
 
+    // Registrar
     if (registrarCertKeyFiles != null) {
-      registrarCert = loadCertAndLogErrors(registrarCertKeyFiles[0]);
-      registrarKeyPair = loadPrivateKeyAndLogErrors(registrarCert, registrarCertKeyFiles[1]);
+      cert = loadCertAndLogErrors(registrarCertKeyFiles[0]);
+      keyPair = loadPrivateKeyAndLogErrors(cert, registrarCertKeyFiles[1]);
     } else {
-      registrarKeyPair = SecurityUtils.genKeyPair();
-      registrarCert =
+      keyPair = SecurityUtils.genKeyPair();
+      cert =
           genRegistrarCertificate(
-              registrarKeyPair,
+              keyPair,
               REGISTRAR_DNAME,
               domaincaKeyPair,
               domaincaCert.getSubjectX500Principal().getName());
     }
-    commissionerKeyPair = SecurityUtils.genKeyPair();
-    commissionerCert =
+    this.setCredentials(
+        REGISTRAR_ALIAS, new X509Certificate[] {cert, domaincaCert}, keyPair.getPrivate());
+
+    // Commissioner - not yet loading from a file. TODO
+    keyPair = SecurityUtils.genKeyPair();
+    cert =
         SecurityUtils.genCertificate(
-            commissionerKeyPair,
+            keyPair,
             COMMISSIONER_DNAME,
             domaincaKeyPair,
             domaincaCert.getSubjectX500Principal().getName(),
             false,
             null);
+    this.setCredentials(
+        COMMISSIONER_ALIAS, new X509Certificate[] {cert, domaincaCert}, keyPair.getPrivate());
   }
 
   /**
@@ -420,6 +392,9 @@ public class CredentialGenerator {
    *     null to generate
    */
   public void makePledge(String[] pledgeCertKeyFiles) throws Exception {
+    X509Certificate pledgeCert;
+    KeyPair pledgeKeyPair;
+    Credentials masaCaCreds = getCredentials(MASACA_ALIAS);
     String sn = createNewPledgeSerialNumber();
     HardwareModuleName hwModuleName =
         new HardwareModuleName(Constants.PRIVATE_HARDWARE_TYPE_OID, sn.getBytes());
@@ -433,11 +408,15 @@ public class CredentialGenerator {
           genPledgeCertificate(
               pledgeKeyPair,
               PLEDGE_DNAME + sn,
-              masaCaKeyPair,
-              masaCaCert.getSubjectX500Principal().getName(),
+              masaCaCreds.getKeyPair(),
+              masaCaCreds.getCertificate().getSubjectX500Principal().getName(),
               hwModuleName,
               masaUri);
     }
+    this.setCredentials(
+        PLEDGE_ALIAS,
+        new X509Certificate[] {pledgeCert, masaCaCreds.getCertificate()},
+        pledgeKeyPair.getPrivate());
   }
 
   /**
@@ -485,7 +464,7 @@ public class CredentialGenerator {
     try {
       Reader reader = new FileReader(fn);
       KeyPair keypair =
-          new KeyPair(masaCert.getPublicKey(), SecurityUtils.parsePrivateKeyFromPem(reader));
+          new KeyPair(cert.getPublicKey(), SecurityUtils.parsePrivateKeyFromPem(reader));
       return keypair;
     } catch (IOException ex) {
       logger.error("Could not read PEM cert file: " + fn, ex);
@@ -498,6 +477,29 @@ public class CredentialGenerator {
     return getPledgeSerialNumber();
   }
 
+  /**
+   * load a set of previously generated credentials from a file.
+   *
+   * @param filename
+   * @throws Exception
+   */
+  public void load(String filename) throws Exception {
+    char[] password = PASSWORD.toCharArray();
+    KeyStore ksAll = KeyStore.getInstance(Constants.KEY_STORE_FORMAT);
+    File file = new File(filename);
+
+    try (InputStream in = new FileInputStream(file)) {
+      ksAll.load(in, password);
+    }
+    this.setKeyStore(ksAll);
+  }
+
+  /**
+   * store the current set of (generated) credentials in a file.
+   *
+   * @param filename
+   * @throws Exception
+   */
   public void store(String filename) throws Exception {
     char[] password = PASSWORD.toCharArray();
 
@@ -512,21 +514,21 @@ public class CredentialGenerator {
 
   public void dumpSeparateFiles() throws Exception {
     String[] files = {
-      MASA_ALIAS, PLEDGE_ALIAS, DOMAINCA_ALIAS, REGISTRAR_ALIAS, COMMISSIONER_ALIAS
+      MASACA_ALIAS, MASA_ALIAS, PLEDGE_ALIAS, DOMAINCA_ALIAS, REGISTRAR_ALIAS, COMMISSIONER_ALIAS
     };
-    KeyPair[] keys = {
-      masaKeyPair, pledgeKeyPair, domaincaKeyPair, registrarKeyPair, commissionerKeyPair
-    };
-    X509Certificate[] certs = {masaCert, pledgeCert, domaincaCert, registrarCert, commissionerCert};
+
     for (int i = 0; i < files.length; ++i) {
+      String alias = files[i];
+      KeyPair kp = getCredentials(alias).getKeyPair();
+      X509Certificate cert = getCredentials(alias).getCertificate();
       File kf = new File(files[i] + "_private.pem");
       kf.createNewFile();
       try (OutputStream os = new FileOutputStream(kf, false)) {
         JcaPEMWriter writer = new JcaPEMWriter(new PrintWriter(os));
-        writer.writeObject(keys[i].getPrivate());
+        writer.writeObject(kp.getPrivate());
         writer.close();
 
-        // Verify the key in PEM file
+        // Verify the key in PEM file TODO
         // PrivateKey pk = parsePrivateKey(kf.getName());
         // if (!Arrays.equals(pk.getEncoded(), keys[i].getPrivate().getEncoded())) {
         //    throw new UnrecoverableKeyException("bad private key in PEM file");
@@ -537,10 +539,10 @@ public class CredentialGenerator {
       cf.createNewFile();
       try (OutputStream os = new FileOutputStream(cf, false)) {
         JcaPEMWriter writer = new JcaPEMWriter(new PrintWriter(os));
-        writer.writeObject(certs[i]);
+        writer.writeObject(cert);
         writer.close();
 
-        // Verify the cert in PEM file
+        // Verify the cert in PEM file TODO
         // X509Certificate cert = parseCertificate(cf.getName());
       }
     }

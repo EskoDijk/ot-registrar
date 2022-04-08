@@ -38,7 +38,6 @@ import com.google.openthread.masa.*;
 import com.google.openthread.pledge.*;
 import com.google.openthread.registrar.*;
 import java.security.Principal;
-import java.security.cert.X509Certificate;
 import org.junit.*;
 import org.junit.runners.*;
 import org.slf4j.*;
@@ -114,24 +113,18 @@ public class HardwarePledgeTestSuite {
 
     domainCA =
         new DomainCA(
-            THREAD_DOMAIN_NAME, credGen.domaincaKeyPair.getPrivate(), credGen.domaincaCert);
+            THREAD_DOMAIN_NAME, credGen.getCredentials(CredentialGenerator.DOMAINCA_ALIAS));
 
     RegistrarBuilder registrarBuilder = new RegistrarBuilder();
     registrar =
         registrarBuilder
-            .setPrivateKey(credGen.registrarKeyPair.getPrivate())
-            .setCertificateChain(
-                new X509Certificate[] {credGen.registrarCert, credGen.domaincaCert})
-            .addMasaCertificate(credGen.masaCert)
-            .setMasaClientCredentials(credGen.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
-            .setForcedMasaUri(Constants.DEFAULT_MASA_URI)
+            .setCredentials(credGen.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
+            .setTrustAllMasas(true)
             .build();
     registrar.setDomainCA(domainCA);
-
-    commissioner =
-        new Commissioner(
-            credGen.commissionerKeyPair.getPrivate(),
-            new X509Certificate[] {credGen.commissionerCert, credGen.domaincaCert});
+    // for local testing we force the MASA URI to localhost.
+    registrar.setForcedMasaUri(Constants.DEFAULT_MASA_URI);
+    commissioner = new Commissioner(credGen.getCredentials(CredentialGenerator.COMMISSIONER_ALIAS));
 
     masa.start();
     registrar.start();
@@ -225,7 +218,7 @@ public class HardwarePledgeTestSuite {
     assertTrue(pledge.isEnrolled());
     assertTrue(pledge.execCommandDone("joiner startnmkp"));
     String resp = pledge.waitForMessage(15000);
-    assertTrue(false);
+    assertTrue(false); // TODO
   }
 
   /** NKP-TC-02: Network Key Provisioning (NKP) after enrollment. */

@@ -28,6 +28,8 @@
 
 package com.google.openthread.registrar;
 
+import static org.junit.Assert.assertTrue;
+
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
@@ -44,6 +46,7 @@ public class CSRAttributesTest {
   @Test
   public void testLoad() throws Exception {
     CSRAttributes attr = new CSRAttributes(CSRAttributes.DEFAULT_FILE);
+    assertTrue(attr.getAttrAndOids().length > 1);
   }
 
   @Test
@@ -133,6 +136,7 @@ public class CSRAttributesTest {
         "[{\"1.2.840.10045.2.1\" : [\"1.2.840.10045.3.1.7\", \"1.2.840.10045.3.1.8\"]}, []]";
     try (InputStream in = new ByteArrayInputStream(jsonStr.getBytes())) {
       CSRAttributes attr = new CSRAttributes(in);
+      assertTrue(attr.getAttrAndOids().length > 1);
     }
   }
 }

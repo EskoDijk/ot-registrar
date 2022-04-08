@@ -31,10 +31,10 @@ package com.google.openthread.commissioner;
 import COSE.CoseException;
 import COSE.OneKey;
 import com.google.openthread.*;
-import com.google.openthread.registrar.*;
 import com.upokecenter.cbor.CBORObject;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.X509Certificate;
@@ -50,23 +50,14 @@ import se.sics.ace.cwt.CwtCryptoCtx;
 
 public class Commissioner {
 
-  /**
-   * Constructing commissioner with credentials
-   *
-   * @param privateKey the private key used for (D)TLS connection
-   * @param certificateChain the certificate chain leading up to domain and including domain
-   *     certificate
-   * @throws CommissionerException
-   */
-  public Commissioner(PrivateKey privateKey, X509Certificate[] certificateChain)
-      throws CommissionerException {
-    if (certificateChain.length < 2) {
+  /** Constructing commissioner with credentials */
+  public Commissioner(Credentials creds) throws CommissionerException, GeneralSecurityException {
+    if (creds.getCertificateChain().length < 2) {
       throw new CommissionerException("bad certificate chain");
     }
 
-    // TODO(wgtdkp): verify public and private key are match
-    this.privateKey = privateKey;
-    this.certificateChain = certificateChain;
+    this.privateKey = creds.getPrivateKey();
+    this.certificateChain = creds.getCertificateChain();
     this.certVerifier = new CommissionerCertificateVerifier(getDomainCertificate());
     this.client = new CoapClient();
     initEndpoint();

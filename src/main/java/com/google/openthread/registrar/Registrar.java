@@ -82,6 +82,7 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -119,44 +120,36 @@ public class Registrar extends CoapServer {
    *     null, ALL MASAs will be trusted (for interop testing).
    * @param masaClientCreds credentials to use towards MASA client in Credentials format
    * @param port the CoAP port to listen on
-   * @param forcedVoucherRequestFormat by default <= 0 meaning no request format to MASA is forced
-   *     but rather the Pledge's request format is copied. When a content-format value from
-   *     ExtendedMediaTypeRegistry is given here, that format will be forced in the request.
    * @param isHttpToMasa whether to use HTTP requests to MASA (true, default) or CoAP (false)
-   * @param setForcedMasaUri if null, no MASA-URI is forced, while if a non-null string, the
-   *     Registrar is forced to use this MASA-URI always.
    * @throws RegistrarException
    */
   Registrar(
-      PrivateKey privateKey,
-      X509Certificate[] certificateChain,
+      Credentials creds,
       X509Certificate[] masaTrustAnchors,
       Credentials masaClientCreds,
       int port,
-      int forcedVoucherRequestFormat,
-      boolean isHttpToMasa,
-      String setForcedMasaUri)
+      boolean isHttpToMasa)
       throws RegistrarException {
-    if (certificateChain.length < 2) {
-      throw new RegistrarException("bad certificate chain");
-    }
 
-    this.listenPort = port;
-    this.privateKey = privateKey;
-    this.certificateChain = certificateChain;
-    this.masaTrustAnchors = masaTrustAnchors;
-    this.masaClientCredentials = masaClientCreds;
-    this.forcedVoucherRequestFormat = forcedVoucherRequestFormat;
-    this.setForcedMasaUri = setForcedMasaUri;
-    this.isHttpToMasa = isHttpToMasa;
     try {
+      this.listenPort = port;
+      this.privateKey = creds.getPrivateKey();
+      this.certificateChain = creds.getCertificateChain();
+      this.masaTrustAnchors = masaTrustAnchors;
+      this.masaClientCredentials = masaClientCreds;
+      this.isHttpToMasa = isHttpToMasa;
+
+      if (certificateChain.length < 2) {
+        // a cert chain of 1 may be used, but uncommon.
+        throw new RegistrarException("(yet) unsupported certificate chain: length < 2");
+      }
+
       this.csrAttributes = new CSRAttributes(CSRAttributes.DEFAULT_FILE);
     } catch (Exception e) {
       throw new RegistrarException(e.getMessage());
     }
 
     initResources();
-
     initEndpoint();
   }
 
@@ -165,16 +158,55 @@ public class Registrar extends CoapServer {
     logger.info(
         "Registrar starting - Number of trusted MASA servers: "
             + (this.masaTrustAnchors.length == 0 ? "ALL MASAs" : this.masaTrustAnchors.length));
-    if (this.setForcedMasaUri != null)
+    if (this.setForcedMasaUri != null) {
       logger.info(
           "                   - MASA URI forced to: "
               + this.setForcedMasaUri
               + " (-masa parameter)");
+    }
     super.start();
   }
 
   public void setDomainCA(DomainCA domainCA) {
     this.domainCA = domainCA;
+  }
+
+  /**
+   * By default the Registrar mimics the Pledge's Voucher Request format, when requesting to MASA.
+   * This method changes that to force the Registrar to use one format only.
+   *
+   * @param mediaType one of Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON or
+   *     Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR, or "" to force nothing.
+   * @return
+   */
+  public void setForcedRequestFormat(String mediaType) {
+    switch (mediaType) {
+      case "":
+        this.forcedVoucherRequestFormat = -1;
+      case Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON:
+        this.forcedVoucherRequestFormat = ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON;
+        break;
+      case Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR:
+        this.forcedVoucherRequestFormat = ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR;
+        break;
+      default:
+        throw new IllegalArgumentException(
+            "Unsupported mediaType for setForcedRequestFormat in Registrar: " + mediaType);
+    }
+  }
+
+  /**
+   * Override the MASA URI encoded in a Pledge's IDevID certificate, by setting a forced MASA-URI
+   * that is always applied. Used typically for testing, or a deployment-specific override of the
+   * MASA-URI. By default, no particular URI is forced but rather the MASA URI is taken from the
+   * Pledge IDevID certificate.
+   *
+   * @param uri new MASA URI to always use, or "" to not force any MASA URI.
+   * @return
+   */
+  public void setForcedMasaUri(String uri) {
+    if (uri.length() == 0) this.setForcedMasaUri = null;
+    else this.setForcedMasaUri = uri;
   }
 
   public int getListenPort() {
@@ -945,17 +977,18 @@ public class Registrar extends CoapServer {
     List<X509Certificate> trustAnchors = new ArrayList<>(Arrays.asList(masaTrustAnchors));
     trustAnchors.add(getDomainCertificate());
 
+    CertificateVerifier verifier;
+    if (this.masaTrustAnchors.length == 0)
+      verifier = new RegistrarCertificateVerifier(null); // trust all clients.
+    else
+      verifier =
+          new RegistrarCertificateVerifier(
+              trustAnchors.toArray(
+                  new X509Certificate[trustAnchors.size()])); // trust only given MASA CAs.
+
     CoapEndpoint endpoint =
         SecurityUtils.genCoapServerEndPoint(
-            listenPort,
-            null,
-            privateKey,
-            certificateChain,
-            new RegistrarCertificateVerifier(null) // trust ALL - default for a testing Registrar.
-            // new RegistrarCertificateVerifier(trustAnchors.toArray(new
-            // X509Certificate[trustAnchors.size()])) // trust only my known MASA - for stricter
-            // testing.
-            );
+            listenPort, null, privateKey, certificateChain, verifier);
     addEndpoint(endpoint);
   }
 
@@ -964,6 +997,7 @@ public class Registrar extends CoapServer {
   private DomainCA domainCA;
 
   private PrivateKey privateKey;
+
   private X509Certificate[] certificateChain;
 
   private X509Certificate[] masaTrustAnchors;
@@ -985,6 +1019,7 @@ public class Registrar extends CoapServer {
   protected Map<Principal, StatusTelemetry> voucherStatusLog =
       new HashMap<Principal, StatusTelemetry>();
 
+  // keep track of issued vouchers
   protected Map<Principal, Voucher> voucherLog = new HashMap<Principal, Voucher>();
 
   private static Logger logger = LoggerFactory.getLogger(Registrar.class);

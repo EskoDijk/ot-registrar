@@ -31,6 +31,7 @@ package com.google.openthread.domainca;
 import COSE.OneKey;
 import com.google.openthread.BouncyCastleInitializer;
 import com.google.openthread.Constants;
+import com.google.openthread.Credentials;
 import com.google.openthread.SecurityUtils;
 import com.upokecenter.cbor.CBORObject;
 import java.math.BigInteger;
@@ -84,10 +85,10 @@ public class DomainCA {
     BouncyCastleInitializer.init();
   }
 
-  public DomainCA(String domainName, PrivateKey privatekey, X509Certificate certificate) {
+  public DomainCA(String domainName, Credentials creds) throws GeneralSecurityException {
     this.domainName = domainName;
-    this.privateKey = privatekey;
-    this.certificate = certificate;
+    this.privateKey = creds.getPrivateKey();
+    this.certificate = creds.getCertificateChain()[0];
   }
 
   public PublicKey getPublicKey() {

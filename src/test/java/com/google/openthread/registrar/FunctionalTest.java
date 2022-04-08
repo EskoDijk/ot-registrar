@@ -40,10 +40,6 @@ import com.google.openthread.pledge.Pledge.CertState;
 import com.google.openthread.tools.*;
 import java.io.IOException;
 import java.security.cert.*;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 import org.bouncycastle.util.encoders.Hex;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
@@ -78,6 +74,7 @@ public class FunctionalTest {
 
   @BeforeClass
   public static void setup() throws Exception {
+    // generated credentials set
     cg = new CredentialGenerator();
     cg.make(null, null, null, null, null);
   }
@@ -95,23 +92,19 @@ public class FunctionalTest {
     pledge = new Pledge(cg.getCredentials(CredentialGenerator.PLEDGE_ALIAS), REGISTRAR_URI);
     pledge.setLightweightClientCertificates(true);
 
-    domainCA = new DomainCA(DEFAULT_DOMAIN_NAME, cg.domaincaKeyPair.getPrivate(), cg.domaincaCert);
+    domainCA =
+        new DomainCA(DEFAULT_DOMAIN_NAME, cg.getCredentials(CredentialGenerator.DOMAINCA_ALIAS));
 
     RegistrarBuilder registrarBuilder = new RegistrarBuilder();
     registrar =
         registrarBuilder
-            .setPrivateKey(cg.registrarKeyPair.getPrivate())
-            .setCertificateChain(new X509Certificate[] {cg.registrarCert, cg.domaincaCert})
+            .setCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
             // .addMasaCertificate(cg.masaCaCert)   // enable this, to trust a single MASA CA only
             .setTrustAllMasas(true) // or enable this, to trust all MASAs.
-            .setMasaClientCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
             .build();
     registrar.setDomainCA(domainCA);
 
-    commissioner =
-        new Commissioner(
-            cg.commissionerKeyPair.getPrivate(),
-            new X509Certificate[] {cg.commissionerCert, cg.domaincaCert});
+    commissioner = new Commissioner(cg.getCredentials(CredentialGenerator.COMMISSIONER_ALIAS));
 
     masa.start();
     registrar.start();
@@ -386,27 +379,15 @@ public class FunctionalTest {
 
     // create new Registrar without EKU extension in Registrar cert
     cg.setRegistrarExtendedKeyUsage(false);
-    X509Certificate registrarCert =
-        cg.genRegistrarCertificate(
-            cg.registrarKeyPair,
-            CredentialGenerator.REGISTRAR_DNAME,
-            cg.domaincaKeyPair,
-            cg.domaincaCert.getSubjectX500Principal().getName());
-
-    // build a new Registrar
-    X509Certificate[] certChain = new X509Certificate[] {registrarCert, cg.domaincaCert};
+    X509Certificate cert = cg.genRegistrarCredentials();
+    X509Certificate domainCaCert =
+        cg.getCredentials(CredentialGenerator.DOMAINCA_ALIAS).getCertificate();
     RegistrarBuilder registrarBuilder = new RegistrarBuilder();
     registrar =
         registrarBuilder
-            .setPrivateKey(cg.registrarKeyPair.getPrivate())
-            .setCertificateChain(certChain)
+            .setCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
+            .setCertificateChain(new X509Certificate[] {cert, domainCaCert})
             .setTrustAllMasas(true)
-            .setMasaClientCredentials(
-                new Credentials(
-                    cg.registrarKeyPair.getPrivate(),
-                    certChain,
-                    CredentialGenerator.REGISTRAR_ALIAS,
-                    CredentialGenerator.PASSWORD))
             .build();
     registrar.setDomainCA(domainCA);
     registrar.start();
@@ -446,13 +427,11 @@ public class FunctionalTest {
     RegistrarBuilder registrarBuilder = new RegistrarBuilder();
     registrar =
         registrarBuilder
+            .setCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
             .setTrustAllMasas(true)
-            .setPrivateKey(cg.registrarKeyPair.getPrivate())
-            .setCertificateChain(new X509Certificate[] {cg.registrarCert, cg.domaincaCert})
-            .setMasaClientCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
-            .setForcedRequestFormat(Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON)
             .build();
     registrar.setDomainCA(domainCA);
+    registrar.setForcedRequestFormat(Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON);
     registrar.start();
 
     Voucher voucher = pledge.requestVoucher();

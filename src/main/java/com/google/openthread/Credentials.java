@@ -33,14 +33,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.GeneralSecurityException;
 import java.security.Key;
+import java.security.KeyPair;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import org.eclipse.californium.elements.util.SslContextUtil;
 
-/** A set of credentials (certificate and private key) for a single named entity ("alias"). */
+/** Credentials (certificate and private key) for a single named entity ("alias"). */
 public class Credentials {
 
   public Credentials(String file, String alias, String password) throws Exception {
@@ -81,6 +83,13 @@ public class Credentials {
     this.keyStore = KeyStore.getInstance(Constants.KEY_STORE_FORMAT);
     keyStore.load(null, password.toCharArray());
     keyStore.setKeyEntry(alias, privKey, password.toCharArray(), certChain);
+  }
+
+  public KeyPair getKeyPair() throws GeneralSecurityException {
+    PublicKey pubk = keyStore.getCertificate(alias).getPublicKey();
+    PrivateKey privk = (PrivateKey) keyStore.getKey(alias, password.toCharArray());
+    KeyPair kp = new KeyPair(pubk, privk);
+    return kp;
   }
 
   // Returns null if alias not included i.e. key for alias was not found.

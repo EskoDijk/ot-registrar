@@ -107,7 +107,7 @@ public class PledgeMain {
               keyStoreFile, CredentialGenerator.COMMISSIONER_ALIAS, CredentialGenerator.PASSWORD);
       Commissioner commissioner = null;
       if (cred != null && cred.getPrivateKey() != null && cred.getCertificateChain() != null) {
-        commissioner = new Commissioner(cred.getPrivateKey(), cred.getCertificateChain());
+        commissioner = new Commissioner(cred);
       } else {
         String msg = "can't find commissioner key or certificate";
         msg += ": expect alias=" + CredentialGenerator.COMMISSIONER_ALIAS;

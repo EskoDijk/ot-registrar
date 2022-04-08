@@ -29,6 +29,7 @@
 package com.google.openthread.registrar;
 
 import com.google.openthread.*;
+import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
@@ -49,12 +50,26 @@ public class RegistrarBuilder {
   /**
    * Supply the credentials to be used for Registrar in its role as MASA client.
    *
-   * @param cred
+   * @param cred Credentials to use in client role towards MASA server, or null to re-use the
+   *     'setCredentials()' credentials for this.
    * @return
    * @throws GeneralSecurityException
    */
   public RegistrarBuilder setMasaClientCredentials(Credentials cred)
       throws GeneralSecurityException {
+    this.masaClientCredentials = cred;
+    return this;
+  }
+
+  /**
+   * Supply the credentials for the Registrar for DTLS connections from Pledge, in DTLS server role.
+   *
+   * @param cred
+   * @return
+   */
+  public RegistrarBuilder setCredentials(Credentials cred) throws GeneralSecurityException {
+    this.privateKey = cred.getPrivateKey();
+    this.certificateChain = cred.getCertificateChain();
     this.credentials = cred;
     return this;
   }
@@ -65,8 +80,15 @@ public class RegistrarBuilder {
    * @param privateKey
    * @return
    */
-  public RegistrarBuilder setPrivateKey(PrivateKey privateKey) {
+  public RegistrarBuilder setPrivateKey(PrivateKey privateKey)
+      throws GeneralSecurityException, IOException {
     this.privateKey = privateKey;
+    this.credentials =
+        new Credentials(
+            privateKey,
+            this.certificateChain,
+            this.credentials.getAlias(),
+            this.credentials.getPassword());
     return this;
   }
 
@@ -76,13 +98,21 @@ public class RegistrarBuilder {
    * @param certificateChain
    * @return
    */
-  public RegistrarBuilder setCertificateChain(X509Certificate[] certificateChain) {
+  public RegistrarBuilder setCertificateChain(X509Certificate[] certificateChain)
+      throws GeneralSecurityException, IOException {
     this.certificateChain = certificateChain;
+    this.credentials =
+        new Credentials(
+            this.privateKey,
+            certificateChain,
+            this.credentials.getAlias(),
+            this.credentials.getPassword());
     return this;
   }
 
   /**
-   * Add a MASA certificate
+   * Add a MASA certificate of a trusted MASA server. Only needed if 'setTrustAllMasas(true)' is not
+   * enabled.
    *
    * @param masaCertificate
    * @return
@@ -94,6 +124,7 @@ public class RegistrarBuilder {
 
   /**
    * Sets whether to trust ALL MASAs (true) or only MASAs for which certificates were added (false).
+   * By default, this is 'false'.
    *
    * @param status
    */
@@ -107,46 +138,15 @@ public class RegistrarBuilder {
     return this;
   }
 
+  /**
+   * Sets whether HTTPS is used to communicate with the MASA. This is usually the case (true). Only
+   * for testing situations HTTPS is set to 'false', in which case CoAP will be used.
+   *
+   * @param isHttp true if HTTPS is to be used, false if COAPS is to be used.
+   * @return
+   */
   public RegistrarBuilder setHttpToMasa(boolean isHttp) {
     this.isHttpToMasa = isHttp;
-    return this;
-  }
-
-  /**
-   * By default the Registrar mimics the Pledge's Voucher Request format, when requesting to MASA.
-   * This method changes that to force the Registrar to use one format only.
-   *
-   * @param mediaType one of Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON or
-   *     Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR, or "" to force nothing.
-   * @return
-   */
-  public RegistrarBuilder setForcedRequestFormat(String mediaType) {
-    switch (mediaType) {
-      case "":
-        this.forcedVoucherRequestFormat = -1;
-      case Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON:
-        this.forcedVoucherRequestFormat = ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON;
-        break;
-      case Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR:
-        this.forcedVoucherRequestFormat = ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR;
-        break;
-      default:
-        throw new IllegalArgumentException(
-            "Unsupported mediaType for setForcedRequestFormat in RegistrarBuilder: " + mediaType);
-    }
-    return this;
-  }
-
-  /**
-   * Override the MASA URI encoded in a Pledge's IDevID certificate, by setting a forced MASA-URI
-   * that is always applied. Used typically for testing, or a deployment-specific override of the
-   * MASA-URI.
-   *
-   * @param uri new MASA URI to always use.
-   * @return
-   */
-  public RegistrarBuilder setForcedMasaUri(String uri) {
-    this.setForcedMasaUri = uri;
     return this;
   }
 
@@ -160,25 +160,21 @@ public class RegistrarBuilder {
     return masaCertificates.size();
   }
 
-  public Registrar build() throws RegistrarException {
+  public Registrar build() throws RegistrarException, GeneralSecurityException {
     X509Certificate[] masaCerts = getMasaCertificates();
     if (privateKey == null
         || (masaCerts.length == 0 && !isTrustAllMasas)
         || (masaCerts.length > 0 && isTrustAllMasas)
-        || certificateChain == null
-        || credentials == null) {
+        || certificateChain == null) {
       throw new RegistrarException(
           "bad or missing registrar credentials, or misconfiguration of builder");
     }
     return new Registrar(
-        privateKey,
-        certificateChain,
-        masaCerts,
         credentials,
+        masaCerts,
+        masaClientCredentials == null ? credentials : masaClientCredentials,
         port,
-        forcedVoucherRequestFormat,
-        isHttpToMasa,
-        setForcedMasaUri);
+        isHttpToMasa);
   }
 
   private X509Certificate[] getMasaCertificates() {
@@ -188,10 +184,8 @@ public class RegistrarBuilder {
   private PrivateKey privateKey;
   private X509Certificate[] certificateChain;
   private List<X509Certificate> masaCertificates;
-  private Credentials credentials;
+  private Credentials credentials, masaClientCredentials;
   private int port = Constants.DEFAULT_REGISTRAR_COAPS_PORT;
-  private int forcedVoucherRequestFormat = -1;
   private boolean isHttpToMasa = true;
   private boolean isTrustAllMasas = false;
-  private String setForcedMasaUri = null;
 }

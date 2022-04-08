@@ -185,7 +185,7 @@ public class CredentialsTest {
 
     Assert.assertTrue(Arrays.equals(SERIAL_NUMBER, hwmn.getSerialNumber().getOctets()));
   }
-  
+
   @Test
   public void testRegistrarCertChainValidationWithSelfFails() throws Exception {
     thrown.expect(CertPathValidatorException.class);
@@ -207,6 +207,4 @@ public class CredentialsTest {
     CertPath path = cf.generateCertPath(certs);
     validator.validate(path, params);
   }
-
-
 }
