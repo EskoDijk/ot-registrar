@@ -147,33 +147,6 @@ public class FunctionalTest {
   }
 
   @Test
-  public void testCertificateChainValidationWithSelf() throws Exception {
-    thrown.expect(Exception.class);
-
-    X509Certificate cert = cg.registrarCert;
-
-    Set<TrustAnchor> trustAnchors = new HashSet<>();
-    trustAnchors.add(new TrustAnchor(cert, null));
-
-    PKIXParameters params = new PKIXParameters(trustAnchors);
-
-    params.setRevocationEnabled(false);
-
-    CertPathValidator validator = CertPathValidator.getInstance("PKIX");
-
-    CertificateFactory cf = CertificateFactory.getInstance("X.509");
-    List<Certificate> certs = new ArrayList<>();
-    certs.add(cert);
-    CertPath path = cf.generateCertPath(certs);
-    validator.validate(path, params);
-  }
-
-  @Test
-  public void testPledgeCertificate() {
-    Assert.assertTrue(SecurityUtils.getMasaUri(cg.pledgeCert).equals(Constants.DEFAULT_MASA_URI));
-  }
-
-  @Test
   public void testConnectionToRegistrar() throws Exception {
     CoapResponse response = pledge.sayHello();
     assertSame(CoAP.ResponseCode.CONTENT, response.getCode());

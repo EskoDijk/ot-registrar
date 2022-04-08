@@ -32,8 +32,19 @@ import com.google.openthread.tools.CredentialGenerator;
 import java.io.File;
 import java.io.Reader;
 import java.io.StringReader;
+import java.security.cert.CertPath;
+import java.security.cert.CertPathValidator;
+import java.security.cert.CertPathValidatorException;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
+import java.security.cert.PKIXParameters;
+import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import org.bouncycastle.asn1.ASN1EncodableVector;
 import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
@@ -174,4 +185,28 @@ public class CredentialsTest {
 
     Assert.assertTrue(Arrays.equals(SERIAL_NUMBER, hwmn.getSerialNumber().getOctets()));
   }
+  
+  @Test
+  public void testRegistrarCertChainValidationWithSelfFails() throws Exception {
+    thrown.expect(CertPathValidatorException.class);
+
+    Credentials registrarCred =
+        new Credentials(
+            KEY_STORE_FILE, CredentialGenerator.REGISTRAR_ALIAS, CredentialGenerator.PASSWORD);
+    X509Certificate cert = registrarCred.getCertificate();
+
+    Set<TrustAnchor> trustAnchors = new HashSet<>();
+    trustAnchors.add(new TrustAnchor(cert, null));
+    PKIXParameters params = new PKIXParameters(trustAnchors);
+    params.setRevocationEnabled(false);
+    CertPathValidator validator = CertPathValidator.getInstance("PKIX");
+
+    CertificateFactory cf = CertificateFactory.getInstance("X.509");
+    List<Certificate> certs = new ArrayList<>();
+    certs.add(cert);
+    CertPath path = cf.generateCertPath(certs);
+    validator.validate(path, params);
+  }
+
+
 }
