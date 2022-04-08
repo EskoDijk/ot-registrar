@@ -64,7 +64,7 @@ public class FunctionalTest {
 
   // the acting entities
   private DomainCA domainCA;
-  private Registrar registrar, registrar2;
+  private Registrar registrar;
   private Commissioner commissioner;
   private Pledge pledge;
   private MASA masa;
@@ -122,7 +122,6 @@ public class FunctionalTest {
     pledge.shutdown();
     commissioner.shutdown();
     registrar.stop();
-    if (registrar2 != null) registrar2.stop();
     masa.stop();
   }
 
@@ -397,7 +396,7 @@ public class FunctionalTest {
     // build a new Registrar
     X509Certificate[] certChain = new X509Certificate[] {registrarCert, cg.domaincaCert};
     RegistrarBuilder registrarBuilder = new RegistrarBuilder();
-    registrar2 =
+    registrar =
         registrarBuilder
             .setPrivateKey(cg.registrarKeyPair.getPrivate())
             .setCertificateChain(certChain)
@@ -409,8 +408,8 @@ public class FunctionalTest {
                     CredentialGenerator.REGISTRAR_ALIAS,
                     CredentialGenerator.PASSWORD))
             .build();
-    registrar2.setDomainCA(domainCA);
-    registrar2.start();
+    registrar.setDomainCA(domainCA);
+    registrar.start();
 
     // test connection does not work - our Pledge checks for cmcRA in certificate
     CoapResponse response = null;
@@ -445,7 +444,7 @@ public class FunctionalTest {
 
     // create new Registrar that uses only CMS-signed JSON voucher requests towards MASA
     RegistrarBuilder registrarBuilder = new RegistrarBuilder();
-    registrar2 =
+    registrar =
         registrarBuilder
             .setTrustAllMasas(true)
             .setPrivateKey(cg.registrarKeyPair.getPrivate())
@@ -453,8 +452,8 @@ public class FunctionalTest {
             .setMasaClientCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
             .setForcedRequestFormat(Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON)
             .build();
-    registrar2.setDomainCA(domainCA);
-    registrar2.start();
+    registrar.setDomainCA(domainCA);
+    registrar.start();
 
     Voucher voucher = pledge.requestVoucher();
     Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
