@@ -140,6 +140,10 @@ public class SecurityUtils {
     }
   }
 
+  public static boolean isCaCertificate(X509Certificate cert) {
+    return cert.getBasicConstraints() >= 0 ;
+  }
+  
   /**
    * Extract serialNumber from subject extension of given certificate.
    *

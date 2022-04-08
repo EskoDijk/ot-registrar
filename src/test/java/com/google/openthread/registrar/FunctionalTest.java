@@ -84,27 +84,31 @@ public class FunctionalTest {
 
   @Before
   public void init() throws Exception {
+    initEntities(cg);
+  }
+  
+  protected void initEntities(CredentialGenerator credGen) throws Exception {
     masa =
         new MASA(
-            cg.getCredentials(CredentialGenerator.MASA_ALIAS),
-            cg.getCredentials(CredentialGenerator.MASACA_ALIAS),
+            credGen.getCredentials(CredentialGenerator.MASA_ALIAS),
+            credGen.getCredentials(CredentialGenerator.MASACA_ALIAS),
             Constants.DEFAULT_MASA_HTTPS_PORT);
-    pledge = new Pledge(cg.getCredentials(CredentialGenerator.PLEDGE_ALIAS), REGISTRAR_URI);
+    pledge = new Pledge(credGen.getCredentials(CredentialGenerator.PLEDGE_ALIAS), REGISTRAR_URI);
     pledge.setLightweightClientCertificates(true);
 
     domainCA =
-        new DomainCA(DEFAULT_DOMAIN_NAME, cg.getCredentials(CredentialGenerator.DOMAINCA_ALIAS));
+        new DomainCA(DEFAULT_DOMAIN_NAME, credGen.getCredentials(CredentialGenerator.DOMAINCA_ALIAS));
 
     RegistrarBuilder registrarBuilder = new RegistrarBuilder();
     registrar =
         registrarBuilder
-            .setCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
+            .setCredentials(credGen.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
             // .addMasaCertificate(cg.masaCaCert)   // enable this, to trust a single MASA CA only
             .setTrustAllMasas(true) // or enable this, to trust all MASAs.
             .build();
     registrar.setDomainCA(domainCA);
 
-    commissioner = new Commissioner(cg.getCredentials(CredentialGenerator.COMMISSIONER_ALIAS));
+    commissioner = new Commissioner(credGen.getCredentials(CredentialGenerator.COMMISSIONER_ALIAS));
 
     masa.start();
     registrar.start();
@@ -112,12 +116,16 @@ public class FunctionalTest {
 
   @After
   public void finalize() {
+    stopEntities();
+  }
+
+  protected void stopEntities() {
     pledge.shutdown();
     commissioner.shutdown();
     registrar.stop();
     masa.stop();
   }
-
+  
   private void VerifyEnroll(Pledge pledge) throws Exception {
     X509Certificate cert = pledge.getOperationalCert();
     Assert.assertTrue(cert != null);
@@ -211,6 +219,25 @@ public class FunctionalTest {
     }
   }
 
+  @Test
+  public void testEnrollWithLoadedCredentials() throws Exception {    
+    // start a new set of entities, using loaded credentials.
+    CredentialGenerator cred = new CredentialGenerator();
+    cred.load(CredentialGenerator.CREDENTIALS_FILE_IOTCONSULTANCY);
+    this.stopEntities();
+    this.initEntities(cred); 
+    registrar.setForcedMasaUri(Constants.DEFAULT_MASA_URI); // force to local.
+    
+    Voucher voucher = pledge.requestVoucher();
+    Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
+    Assert.assertTrue(voucher.validate());
+
+    pledge.enroll();
+    VerifyPledge(pledge);
+    VerifyEnroll(pledge);
+    Assert.assertEquals(ResponseCode.CHANGED, pledge.sendEnrollStatusTelemetry(true, null));    
+  }
+  
   @Test
   public void testReenroll() throws Exception {
     Voucher voucher = pledge.requestVoucher();

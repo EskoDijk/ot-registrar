@@ -91,6 +91,9 @@ public class CredentialGenerator extends CredentialsSet {
   public static final String PLEDGE_ALIAS = "pledge";
   public static final String PLEDGE_SN = "OT-";
   public static final String PLEDGE_DNAME = DNAME_PREFIX + PLEDGE_ALIAS + ",SERIALNUMBER=";
+  
+  public static final String CREDENTIALS_FILE_IOTCONSULTANCY = "credentials/iotconsultancy-masa/credentials.p12" ;
+  public static final String CREDENTIALS_FILE_HONEYDUKES = "credentials/honeydukes/credentials.p12" ;
 
   private String masaUri = Constants.DEFAULT_MASA_URI;
   private KeyPair DUMMY_KEYPAIR = SecurityUtils.genKeyPair();

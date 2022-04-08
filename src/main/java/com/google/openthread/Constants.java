@@ -58,7 +58,6 @@ public class Constants {
   // --- HTTP Media Types
   public static final String HTTP_APPLICATION_VOUCHER_CMS_JSON = "application/voucher-cms+json";
   public static final String HTTP_APPLICATION_VOUCHER_CMS_CBOR = "application/voucher-cms+cbor";
-
   public static final String HTTP_APPLICATION_COSE_SIGN1 =
       "application/cose; cose-type=\"cose-sign1\"";
   public static final String HTTP_APPLICATION_COSE = "application/cose";
@@ -78,8 +77,7 @@ public class Constants {
   public static final int COM_TOK_VALIDITY = 365;
 
   // --- OID items
-  // Temporary/early allocation in draft-ietf-anima-bootstrapping-keyinfra-44
-  public static final String MASA_URI_OID = "1.3.6.1.5.5.7.1.32";
+  public static final String MASA_URI_OID = "1.3.6.1.5.5.7.1.32"; // RFC 8995
   public static final String HARDWARE_MODULE_NAME_OID = "1.3.6.1.5.5.7.8.4";
   public static final String PRIVATE_HARDWARE_TYPE_OID = "1.3.6.1.4.1.21335";
   public static final String THREAD_DOMAIN_NAME_OID = "1.3.6.1.4.1.44970.1"; // per Thread 1.2 spec

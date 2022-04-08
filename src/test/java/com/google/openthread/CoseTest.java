@@ -49,6 +49,7 @@ import org.bouncycastle.util.encoders.Hex;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.google.openthread.tools.CredentialGenerator;
 
 public class CoseTest {
 
@@ -103,6 +104,36 @@ public class CoseTest {
     msg = (Sign1Message) Message.DecodeFromBytes(signature, MessageTag.Sign1);
 
     assert (msg.validate(new OneKey(cert.getPublicKey(), null)));
+  }
+
+  @Test
+  public void testSignAndVerifyUsingCredentialsFile() throws Exception {
+
+    CredentialGenerator credGen = new CredentialGenerator();
+    credGen.load(CredentialGenerator.CREDENTIALS_FILE_IOTCONSULTANCY);
+    Credentials credMasaCa = credGen.getCredentials(CredentialGenerator.MASACA_ALIAS);
+    Credentials credPledge = credGen.getCredentials(CredentialGenerator.PLEDGE_ALIAS);
+
+    byte[] content = {1, 2, 3, 4, 5, 6};
+
+    OneKey signingKey = new OneKey(null, credMasaCa.getPrivateKey() ); // MASA CA signs
+
+    Sign1Message msg = new Sign1Message();
+    msg.addAttribute(HeaderKeys.Algorithm, AlgorithmID.ECDSA_256.AsCBOR(), Attribute.PROTECTED);
+    msg.SetContent(content);
+    msg.sign(signingKey);
+
+    byte[] signature = msg.EncodeToBytes();
+    logger.info("Encoded COSE message: " + Hex.toHexString(signature));
+
+    msg = (Sign1Message) Message.DecodeFromBytes(signature, MessageTag.Sign1);
+
+    // test that MASA CA can validate its own COSE object; and Pledge can too.
+    OneKey validationKey = new OneKey(credPledge.getCaCertificate().getPublicKey(), null);
+    assert (msg.validate(validationKey));
+    
+    OneKey validationKey2 = new OneKey(credMasaCa.getPublicKey(), null);
+    assert (msg.validate(validationKey2));
   }
 
   /**

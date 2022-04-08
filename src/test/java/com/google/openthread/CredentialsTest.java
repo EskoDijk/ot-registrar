@@ -64,7 +64,7 @@ import org.junit.rules.ExpectedException;
 
 public class CredentialsTest {
 
-  public static final String KEY_STORE_FILE = "test-credentials.p12";
+  public static final String KEY_STORE_FILE = "test-credentials.temp.p12";
   private static String pledgeSn;
 
   @Rule public ExpectedException thrown = ExpectedException.none();
