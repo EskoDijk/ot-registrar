@@ -48,7 +48,9 @@ public class RegistrarBuilder {
   }
 
   /**
-   * Supply the credentials to be used for Registrar in its role as MASA client.
+   * Supply the credentials to be used for Registrar in its role as MASA-client. By default, no
+   * separate credentials are used and rather the 'setCredentials()' credentials are used for
+   * authentication to MASA server as a client.
    *
    * @param cred Credentials to use in client role towards MASA server, or null to re-use the
    *     'setCredentials()' credentials for this.
@@ -162,12 +164,11 @@ public class RegistrarBuilder {
 
   public Registrar build() throws RegistrarException, GeneralSecurityException {
     X509Certificate[] masaCerts = getMasaCertificates();
-    if (privateKey == null
+    if (credentials == null
         || (masaCerts.length == 0 && !isTrustAllMasas)
-        || (masaCerts.length > 0 && isTrustAllMasas)
-        || certificateChain == null) {
+        || (masaCerts.length > 0 && isTrustAllMasas)) {
       throw new RegistrarException(
-          "bad or missing registrar credentials, or misconfiguration of builder");
+          "bad or missing Registrar credentials, or misconfiguration of builder");
     }
     return new Registrar(
         credentials,
