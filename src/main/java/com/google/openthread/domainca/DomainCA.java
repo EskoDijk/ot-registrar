@@ -157,7 +157,7 @@ public class DomainCA {
             SubjectPublicKeyInfo.getInstance(getPublicKey().getEncoded()));
     builder.addExtension(Extension.authorityKeyIdentifier, false, authorityKeyId);
 
-    // Includes domain name in SubjectAltName extension field, otherName subfield,
+    // Includes Thread Domain name in SubjectAltName extension field, otherName subfield,
     // otherName type-id 1.3.6.1.4.1.44970.1 with value IA5String. This is tweaked
     // to look the same as OpenSSL commandline output.
     DERSequence otherName =
