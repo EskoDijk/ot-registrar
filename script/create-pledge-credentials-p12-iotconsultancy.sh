@@ -38,7 +38,8 @@ if [ ! -f  "${JAR_FILE}" ]; then
   exit 1
 fi
 
-java -cp $JAR_FILE com.google.openthread.tools.CredentialGenerator -ms $CRED_DIR/TestVendor_masa.pem $CRED_DIR/privkey_TestVendor_masa.pem \
+java -cp $JAR_FILE com.google.openthread.tools.CredentialGenerator \
+   -ms $CRED_DIR/TestVendor_masa.pem $CRED_DIR/privkey_TestVendor_masa.pem \
    -m $CRED_DIR/TestVendor_masa_ca.pem $CRED_DIR/privkey_TestVendor_masa_ca.pem \
    -p $CRED_DIR/TestVendor_1.pem $CRED_DIR/privkey_TestVendor_1.pem \
-   -o $CREDENTIAL
+   -o $CREDENTIAL 
