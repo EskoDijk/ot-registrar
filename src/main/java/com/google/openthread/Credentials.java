@@ -100,7 +100,7 @@ public class Credentials {
   public PublicKey getPublicKey() throws GeneralSecurityException {
     return (PublicKey) getCertificate().getPublicKey();
   }
-  
+
   // Returns null if alias not included i.e. key for alias was not found.
   public X509Certificate getCertificate() throws KeyStoreException {
     return (X509Certificate) keyStore.getCertificate(alias);
@@ -108,12 +108,12 @@ public class Credentials {
 
   public X509Certificate getCaCertificate() throws KeyStoreException, GeneralSecurityException {
     X509Certificate[] chain = getCertificateChain();
-    X509Certificate ca = chain[chain.length-1];
+    X509Certificate ca = chain[chain.length - 1];
     if (!SecurityUtils.isCaCertificate(ca))
       throw new GeneralSecurityException("Not a CA certificate");
     return ca;
   }
-  
+
   // Returns null if alias not included i.e. key for alias was not found.
   public X509Certificate[] getCertificateChain() throws KeyStoreException {
     return SslContextUtil.asX509Certificates(keyStore.getCertificateChain(alias));

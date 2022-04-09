@@ -86,7 +86,7 @@ public class FunctionalTest {
   public void init() throws Exception {
     initEntities(cg);
   }
-  
+
   protected void initEntities(CredentialGenerator credGen) throws Exception {
     masa =
         new MASA(
@@ -97,7 +97,8 @@ public class FunctionalTest {
     pledge.setLightweightClientCertificates(true);
 
     domainCA =
-        new DomainCA(DEFAULT_DOMAIN_NAME, credGen.getCredentials(CredentialGenerator.DOMAINCA_ALIAS));
+        new DomainCA(
+            DEFAULT_DOMAIN_NAME, credGen.getCredentials(CredentialGenerator.DOMAINCA_ALIAS));
 
     RegistrarBuilder registrarBuilder = new RegistrarBuilder();
     registrar =
@@ -125,7 +126,7 @@ public class FunctionalTest {
     registrar.stop();
     masa.stop();
   }
-  
+
   private void VerifyEnroll(Pledge pledge) throws Exception {
     X509Certificate cert = pledge.getOperationalCert();
     Assert.assertTrue(cert != null);
@@ -220,14 +221,14 @@ public class FunctionalTest {
   }
 
   @Test
-  public void testEnrollWithLoadedCredentials() throws Exception {    
+  public void testEnrollWithLoadedCredentials() throws Exception {
     // start a new set of entities, using loaded credentials.
     CredentialGenerator cred = new CredentialGenerator();
     cred.load(CredentialGenerator.CREDENTIALS_FILE_IOTCONSULTANCY);
     this.stopEntities();
-    this.initEntities(cred); 
+    this.initEntities(cred);
     registrar.setForcedMasaUri(Constants.DEFAULT_MASA_URI); // force to local.
-    
+
     Voucher voucher = pledge.requestVoucher();
     Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
     Assert.assertTrue(voucher.validate());
@@ -235,9 +236,9 @@ public class FunctionalTest {
     pledge.enroll();
     VerifyPledge(pledge);
     VerifyEnroll(pledge);
-    Assert.assertEquals(ResponseCode.CHANGED, pledge.sendEnrollStatusTelemetry(true, null));    
+    Assert.assertEquals(ResponseCode.CHANGED, pledge.sendEnrollStatusTelemetry(true, null));
   }
-  
+
   @Test
   public void testReenroll() throws Exception {
     Voucher voucher = pledge.requestVoucher();
