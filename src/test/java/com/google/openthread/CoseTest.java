@@ -36,6 +36,7 @@ import COSE.MessageTag;
 import COSE.OneKey;
 import COSE.Sign1Message;
 import com.google.openthread.tools.CredentialGenerator;
+import java.io.File;
 import java.io.Reader;
 import java.io.StringReader;
 import java.security.KeyFactory;
@@ -44,6 +45,7 @@ import java.security.PublicKey;
 import java.security.cert.X509Certificate;
 import java.security.spec.X509EncodedKeySpec;
 import org.bouncycastle.util.encoders.Hex;
+import org.junit.AfterClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +55,12 @@ public class CoseTest {
   private static String TEST_CREDENTIALS_STORAGE_FILE = "temp.credentials.store.p12";
   private static byte[] TEST_CONTENT_BYTES = {1, 2, 3, 4, 5, 6, 50, 60, 70, 80, 90, 100, 110};
   private static Logger logger = LoggerFactory.getLogger(CoseTest.class);
+
+  @AfterClass
+  public static void tearDown() throws Exception {
+    File fn = new File(TEST_CREDENTIALS_STORAGE_FILE);
+    fn.delete();
+  }
 
   @Test
   public void testSignAndVerify() throws Exception {
