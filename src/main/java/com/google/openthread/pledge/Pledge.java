@@ -227,7 +227,7 @@ public class Pledge extends CoapClient {
     VoucherRequest voucherRequest = new VoucherRequest();
     voucherRequest.setConstrained(true);
     voucherRequest.assertion = Voucher.Assertion.PROXIMITY;
-    voucherRequest.serialNumber = getSerialNumber(getCertificate());
+    voucherRequest.serialNumber = getSerialNumber(getIdevidCertificate());
     voucherRequest.nonce = generateNonce();
 
     // FIXME(wgtdkp): should use 'subjectPublicKeyInfo' -> note, seems to already use this properly.
@@ -291,7 +291,7 @@ public class Pledge extends CoapClient {
           || (voucher.idevidIssuer != null
               && !Arrays.equals(
                   voucher.idevidIssuer,
-                  SecurityUtils.getAuthorityKeyIdentifier(getCertificate())))) {
+                  SecurityUtils.getAuthorityKeyIdentifier(getIdevidCertificate())))) {
         throw new PledgeException("serial number or idevid-issuer not matched");
       }
       if (req.nonce != null
@@ -450,9 +450,11 @@ public class Pledge extends CoapClient {
     operationalKeyPair =
         SecurityUtils.genKeyPair(SecurityUtils.KEY_ALGORITHM, SecurityUtils.KEY_SIZE);
 
+    // generate CSR
+    String subjectName = this.getIdevidCertificate().getSubjectX500Principal().toString();
     PKCS10CertificationRequest csr =
         genCertificateRequest(
-            SUBJECT_NAME,
+            subjectName,
             operationalKeyPair.getPublic(),
             SecurityUtils.SIGNATURE_ALGORITHM,
             operationalKeyPair.getPrivate());
@@ -464,8 +466,8 @@ public class Pledge extends CoapClient {
 
     cert.verify(domainPublicKey);
 
-    String subjectName = cert.getSubjectX500Principal().getName();
-    logger.info("get operational certificate: " + subjectName);
+    subjectName = cert.getSubjectX500Principal().getName();
+    logger.info("enrolled with operational certificate, subject: " + subjectName);
 
     operationalCertificate = cert;
 
@@ -492,9 +494,11 @@ public class Pledge extends CoapClient {
     // Reset the endpoint, so the pledge will rehandshake
     initEndpoint(privateKey, certificateChain, certVerifier);
 
+    // generate CSR
+    String subjectName = getOperationalCert().getSubjectX500Principal().toString();
     PKCS10CertificationRequest csr =
         genCertificateRequest(
-            SUBJECT_NAME,
+            subjectName,
             operationalKeyPair.getPublic(),
             SecurityUtils.SIGNATURE_ALGORITHM,
             operationalKeyPair.getPrivate());
@@ -506,8 +510,8 @@ public class Pledge extends CoapClient {
 
     cert.verify(domainPublicKey);
 
-    String subjectName = cert.getSubjectX500Principal().getName();
-    logger.info("renew operational certificate: " + subjectName);
+    subjectName = cert.getSubjectX500Principal().getName();
+    logger.info("renewed operational certificate, subject: " + subjectName);
 
     operationalCertificate = cert;
   }
@@ -531,11 +535,11 @@ public class Pledge extends CoapClient {
     return certState;
   }
 
-  X509Certificate getCertificate() {
+  public X509Certificate getIdevidCertificate() {
     return certificateChain[0];
   }
 
-  X509Certificate getMASACaCertificate() {
+  public X509Certificate getMASACaCertificate() {
     return certificateChain[certificateChain.length - 1];
   }
 
