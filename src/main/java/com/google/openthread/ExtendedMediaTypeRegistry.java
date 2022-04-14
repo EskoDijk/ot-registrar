@@ -37,8 +37,8 @@ public final class ExtendedMediaTypeRegistry extends MediaTypeRegistry {
   // application/cose;cose-type="cose-sign1"
   public static final int APPLICATION_COSE_SIGN1 = 18;
 
-  // application/voucher-cose+cbor (not yet allocated TODO)
-  public static final int APPLICATION_VOUCHER_COSE_CBOR = 65502;
+  // application/voucher-cose+cbor (IANA allocated on 2022-04-12)
+  public static final int APPLICATION_VOUCHER_COSE_CBOR = 836;
 
   // application/voucher-cose+cbor (not yet allocated TODO)
   public static final int APPLICATION_VOUCHER_COSE_JSON = 65503;
