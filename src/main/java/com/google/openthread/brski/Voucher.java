@@ -226,7 +226,7 @@ public class Voucher {
 
   public static final String EXPIRES_ON = "expires-on";
 
-  public static final String IDEVID_ISSUER = "issuer";
+  public static final String IDEVID_ISSUER = "idevid-issuer";
 
   public static final String LAST_RENEWAL_DATE = "last-renewal-date";
 
