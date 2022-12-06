@@ -43,7 +43,7 @@ public class Voucher {
   protected static final Map<String, Integer> voucherSIDMap =
       new HashMap<String, Integer>() {
         {
-          put(VOUCHER, VOUCHER_SID);
+          put(VOUCHER_CONSTRAINED, VOUCHER_SID);
           put(ASSERTION, VOUCHER_SID + 1);
           put(CREATED_ON, VOUCHER_SID + 2);
           put(DOMAIN_CERT_REVOCATION_CHECKS, VOUCHER_SID + 3);
@@ -216,7 +216,11 @@ public class Voucher {
 
   public static final String VOUCHER = "ietf-voucher:voucher";
 
-  public static final String VOUCHER_REQUEST = "ietf-request-voucher:voucher";
+  public static final String VOUCHER_CONSTRAINED = "ietf-voucher-constrained:voucher";
+  
+  public static final String VOUCHER_REQUEST = "ietf-voucher-request:voucher";
+
+  public static final String VOUCHER_REQUEST_CONSTRAINED = "ietf-voucher-request-constrained:voucher";
 
   public static final String ASSERTION = "assertion";
 
@@ -234,19 +238,17 @@ public class Voucher {
 
   public static final String PINNED_DOMAIN_CERT = "pinned-domain-cert";
 
-  public static final String PINNED_SHA256_DOMAIN_SPKI = "pinned-sha256-of-subject-public-key-info";
+  public static final String PINNED_SHA256_DOMAIN_SPKI = "pinned-domain-pubk-sha256";
 
-  public static final String PINNED_DOMAIN_SPKI = "pinned-domain-subject-public-key-info";
+  public static final String PINNED_DOMAIN_SPKI = "pinned-domain-pubk";
 
   public static final String PRIOR_SIGNED_VOUCHER_REQUEST = "prior-signed-voucher-request";
 
   public static final String PROXIMITY_REGISTRAR_CERT = "proximity-registrar-cert";
 
-  public static final String SHA256_REGISTRAR_SPKI =
-      "proximity-registrar-sha256-of-subject-public-key-info";
+  public static final String SHA256_REGISTRAR_SPKI = "proximity-registrar-pubk-sha256";
 
-  public static final String PROXIMITY_REGISTRAR_SPKI =
-      "proximity-registrar-subject-public-key-info";
+  public static final String PROXIMITY_REGISTRAR_SPKI = "proximity-registrar-pubk";
 
   public static final String SERIAL_NUMBER = "serial-number";
 
@@ -320,6 +322,14 @@ public class Voucher {
   }
 
   public String getName() {
-    return VOUCHER;
+    if (isConstrained())
+      return VOUCHER_CONSTRAINED;
+    else
+      return VOUCHER;
+  }
+  
+  public String toString() {
+    JSONSerializer jsonSerializer = new JSONSerializer();
+    return jsonSerializer.toJSON(this);
   }
 }

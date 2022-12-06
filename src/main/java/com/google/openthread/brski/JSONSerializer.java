@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2019, The OpenThread Registrar Authors.
+ *    Copyright (c) 2019-2022, The OpenThread Registrar Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
@@ -65,60 +65,60 @@ public class JSONSerializer implements VoucherSerializer {
     HashMap<String, Object> container = new HashMap<String, Object>();
 
     if (voucher.assertion != null)
-      add(container, voucher.getKey(Voucher.ASSERTION), voucher.assertion.toString());
+      add(container, Voucher.ASSERTION, voucher.assertion.toString());
 
     if (voucher.createdOn != null) {
       add(
           container,
-          voucher.getKey(Voucher.CREATED_ON),
+          Voucher.CREATED_ON,
           Voucher.dateToYoungFormat(voucher.createdOn));
     }
 
     add(
         container,
-        voucher.getKey(Voucher.DOMAIN_CERT_REVOCATION_CHECKS),
+        Voucher.DOMAIN_CERT_REVOCATION_CHECKS,
         voucher.domainCertRevocationChecks);
 
     if (voucher.expiresOn != null) {
       add(
           container,
-          voucher.getKey(Voucher.EXPIRES_ON),
+          Voucher.EXPIRES_ON,
           Voucher.dateToYoungFormat(voucher.expiresOn));
     }
 
-    add(container, voucher.getKey(Voucher.IDEVID_ISSUER), voucher.idevidIssuer);
+    add(container, Voucher.IDEVID_ISSUER, voucher.idevidIssuer);
 
     if (voucher.lastRenewalDate != null) {
       add(
           container,
-          voucher.getKey(Voucher.LAST_RENEWAL_DATE),
+          Voucher.LAST_RENEWAL_DATE,
           Voucher.dateToYoungFormat(voucher.lastRenewalDate));
     }
 
-    add(container, voucher.getKey(Voucher.NONCE), voucher.nonce);
+    add(container, Voucher.NONCE, voucher.nonce);
 
-    add(container, voucher.getKey(Voucher.PINNED_DOMAIN_CERT), voucher.pinnedDomainCert);
+    add(container, Voucher.PINNED_DOMAIN_CERT, voucher.pinnedDomainCert);
 
-    add(container, voucher.getKey(Voucher.PINNED_DOMAIN_SPKI), voucher.pinnedDomainSPKI);
+    add(container, Voucher.PINNED_DOMAIN_SPKI, voucher.pinnedDomainSPKI);
 
     add(
         container,
-        voucher.getKey(Voucher.PRIOR_SIGNED_VOUCHER_REQUEST),
+        Voucher.PRIOR_SIGNED_VOUCHER_REQUEST,
         voucher.priorSignedVoucherRequest);
 
     add(
         container,
-        voucher.getKey(Voucher.PROXIMITY_REGISTRAR_CERT),
+        Voucher.PROXIMITY_REGISTRAR_CERT,
         voucher.proximityRegistrarCert);
 
     add(
         container,
-        voucher.getKey(Voucher.PROXIMITY_REGISTRAR_SPKI),
+        Voucher.PROXIMITY_REGISTRAR_SPKI,
         voucher.proximityRegistrarSPKI);
 
-    add(container, voucher.getKey(Voucher.SERIAL_NUMBER), voucher.serialNumber);
+    add(container, Voucher.SERIAL_NUMBER, voucher.serialNumber);
 
-    jsonRoot.put(voucher.getKey(voucher.getName()).toString(), container);
+    jsonRoot.put(voucher.getName(), container);
 
     return gson.toJson(jsonRoot);
   }
@@ -143,59 +143,59 @@ public class JSONSerializer implements VoucherSerializer {
         HashMap<String, Object> container = gv.get(key);
         Object leaf;
 
-        if ((leaf = get(container, voucher.getKey(Voucher.ASSERTION))) != null) {
+        if ((leaf = get(container, Voucher.ASSERTION)) != null) {
           voucher.assertion = Voucher.Assertion.newAssertion(leaf.toString());
         }
 
-        if ((leaf = get(container, voucher.getKey(Voucher.CREATED_ON))) != null) {
+        if ((leaf = get(container, Voucher.CREATED_ON)) != null) {
           voucher.createdOn = Voucher.dateFromYoungFormat(leaf.toString());
         }
 
-        if ((leaf = get(container, voucher.getKey(Voucher.DOMAIN_CERT_REVOCATION_CHECKS)))
+        if ((leaf = get(container, Voucher.DOMAIN_CERT_REVOCATION_CHECKS))
             != null) {
           voucher.domainCertRevocationChecks = leaf.equals(Boolean.TRUE);
         }
 
-        if ((leaf = get(container, voucher.getKey(Voucher.EXPIRES_ON))) != null) {
+        if ((leaf = get(container, Voucher.EXPIRES_ON)) != null) {
           voucher.expiresOn = Voucher.dateFromYoungFormat(leaf.toString());
         }
 
-        if ((leaf = getBytes(container, voucher.getKey(Voucher.IDEVID_ISSUER))) != null) {
+        if ((leaf = getBytes(container, Voucher.IDEVID_ISSUER)) != null) {
           voucher.idevidIssuer = (byte[]) leaf;
         }
 
-        if ((leaf = get(container, voucher.getKey(Voucher.LAST_RENEWAL_DATE))) != null) {
+        if ((leaf = get(container, Voucher.LAST_RENEWAL_DATE)) != null) {
           voucher.lastRenewalDate = Voucher.dateFromYoungFormat(leaf.toString());
         }
 
-        if ((leaf = getBytes(container, voucher.getKey(Voucher.NONCE))) != null) {
+        if ((leaf = getBytes(container, Voucher.NONCE)) != null) {
           voucher.nonce = (byte[]) leaf;
         }
 
-        if ((leaf = getBytes(container, voucher.getKey(Voucher.PINNED_DOMAIN_CERT))) != null) {
+        if ((leaf = getBytes(container, Voucher.PINNED_DOMAIN_CERT)) != null) {
           voucher.pinnedDomainCert = (byte[]) leaf;
         }
 
-        if ((leaf = getBytes(container, voucher.getKey(Voucher.PINNED_DOMAIN_SPKI))) != null) {
+        if ((leaf = getBytes(container, Voucher.PINNED_DOMAIN_SPKI)) != null) {
           voucher.pinnedDomainSPKI = (byte[]) leaf;
         }
 
-        if ((leaf = getBytes(container, voucher.getKey(Voucher.PRIOR_SIGNED_VOUCHER_REQUEST)))
+        if ((leaf = getBytes(container, Voucher.PRIOR_SIGNED_VOUCHER_REQUEST))
             != null) {
           voucher.priorSignedVoucherRequest = (byte[]) leaf;
         }
 
-        if ((leaf = getBytes(container, voucher.getKey(Voucher.PROXIMITY_REGISTRAR_CERT)))
+        if ((leaf = getBytes(container, Voucher.PROXIMITY_REGISTRAR_CERT))
             != null) {
           voucher.proximityRegistrarCert = (byte[]) leaf;
         }
 
-        if ((leaf = getBytes(container, voucher.getKey(Voucher.PROXIMITY_REGISTRAR_SPKI)))
+        if ((leaf = getBytes(container, Voucher.PROXIMITY_REGISTRAR_SPKI))
             != null) {
           voucher.proximityRegistrarSPKI = (byte[]) leaf;
         }
 
-        if ((leaf = get(container, voucher.getKey(Voucher.SERIAL_NUMBER))) != null) {
+        if ((leaf = get(container, Voucher.SERIAL_NUMBER)) != null) {
           voucher.serialNumber = leaf.toString();
         }
 

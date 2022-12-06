@@ -39,7 +39,7 @@ public class VoucherRequest extends Voucher {
   protected static final Map<String, Integer> voucherRequestSIDMap =
       new HashMap<String, Integer>() {
         {
-          put(VOUCHER_REQUEST, VOUCHER_REQUEST_SID);
+          put(VOUCHER_REQUEST_CONSTRAINED, VOUCHER_REQUEST_SID);
           put(ASSERTION, VOUCHER_REQUEST_SID + 1);
           put(CREATED_ON, VOUCHER_REQUEST_SID + 2);
           put(DOMAIN_CERT_REVOCATION_CHECKS, VOUCHER_REQUEST_SID + 3);
@@ -83,6 +83,9 @@ public class VoucherRequest extends Voucher {
 
   @Override
   public String getName() {
-    return VOUCHER_REQUEST;
+    if (isConstrained()) 
+      return VOUCHER_REQUEST_CONSTRAINED;
+    else 
+      return VOUCHER_REQUEST;
   }
 }
