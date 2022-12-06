@@ -139,6 +139,11 @@ public class IETFConstrainedBrskiTest {
     // display the artifacts.
     logger.info("Pledge Voucher Request (PVR) sent by Pledge:\n" + pledge.getLastPvr().toString());
     logger.info("Pledge Voucher Request (PVR) sent by Pledge as Hex string:\n" + Hex.toHexString(pledge.getLastPvrCoseSigned()));
+    
+    logger.info("Registrar Voucher Request (RVR) sent by Registrar:\n" + registrar.getLastRvr().toString());
+    logger.info("Registrar Voucher Request (RVR) sent by Registrar as Hex string:\n" + Hex.toHexString(registrar.getLastRvrCoseSigned()));
+    
+    
   }
 
 }

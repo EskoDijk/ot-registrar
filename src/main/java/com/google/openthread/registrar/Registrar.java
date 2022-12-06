@@ -474,13 +474,16 @@ public class Registrar extends CoapServer {
         byte[] content = null;
 
         // Uses CBOR or JSON voucher request format.
-        boolean isJsonVR =
+        boolean isJsonRVR =
             (forcedVoucherRequestFormat == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON
                 || forcedVoucherRequestFormat
                     == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_JSON);
-        if (isJsonVR) content = new JSONSerializer().serialize(req);
+        if (isJsonRVR) content = new JSONSerializer().serialize(req);
         else content = new CBORSerializer().serialize(req);
 
+        // store last sent RVR.
+        lastRvr = req;
+        
         // use CMS or COSE signing of the voucher request.
         byte[] payload;
         boolean isCms =
@@ -490,11 +493,11 @@ public class Registrar extends CoapServer {
         if (isCms) {
           // CMS signing.
           requestMediaType =
-              isJsonVR
+              isJsonRVR
                   ? Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON
                   : Constants.HTTP_APPLICATION_VOUCHER_CMS_CBOR;
           requestContentFormat =
-              isJsonVR
+              isJsonRVR
                   ? ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON
                   : ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_CBOR;
           try {
@@ -539,6 +542,9 @@ public class Registrar extends CoapServer {
           logger.info("Using forced MASA URI to send Registrar Voucher Req: " + uri);
         }
 
+        // store last sent COSE-signed RVR.
+        lastRvrCoseSigned = payload;
+        
         RestfulVoucherResponse response = null;
         if (isHttpToMasa) {
           MASAConnectorHttp masaClient = new MASAConnectorHttp(masaTrustAnchors);
@@ -613,7 +619,7 @@ public class Registrar extends CoapServer {
      * custom to OT-Registrar and OT-Masa.
      *
      * @param requestContentFormat the CoAP content-format of the request
-     * @param payload the Voucher Request in application/voucher-cms+cbor format
+     * @param payload the Voucher Request in cbor format
      * @param masaURI the MASA URI (without URI path, without coaps:// scheme) to send it to
      * @return null if a timeout error happens
      */
@@ -916,6 +922,22 @@ public class Registrar extends CoapServer {
   }
 
   /**
+   * get the last RVR that was sent to MASA.
+   * @return last sent RVR, or null if none sent yet.
+   */
+  public VoucherRequest getLastRvr() {
+    return this.lastRvr;
+  }
+
+  /**
+   * get the last COSE-signed RVR that was sent to MASA.
+   * @return byte array encoding the last sent COSE-signed RVR, or null if none sent yet.
+   */
+  public byte[] getLastRvrCoseSigned() {
+    return this.lastRvrCoseSigned;
+  }
+  
+  /**
    * get the Registrar's EE certificate
    *
    * @return
@@ -1022,5 +1044,9 @@ public class Registrar extends CoapServer {
   // keep track of issued vouchers
   protected Map<Principal, Voucher> voucherLog = new HashMap<Principal, Voucher>();
 
+  private VoucherRequest lastRvr = null;
+  
+  private byte[] lastRvrCoseSigned = null;
+  
   private static Logger logger = LoggerFactory.getLogger(Registrar.class);
 }
