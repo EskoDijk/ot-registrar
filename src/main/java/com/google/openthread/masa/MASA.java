@@ -64,6 +64,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
+import org.bouncycastle.util.encoders.Hex;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -231,6 +232,7 @@ public class MASA {
         byte[] payload =
             SecurityUtils.genCoseSign1Message(
                 credentialsCa.getPrivateKey(), SecurityUtils.COSE_SIGNATURE_ALGORITHM, content);
+        logger.info("returning 200 OK with Voucher: " + Hex.toHexString(payload));
         exchange.getOutputStream().write(payload);
         exchange.getOutputStream().flush();
         exchange.getOutputStream().close();
