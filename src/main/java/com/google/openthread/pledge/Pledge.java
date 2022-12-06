@@ -580,7 +580,15 @@ public class Pledge extends CoapClient {
     random.nextBytes(nonce);
     return nonce;
   }
+  
+  public VoucherRequest getLastPvr() {
+    return this.lastPvr;
+  }
 
+  public byte[] getLastPvrCoseSigned() {
+    return this.lastPvrCoseSigned;
+  }
+  
   private void init(Credentials creds, String hostURI, boolean isLightweightClientCerts)
       throws PledgeException {
 
@@ -628,6 +636,9 @@ public class Pledge extends CoapClient {
     byte[] payload =
         SecurityUtils.genCoseSign1Message(
             privateKey, SecurityUtils.COSE_SIGNATURE_ALGORITHM, vrEncoded);
+    // store the transmitted PVR
+    this.lastPvr = voucherRequest;
+    this.lastPvrCoseSigned = payload;
     return post(payload, ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
   }
 
@@ -749,8 +760,6 @@ public class Pledge extends CoapClient {
     return hostURI + Constants.BRSKI_PATH;
   }
 
-  private static final String SUBJECT_NAME = "C=CN,L=SH,O=GG,OU=OpenThread,CN=pledge_op";
-
   private String hostURI;
   private Credentials credentials;
   private PrivateKey privateKey;
@@ -773,6 +782,9 @@ public class Pledge extends CoapClient {
   private CertState certState = CertState.NO_CONTACT;
 
   private CsrAttrs csrAttrs;
+  
+  private VoucherRequest lastPvr = null;
+  private byte[] lastPvrCoseSigned = null;
 
   private static Logger logger = LoggerFactory.getLogger(Pledge.class);
 }
