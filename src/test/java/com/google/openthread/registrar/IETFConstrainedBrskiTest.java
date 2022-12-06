@@ -28,28 +28,18 @@
 
 package com.google.openthread.registrar;
 
-import static org.junit.Assert.assertSame;
-
 import com.google.openthread.*;
 import com.google.openthread.brski.*;
-import com.google.openthread.commissioner.*;
 import com.google.openthread.domainca.*;
 import com.google.openthread.masa.*;
 import com.google.openthread.pledge.*;
 import com.google.openthread.pledge.Pledge.CertState;
 import com.google.openthread.tools.*;
-import java.io.IOException;
-import java.security.cert.*;
 import org.bouncycastle.util.encoders.Hex;
-import org.eclipse.californium.core.CoapResponse;
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.junit.*;
-import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import se.sics.ace.cwt.CWT;
 
 /**
  * This test code is to specifically produce the COSE examples in the Appendix of
