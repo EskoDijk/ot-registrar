@@ -65,7 +65,8 @@ public class JSONSerializer implements VoucherSerializer {
     HashMap<String, Object> container = new HashMap<String, Object>();
 
     if (voucher.assertion != null)
-      add(container, Voucher.ASSERTION, voucher.assertion.toString());
+      add(container, Voucher.ASSERTION, voucher.isConstrained() ? 
+          Integer.valueOf(voucher.assertion.getValue()) : voucher.assertion.toString());
 
     if (voucher.createdOn != null) {
       add(
@@ -217,7 +218,7 @@ public class JSONSerializer implements VoucherSerializer {
         // apply Base64 encoding
         val = Base64.toBase64String((byte[]) val);
       }
-      c.put(key.toString(), val.toString());
+      c.put(key.toString(), val);
     }
   }
 

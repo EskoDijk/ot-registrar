@@ -404,14 +404,18 @@ public class Registrar extends CoapServer {
           return;
         }
 
-        // Constructing new voucher request for MASA
+        // Constructing new voucher request (RVR) for MASA
         // ref: section 5.5 BRSKI RFC8995
+        boolean isJsonRVR =
+            (forcedVoucherRequestFormat == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON
+                || forcedVoucherRequestFormat
+                    == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_JSON);
         VoucherRequest req = new VoucherRequest();
-        req.assertion =
-            pledgeReq.assertion; // assertion is copied from Pledge. Section 3.3 example.
+        if (!isJsonRVR)        
+          req.setConstrained(true);
+        req.assertion = pledgeReq.assertion; // assertion copied from PVR
         // Note, section 5.5: assertion MAY be omitted.
 
-        // OPTIONAL (RFC 8995), but mandatory for Thread 1.2
         req.nonce = pledgeReq.nonce;
 
         // Optionally present in Pledge's Voucher Request.
@@ -474,10 +478,6 @@ public class Registrar extends CoapServer {
         byte[] content = null;
 
         // Uses CBOR or JSON voucher request format.
-        boolean isJsonRVR =
-            (forcedVoucherRequestFormat == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON
-                || forcedVoucherRequestFormat
-                    == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_JSON);
         if (isJsonRVR) content = new JSONSerializer().serialize(req);
         else content = new CBORSerializer().serialize(req);
 
