@@ -143,6 +143,8 @@ public class IETFConstrainedBrskiTest {
     logger.info("Registrar Voucher Request (RVR) sent by Registrar:\n" + registrar.getLastRvr().toString());
     logger.info("Registrar Voucher Request (RVR) sent by Registrar as Hex string:\n" + Hex.toHexString(registrar.getLastRvrCoseSigned()));
     
+    logger.info("Voucher created by MASA:\n" + voucher);
+    logger.info("Voucher created by MASA as Hex string:\n" + Hex.toHexString(pledge.getLastVoucherCoseSigned()));
     
   }
 

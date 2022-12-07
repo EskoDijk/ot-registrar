@@ -272,6 +272,7 @@ public class Pledge extends CoapClient {
     if (payload == null) {
       throw new PledgeException("unexpected null payload");
     }
+    this.lastVoucherCoseSigned = payload;
 
     // 2. Receive voucher signed by MASA CA
     try {
@@ -589,6 +590,10 @@ public class Pledge extends CoapClient {
     return this.lastPvrCoseSigned;
   }
   
+  public byte[] getLastVoucherCoseSigned() {
+    return this.lastVoucherCoseSigned;
+  }
+  
   private void init(Credentials creds, String hostURI, boolean isLightweightClientCerts)
       throws PledgeException {
 
@@ -785,6 +790,7 @@ public class Pledge extends CoapClient {
   
   private VoucherRequest lastPvr = null;
   private byte[] lastPvrCoseSigned = null;
+  private byte[] lastVoucherCoseSigned = null;
 
   private static Logger logger = LoggerFactory.getLogger(Pledge.class);
 }
