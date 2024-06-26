@@ -32,7 +32,6 @@ import static org.junit.Assert.*;
 
 import com.google.openthread.*;
 import com.google.openthread.brski.*;
-import com.google.openthread.commissioner.*;
 import com.google.openthread.domainca.*;
 import com.google.openthread.masa.*;
 import com.google.openthread.pledge.*;
@@ -41,7 +40,6 @@ import java.security.Principal;
 import org.junit.*;
 import org.junit.runners.*;
 import org.slf4j.*;
-import se.sics.ace.cwt.CWT;
 
 /**
  * A tool to test a Hardware Pledge DUT (OpenThread CLI device) against the Registrar/MASA. The
@@ -79,7 +77,6 @@ public class HardwarePledgeTestSuite {
   private static final String REGISTRAR_URI = "[::1]:" + Constants.DEFAULT_REGISTRAR_COAPS_PORT;
   private DomainCA domainCA;
   private Registrar registrar;
-  private Commissioner commissioner;
   private MASA masa;
   private static PledgeHardware pledge;
   private static CredentialGenerator credGen;
@@ -124,7 +121,6 @@ public class HardwarePledgeTestSuite {
     registrar.setDomainCA(domainCA);
     // for local testing we force the MASA URI to localhost.
     registrar.setForcedMasaUri(Constants.DEFAULT_MASA_URI);
-    commissioner = new Commissioner(credGen.getCredentials(CredentialGenerator.COMMISSIONER_ALIAS));
 
     masa.start();
     registrar.start();
@@ -133,7 +129,6 @@ public class HardwarePledgeTestSuite {
   @After
   public void finalize() throws Exception {
     assertTrue(pledge.execCommandDone("thread stop"));
-    commissioner.shutdown();
     registrar.stop();
     masa.stop();
   }
@@ -242,19 +237,5 @@ public class HardwarePledgeTestSuite {
     Thread.sleep(3000);
     assertNotEquals("disabled", pledge.execCommand("state")); // verify thread is started
     assertEquals("false", pledge.execCommand("singleton")); // verify I joined with BR.
-  }
-
-  /** RE-TC-01: */
-  @Test
-  public void test_5_07_RE_TC_01() throws Exception {
-    assertTrue(false);
-  }
-
-  @Test
-  public void test_5_12_COMM_TC_01() throws Exception {
-
-    CWT token = commissioner.requestToken(THREAD_DOMAIN_NAME, REGISTRAR_URI);
-    assertTrue(token.getClaims().size() > 0);
-    assertTrue(commissioner.start(BORDER_ROUTER_AUTHORITY));
   }
 }

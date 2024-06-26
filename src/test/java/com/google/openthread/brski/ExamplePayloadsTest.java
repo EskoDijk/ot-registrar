@@ -29,7 +29,6 @@
 package com.google.openthread.brski;
 
 import com.google.openthread.*;
-import com.google.openthread.commissioner.*;
 import com.google.openthread.pledge.*;
 import com.google.openthread.registrar.*;
 import com.upokecenter.cbor.CBORObject;
@@ -75,13 +74,5 @@ public class ExamplePayloadsTest {
 
     logger.info("example constrained voucher payload:");
     logger.info(new CBORSerializer().toCBOR(cv).toString());
-  }
-
-  @Test
-  public void comTokenExamplePayload() throws Exception {
-    KeyPair kp = SecurityUtils.genKeyPair();
-    CBORObject req = Commissioner.genTokenRequest("OpenThread-TCE-TEST", kp.getPublic());
-    logger.info("example COM_TOK.req payload:");
-    logger.info(req.toString());
   }
 }

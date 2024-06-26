@@ -32,7 +32,6 @@ import static org.junit.Assert.assertSame;
 
 import com.google.openthread.*;
 import com.google.openthread.brski.*;
-import com.google.openthread.commissioner.*;
 import com.google.openthread.domainca.*;
 import com.google.openthread.masa.*;
 import com.google.openthread.pledge.*;
@@ -49,7 +48,6 @@ import org.junit.*;
 import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import se.sics.ace.cwt.CWT;
 
 public class FunctionalTest {
 
@@ -61,7 +59,6 @@ public class FunctionalTest {
   // the acting entities
   private DomainCA domainCA;
   private Registrar registrar;
-  private Commissioner commissioner;
   private Pledge pledge;
   private MASA masa;
 
@@ -109,8 +106,6 @@ public class FunctionalTest {
             .build();
     registrar.setDomainCA(domainCA);
 
-    commissioner = new Commissioner(credGen.getCredentials(CredentialGenerator.COMMISSIONER_ALIAS));
-
     masa.start();
     registrar.start();
   }
@@ -122,7 +117,6 @@ public class FunctionalTest {
 
   protected void stopEntities() {
     pledge.shutdown();
-    commissioner.shutdown();
     registrar.stop();
     masa.stop();
   }
@@ -309,14 +303,6 @@ public class FunctionalTest {
     VerifyEnroll(pledge);
     pledge.reenroll();
     VerifyEnroll(pledge);
-  }
-
-  @Test
-  public void testCommissionerTokenRequest() throws Exception {
-    CWT comTok = commissioner.requestToken("TestDomainTCE", REGISTRAR_URI);
-    // TODO check result more; try 'bad commissioner' cases.
-    Assert.assertTrue(comTok.getClaims().size() > 0);
-    Assert.assertTrue(comTok.isValid(System.currentTimeMillis() + 500000));
   }
 
   @Test

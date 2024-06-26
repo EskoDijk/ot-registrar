@@ -29,7 +29,6 @@
 package com.google.openthread.pledge;
 
 import com.google.openthread.Credentials;
-import com.google.openthread.commissioner.Commissioner;
 import com.google.openthread.tools.CredentialGenerator;
 import java.security.KeyStoreException;
 import java.util.Scanner;
@@ -102,25 +101,8 @@ public class PledgeMain {
       }
       Pledge pledge = new Pledge(cred, registrarUri);
 
-      cred =
-          new Credentials(
-              keyStoreFile, CredentialGenerator.COMMISSIONER_ALIAS, CredentialGenerator.PASSWORD);
-      Commissioner commissioner = null;
-      if (cred != null && cred.getPrivateKey() != null && cred.getCertificateChain() != null) {
-        commissioner = new Commissioner(cred);
-      } else {
-        String msg = "can't find commissioner key or certificate";
-        msg += ": expect alias=" + CredentialGenerator.COMMISSIONER_ALIAS;
-        msg += ", password=" + CredentialGenerator.PASSWORD;
-        msg += "; commissioner disabled";
-        System.err.println(msg);
-      }
+      run(pledge);
 
-      run(pledge, commissioner);
-
-      if (commissioner != null) {
-        commissioner.shutdown();
-      }
       pledge.shutdown();
     } catch (IllegalArgumentException e) {
       System.err.println("error: " + e.getMessage());
@@ -131,11 +113,10 @@ public class PledgeMain {
     }
   }
 
-  private static void run(Pledge pledge, Commissioner commissioner) {
+  private static void run(Pledge pledge) {
     final String DOMAIN_NAME = "TestDomainTCE";
     final String help =
-        "token    -  request commissioning token\n"
-            + "rv       -  request voucher\n"
+               "rv       -  request voucher\n"
             + "enroll   -  simple enrollment\n"
             + "reenroll -  simple reenrollment\n"
             + "reset    -  reset to initial state\n"
@@ -147,13 +128,6 @@ public class PledgeMain {
         try {
           System.out.print("> ");
           switch (scanner.nextLine().trim()) {
-            case "token":
-              if (commissioner != null) {
-                commissioner.requestToken(DOMAIN_NAME, pledge.getHostURI());
-              } else {
-                throw new Exception("invalid commissioner");
-              }
-              break;
             case "rv":
               pledge.requestVoucher();
               break;

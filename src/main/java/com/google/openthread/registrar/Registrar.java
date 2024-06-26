@@ -112,9 +112,9 @@ public class Registrar extends CoapServer {
   /**
    * Constructing registrar with specified settings, credentials and listening port.
    *
-   * @param privateKey the private key used for DTLS connection from Pledge
-   * @param certificateChain the certificate chain leading up to domain CA and including domain CA
-   *     certificate, used for DTLS connection from Pledge.
+   * @param creds the credentials used to serve the DTLS connection from Pledge. Includes
+   *              the certificate chain leading up to domain CA and including domain CA
+   *              certificate.
    * @param masaTrustAnchors pre-installed MASA trust anchors that are trusted only when given. If
    *     null, ALL MASAs will be trusted (for interop testing).
    * @param masaClientCreds credentials to use towards MASA client in Credentials format
@@ -655,7 +655,7 @@ public class Registrar extends CoapServer {
     /**
      * Send new Voucher Request to MASA.
      *
-     * @param the media type string of the body
+     * @param requestMediaType the media type string of the body
      * @param body the Voucher Request in bytes
      * @param masaURI the MASA URI (without URI path, without https:// scheme) to send it to
      * @return null if any error happens
@@ -772,42 +772,6 @@ public class Registrar extends CoapServer {
     }
   }
 
-  public final class CommissionerTokenResource extends CoapResource {
-    public CommissionerTokenResource() {
-      super(Constants.COM_TOK);
-    }
-
-    @Override
-    public void handlePOST(CoapExchange exchange) {
-      try {
-        int contentFormat = exchange.getRequestOptions().getContentFormat();
-        RequestDumper.dump(logger, getURI(), exchange.getRequestPayload());
-
-        if (contentFormat != ExtendedMediaTypeRegistry.APPLICATION_CWT) {
-          exchange.respond(
-              ResponseCode.UNSUPPORTED_CONTENT_FORMAT,
-              "Only Content Format " + ExtendedMediaTypeRegistry.APPLICATION_CWT + " supported.");
-          return;
-        }
-
-        // TODO(wgtdkp): verify the COM_TOK.req
-        CBORObject req = CBORObject.DecodeFromBytes(exchange.getRequestPayload());
-        validateComTokenReq(req);
-
-        CBORObject signedToken = domainCA.signCommissionerToken(req);
-        byte[] encodedToken = signedToken.EncodeToBytes();
-        logger.info(
-            "response token[len={}] : {}", encodedToken.length, Hex.toHexString(encodedToken));
-
-        exchange.respond(
-            ResponseCode.CHANGED, encodedToken, ExtendedMediaTypeRegistry.APPLICATION_COSE_SIGN1);
-      } catch (Exception e) {
-        logger.warn("commissioner token request failed: " + e.getMessage(), e);
-        exchange.respond(ResponseCode.BAD_REQUEST, e.getMessage());
-      }
-    }
-  }
-
   public final class WellknownCoreResource extends CoapResource {
     public WellknownCoreResource() {
       super(Constants.CORE);
@@ -819,35 +783,6 @@ public class Registrar extends CoapServer {
           "</hello>;ct=0,</.well-known/brski>;rt=brski,</.well-known/est>;rt=ace.est";
       exchange.respond(
           ResponseCode.CONTENT, wellknownCoreLinkFormat, MediaTypeRegistry.APPLICATION_LINK_FORMAT);
-    }
-  }
-
-  public static void validateComTokenReq(CBORObject req) throws RegistrarException {
-    CBORObject grantType = req.get(CBORObject.FromObject(se.sics.ace.Constants.GRANT_TYPE));
-    if (grantType == null) {
-      throw new RegistrarException("missing grant-type");
-    } else if (grantType.AsInt32() != se.sics.ace.Constants.GT_CLI_CRED) {
-      throw new RegistrarException("COM_TOK.req grant-type is wrong: " + grantType.AsInt32());
-    }
-
-    CBORObject clientId = req.get(CBORObject.FromObject(se.sics.ace.Constants.CLIENT_ID));
-    if (clientId == null) {
-      throw new RegistrarException("missing client-id");
-    }
-
-    CBORObject reqAud = req.get(CBORObject.FromObject(se.sics.ace.Constants.AUD));
-    if (reqAud == null) {
-      throw new RegistrarException("missing req-aud");
-    }
-
-    CBORObject reqCnf = req.get(CBORObject.FromObject(se.sics.ace.Constants.REQ_CNF));
-    if (reqCnf == null) {
-      throw new RegistrarException("missing req-cnf");
-    }
-
-    CBORObject coseKey = reqCnf.get(CBORObject.FromObject(se.sics.ace.Constants.COSE_KEY));
-    if (coseKey == null) {
-      throw new RegistrarException("missing cose-key in req-cnf");
     }
   }
 
@@ -949,9 +884,6 @@ public class Registrar extends CoapServer {
     wellKnown.add(core);
     wellKnown.add(est);
     wellKnown.add(brski);
-    // Commissioning FIXME ccm not defined in IANA well-known space, can place it in
-    // /.well-known/thread/ccm/tokenrequest
-    wellKnown.add(new CommissionerTokenResource());
     this.add(wellKnown);
 
     // 'hello' test resource

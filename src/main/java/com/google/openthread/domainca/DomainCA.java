@@ -73,8 +73,6 @@ import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.operator.jcajce.JcaContentVerifierProviderBuilder;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
-import se.sics.ace.cwt.CWT;
-import se.sics.ace.cwt.CwtCryptoCtx;
 
 public class DomainCA {
 
@@ -195,46 +193,6 @@ public class DomainCA {
     // 4. Output to PKCS#7 format
     // return SecurityUtils.genCMSCertOnlyMessage(cert);
     return cert;
-  }
-
-  public CBORObject signCommissionerToken(CBORObject token) throws Exception {
-    return signCommissionerToken(
-        token,
-        privateKey,
-        SecurityUtils.COSE_SIGNATURE_ALGORITHM,
-        SecurityUtils.getSubjectKeyId(getCertificate()));
-  }
-
-  public static CBORObject signCommissionerToken(
-      CBORObject token, PrivateKey signingKey, CBORObject signingAlg, byte[] subjectKeyId)
-      throws Exception {
-    Map<Short, CBORObject> claims = new HashMap<>();
-
-    Object aud = token.get(CBORObject.FromObject(se.sics.ace.Constants.AUD));
-    claims.put(se.sics.ace.Constants.AUD, CBORObject.FromObject(aud));
-
-    // TODO(wgtdkp): verify the COSE_KEY with commissioner certificate presented by
-    // DTLS handshake
-    CBORObject cnf = CBORObject.NewMap();
-    CBORObject tokenCnf = token.get(CBORObject.FromObject(se.sics.ace.Constants.REQ_CNF));
-    cnf.Add(
-        se.sics.ace.Constants.COSE_KEY,
-        tokenCnf.get(CBORObject.FromObject(se.sics.ace.Constants.COSE_KEY)));
-    claims.put(se.sics.ace.Constants.CNF, cnf);
-
-    String keyId = new String(subjectKeyId);
-    claims.put(se.sics.ace.Constants.ISS, CBORObject.FromObject(keyId));
-
-    // see rfc8392 NumericDate format
-    Date expire =
-        new Date(System.currentTimeMillis() + 3600 * 24 * 1000 * Constants.COM_TOK_VALIDITY);
-    claims.put(se.sics.ace.Constants.EXP, CBORObject.FromObject(expire.getTime()));
-
-    OneKey oneKey = new OneKey(null, signingKey);
-    CwtCryptoCtx ctx = CwtCryptoCtx.sign1Create(oneKey, signingAlg);
-
-    CWT cwt = new CWT(claims);
-    return cwt.encode(ctx);
   }
 
   public X500Name getSubjectName() {
