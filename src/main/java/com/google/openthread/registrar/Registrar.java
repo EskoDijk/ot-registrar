@@ -69,7 +69,6 @@ import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
-import org.bouncycastle.asn1.est.CsrAttrs;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.util.encoders.Hex;
 import org.eclipse.californium.core.CoapClient;
@@ -144,7 +143,6 @@ public class Registrar extends CoapServer {
         throw new RegistrarException("(yet) unsupported certificate chain: length < 2");
       }
 
-      this.csrAttributes = new CSRAttributes(CSRAttributes.DEFAULT_FILE);
     } catch (Exception e) {
       throw new RegistrarException(e.getMessage());
     }
@@ -411,8 +409,7 @@ public class Registrar extends CoapServer {
                 || forcedVoucherRequestFormat
                     == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_JSON);
         VoucherRequest req = new VoucherRequest();
-        if (!isJsonRVR)        
-          req.setConstrained(true);
+        if (!isJsonRVR) req.setConstrained(true);
         req.assertion = pledgeReq.assertion; // assertion copied from PVR
         // Note, section 5.5: assertion MAY be omitted.
 
@@ -483,7 +480,7 @@ public class Registrar extends CoapServer {
 
         // store last sent RVR.
         lastRvr = req;
-        
+
         // use CMS or COSE signing of the voucher request.
         byte[] payload;
         boolean isCms =
@@ -544,7 +541,7 @@ public class Registrar extends CoapServer {
 
         // store last sent COSE-signed RVR.
         lastRvrCoseSigned = payload;
-        
+
         RestfulVoucherResponse response = null;
         if (isHttpToMasa) {
           MASAConnectorHttp masaClient = new MASAConnectorHttp(masaTrustAnchors);
@@ -754,34 +751,6 @@ public class Registrar extends CoapServer {
     }
   }
 
-  public final class CsrAttrsResource extends CoapResource {
-    public CsrAttrsResource() {
-      super(Constants.CSR_ATTRIBUTES);
-    }
-
-    @Override
-    public void handleGET(CoapExchange exchange) {
-      try {
-        RequestDumper.dump(logger, getURI(), exchange.getRequestPayload());
-
-        CsrAttrs csrAttrs = getCsrAttrs();
-
-        // No base64 encoding
-        exchange.respond(
-            ResponseCode.CONTENT,
-            csrAttrs.getEncoded(),
-            ExtendedMediaTypeRegistry.APPLICATION_CSRATTRS);
-      } catch (IOException e) {
-        logger.warn("CSR attribute request failed: " + e.getMessage());
-        exchange.respond(ResponseCode.BAD_REQUEST);
-      }
-    }
-
-    private CsrAttrs getCsrAttrs() {
-      return new CsrAttrs(csrAttributes.getAttrAndOids());
-    }
-  }
-
   public final class CrtsResource extends CoapResource {
     public CrtsResource() {
       super(Constants.CA_CERTIFICATES);
@@ -923,6 +892,7 @@ public class Registrar extends CoapServer {
 
   /**
    * get the last RVR that was sent to MASA.
+   *
    * @return last sent RVR, or null if none sent yet.
    */
   public VoucherRequest getLastRvr() {
@@ -931,12 +901,13 @@ public class Registrar extends CoapServer {
 
   /**
    * get the last COSE-signed RVR that was sent to MASA.
+   *
    * @return byte array encoding the last sent COSE-signed RVR, or null if none sent yet.
    */
   public byte[] getLastRvrCoseSigned() {
     return this.lastRvrCoseSigned;
   }
-  
+
   /**
    * get the Registrar's EE certificate
    *
@@ -963,7 +934,6 @@ public class Registrar extends CoapServer {
     VoucherRequestResource rv = new VoucherRequestResource();
     VoucherStatusResource vs = new VoucherStatusResource();
     EnrollStatusResource es = new EnrollStatusResource();
-    CsrAttrsResource att = new CsrAttrsResource();
     CrtsResource crts = new CrtsResource();
     EnrollResource enroll = new EnrollResource();
     ReenrollResource reenroll = new ReenrollResource();
@@ -972,7 +942,6 @@ public class Registrar extends CoapServer {
     // EST and BRSKI and CoRE well-known resources
     est.add(enroll);
     est.add(reenroll);
-    est.add(att);
     est.add(crts);
     brski.add(rv);
     brski.add(vs);
@@ -1027,8 +996,6 @@ public class Registrar extends CoapServer {
   // credentials used as a HTTP/CoAP client towards MASA.
   private Credentials masaClientCredentials;
 
-  private CSRAttributes csrAttributes;
-
   protected int forcedVoucherRequestFormat = -1;
 
   protected boolean isHttpToMasa = true;
@@ -1045,8 +1012,8 @@ public class Registrar extends CoapServer {
   protected Map<Principal, Voucher> voucherLog = new HashMap<Principal, Voucher>();
 
   private VoucherRequest lastRvr = null;
-  
+
   private byte[] lastRvrCoseSigned = null;
-  
+
   private static Logger logger = LoggerFactory.getLogger(Registrar.class);
 }

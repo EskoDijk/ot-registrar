@@ -67,13 +67,11 @@ import java.util.List;
 import java.util.Set;
 import javax.security.auth.x500.X500Principal;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
-import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.ASN1TaggedObject;
 import org.bouncycastle.asn1.DERIA5String;
 import org.bouncycastle.asn1.DERSequence;
 import org.bouncycastle.asn1.DLSequence;
-import org.bouncycastle.asn1.est.CsrAttrs;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -333,52 +331,6 @@ public class Pledge extends CoapClient {
 
   // EST protocol
 
-  /**
-   * Request CSR attributes before sending CSR.
-   *
-   * @throws IllegalStateException
-   * @throws PledgeException
-   */
-  public void requestCSRAttributes()
-      throws IllegalStateException, PledgeException, ConnectorException, IOException {
-    if (certState != CertState.ACCEPT) {
-      throw new IllegalStateException("should successfully get voucher first");
-    }
-
-    CoapResponse response = sendRequestCSRAttributes();
-    if (response == null) {
-      throw new PledgeException("request CSR Attributes failed: null response");
-    }
-    if (response.getCode() != ResponseCode.CONTENT) {
-      logger.warn(
-          "CSR attributes request failed: " + response.getCode().toString(), response.getCode());
-      return;
-    }
-
-    if (response.getOptions().getContentFormat()
-        != ExtendedMediaTypeRegistry.APPLICATION_CSRATTRS) {
-      logger.warn(
-          "expect CSR attributes in format[%d], but got [%d]",
-          ExtendedMediaTypeRegistry.APPLICATION_CSRATTRS, response.getOptions().getContentFormat());
-      return;
-    }
-
-    byte[] payload = response.getPayload();
-    if (payload == null) {
-      throw new PledgeException("unexpected null payload");
-    }
-
-    try {
-      // CBORObject cbor = CBORObject.DecodeFromBytes(payload);
-      csrAttrs = CsrAttrs.getInstance(ASN1Primitive.fromByteArray(payload));
-      if (csrAttrs.size() == 0) {
-        throw new PledgeException("CSR Attributes response has no entry!");
-      }
-    } catch (Exception e) {
-      logger.warn("bad CSR attributes response" + e.getMessage());
-    }
-  }
-
   // /.well-known/est/cacerts
   public void requestCACertificate() {
     // TODO(wgtdkp):
@@ -581,7 +533,7 @@ public class Pledge extends CoapClient {
     random.nextBytes(nonce);
     return nonce;
   }
-  
+
   public VoucherRequest getLastPvr() {
     return this.lastPvr;
   }
@@ -589,11 +541,11 @@ public class Pledge extends CoapClient {
   public byte[] getLastPvrCoseSigned() {
     return this.lastPvrCoseSigned;
   }
-  
+
   public byte[] getLastVoucherCoseSigned() {
     return this.lastVoucherCoseSigned;
   }
-  
+
   private void init(Credentials creds, String hostURI, boolean isLightweightClientCerts)
       throws PledgeException {
 
@@ -624,7 +576,6 @@ public class Pledge extends CoapClient {
     operationalKeyPair = null;
     operationalCertificate = null;
     certState = CertState.NO_CONTACT;
-    csrAttrs = null;
 
     X509Certificate[] clientCertChain = this.certificateChain;
     if (isLightweightClientCerts)
@@ -645,11 +596,6 @@ public class Pledge extends CoapClient {
     this.lastPvr = voucherRequest;
     this.lastPvrCoseSigned = payload;
     return post(payload, ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
-  }
-
-  private CoapResponse sendRequestCSRAttributes() throws IOException, ConnectorException {
-    setURI(getESTPath() + "/" + Constants.CSR_ATTRIBUTES);
-    return get();
   }
 
   private CoapResponse sendCSR(PKCS10CertificationRequest csr, String resource)
@@ -786,8 +732,6 @@ public class Pledge extends CoapClient {
 
   private CertState certState = CertState.NO_CONTACT;
 
-  private CsrAttrs csrAttrs;
-  
   private VoucherRequest lastPvr = null;
   private byte[] lastPvrCoseSigned = null;
   private byte[] lastVoucherCoseSigned = null;

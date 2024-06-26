@@ -83,9 +83,7 @@ public class VoucherRequest extends Voucher {
 
   @Override
   public String getName() {
-    if (isConstrained()) 
-      return VOUCHER_REQUEST_CONSTRAINED;
-    else 
-      return VOUCHER_REQUEST;
+    if (isConstrained()) return VOUCHER_REQUEST_CONSTRAINED;
+    else return VOUCHER_REQUEST;
   }
 }

@@ -65,35 +65,27 @@ public class JSONSerializer implements VoucherSerializer {
     HashMap<String, Object> container = new HashMap<String, Object>();
 
     if (voucher.assertion != null)
-      add(container, Voucher.ASSERTION, voucher.isConstrained() ? 
-          Integer.valueOf(voucher.assertion.getValue()) : voucher.assertion.toString());
+      add(
+          container,
+          Voucher.ASSERTION,
+          voucher.isConstrained()
+              ? Integer.valueOf(voucher.assertion.getValue())
+              : voucher.assertion.toString());
 
     if (voucher.createdOn != null) {
-      add(
-          container,
-          Voucher.CREATED_ON,
-          Voucher.dateToYoungFormat(voucher.createdOn));
+      add(container, Voucher.CREATED_ON, Voucher.dateToYoungFormat(voucher.createdOn));
     }
 
-    add(
-        container,
-        Voucher.DOMAIN_CERT_REVOCATION_CHECKS,
-        voucher.domainCertRevocationChecks);
+    add(container, Voucher.DOMAIN_CERT_REVOCATION_CHECKS, voucher.domainCertRevocationChecks);
 
     if (voucher.expiresOn != null) {
-      add(
-          container,
-          Voucher.EXPIRES_ON,
-          Voucher.dateToYoungFormat(voucher.expiresOn));
+      add(container, Voucher.EXPIRES_ON, Voucher.dateToYoungFormat(voucher.expiresOn));
     }
 
     add(container, Voucher.IDEVID_ISSUER, voucher.idevidIssuer);
 
     if (voucher.lastRenewalDate != null) {
-      add(
-          container,
-          Voucher.LAST_RENEWAL_DATE,
-          Voucher.dateToYoungFormat(voucher.lastRenewalDate));
+      add(container, Voucher.LAST_RENEWAL_DATE, Voucher.dateToYoungFormat(voucher.lastRenewalDate));
     }
 
     add(container, Voucher.NONCE, voucher.nonce);
@@ -102,20 +94,11 @@ public class JSONSerializer implements VoucherSerializer {
 
     add(container, Voucher.PINNED_DOMAIN_SPKI, voucher.pinnedDomainSPKI);
 
-    add(
-        container,
-        Voucher.PRIOR_SIGNED_VOUCHER_REQUEST,
-        voucher.priorSignedVoucherRequest);
+    add(container, Voucher.PRIOR_SIGNED_VOUCHER_REQUEST, voucher.priorSignedVoucherRequest);
 
-    add(
-        container,
-        Voucher.PROXIMITY_REGISTRAR_CERT,
-        voucher.proximityRegistrarCert);
+    add(container, Voucher.PROXIMITY_REGISTRAR_CERT, voucher.proximityRegistrarCert);
 
-    add(
-        container,
-        Voucher.PROXIMITY_REGISTRAR_SPKI,
-        voucher.proximityRegistrarSPKI);
+    add(container, Voucher.PROXIMITY_REGISTRAR_SPKI, voucher.proximityRegistrarSPKI);
 
     add(container, Voucher.SERIAL_NUMBER, voucher.serialNumber);
 
@@ -152,8 +135,7 @@ public class JSONSerializer implements VoucherSerializer {
           voucher.createdOn = Voucher.dateFromYoungFormat(leaf.toString());
         }
 
-        if ((leaf = get(container, Voucher.DOMAIN_CERT_REVOCATION_CHECKS))
-            != null) {
+        if ((leaf = get(container, Voucher.DOMAIN_CERT_REVOCATION_CHECKS)) != null) {
           voucher.domainCertRevocationChecks = leaf.equals(Boolean.TRUE);
         }
 
@@ -181,18 +163,15 @@ public class JSONSerializer implements VoucherSerializer {
           voucher.pinnedDomainSPKI = (byte[]) leaf;
         }
 
-        if ((leaf = getBytes(container, Voucher.PRIOR_SIGNED_VOUCHER_REQUEST))
-            != null) {
+        if ((leaf = getBytes(container, Voucher.PRIOR_SIGNED_VOUCHER_REQUEST)) != null) {
           voucher.priorSignedVoucherRequest = (byte[]) leaf;
         }
 
-        if ((leaf = getBytes(container, Voucher.PROXIMITY_REGISTRAR_CERT))
-            != null) {
+        if ((leaf = getBytes(container, Voucher.PROXIMITY_REGISTRAR_CERT)) != null) {
           voucher.proximityRegistrarCert = (byte[]) leaf;
         }
 
-        if ((leaf = getBytes(container, Voucher.PROXIMITY_REGISTRAR_SPKI))
-            != null) {
+        if ((leaf = getBytes(container, Voucher.PROXIMITY_REGISTRAR_SPKI)) != null) {
           voucher.proximityRegistrarSPKI = (byte[]) leaf;
         }
 

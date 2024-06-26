@@ -58,7 +58,7 @@ public class CBORSerializer implements VoucherSerializer {
     Object keyObj = voucher.getKey(voucher.getName());
     if (keyObj instanceof Integer) {
       parentSid = (Integer) keyObj;
-    }else {
+    } else {
       parentSid = 0;
     }
     CBORObject cbor = CBORObject.NewMap();

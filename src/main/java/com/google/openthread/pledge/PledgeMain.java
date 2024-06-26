@@ -136,7 +136,6 @@ public class PledgeMain {
     final String help =
         "token    -  request commissioning token\n"
             + "rv       -  request voucher\n"
-            + "attrs    -  request CSR attributes\n"
             + "enroll   -  simple enrollment\n"
             + "reenroll -  simple reenrollment\n"
             + "reset    -  reset to initial state\n"
@@ -157,9 +156,6 @@ public class PledgeMain {
               break;
             case "rv":
               pledge.requestVoucher();
-              break;
-            case "attrs":
-              pledge.requestCSRAttributes();
               break;
             case "enroll":
               pledge.enroll();

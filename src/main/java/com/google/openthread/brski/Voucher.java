@@ -217,10 +217,11 @@ public class Voucher {
   public static final String VOUCHER = "ietf-voucher:voucher";
 
   public static final String VOUCHER_CONSTRAINED = "ietf-voucher-constrained:voucher";
-  
+
   public static final String VOUCHER_REQUEST = "ietf-voucher-request:voucher";
 
-  public static final String VOUCHER_REQUEST_CONSTRAINED = "ietf-voucher-request-constrained:voucher";
+  public static final String VOUCHER_REQUEST_CONSTRAINED =
+      "ietf-voucher-request-constrained:voucher";
 
   public static final String ASSERTION = "assertion";
 
@@ -322,12 +323,10 @@ public class Voucher {
   }
 
   public String getName() {
-    if (isConstrained())
-      return VOUCHER_CONSTRAINED;
-    else
-      return VOUCHER;
+    if (isConstrained()) return VOUCHER_CONSTRAINED;
+    else return VOUCHER;
   }
-  
+
   public String toString() {
     JSONSerializer jsonSerializer = new JSONSerializer();
     return jsonSerializer.toJSON(this);

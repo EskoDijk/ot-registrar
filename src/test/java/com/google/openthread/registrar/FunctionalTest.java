@@ -176,22 +176,6 @@ public class FunctionalTest {
     Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
   }
 
-  /**
-   * Test BRSKI voucher request while first requesting CSR attributes. The returned attributes
-   * aren't used. Requesting this is not recommended anymore for constrained Pledges, but tested
-   * here nevertheless.
-   *
-   * @throws Exception
-   */
-  @Test
-  public void testCsrAttrsRequest() throws Exception {
-    Voucher voucher = pledge.requestVoucher();
-    pledge.requestCSRAttributes();
-    Assert.assertTrue(voucher.validate());
-    VerifyPledge(pledge);
-    Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
-  }
-
   @Test
   public void testEnroll() throws Exception {
     Voucher voucher = pledge.requestVoucher();
