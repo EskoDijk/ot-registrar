@@ -33,6 +33,7 @@ import com.google.openthread.LoggerInitializer;
 import com.google.openthread.domainca.DomainCA;
 import com.google.openthread.registrar.Registrar;
 import com.google.openthread.registrar.RegistrarBuilder;
+import com.google.openthread.registrar.RegistrarMain;
 import com.google.openthread.tools.CredentialGenerator;
 import java.security.KeyStoreException;
 import org.apache.commons.cli.CommandLine;
@@ -123,6 +124,7 @@ public final class OtRegistrarMain {
         .addOption(helpOpt);
 
     try {
+      String forcedMasaUri = null;
       CommandLineParser parser = new DefaultParser();
       CommandLine cmd = parser.parse(options, args);
 
@@ -149,10 +151,16 @@ public final class OtRegistrarMain {
       }
 
       if (cmd.hasOption('m')) {
-        // FIXME registrar.setForcedMasaUri(cmd.getOptionValue('m'));
+        forcedMasaUri = cmd.getOptionValue('m');
       }
 
       logger.info("using keystore: {}", keyStoreFile);
+
+      if (cmd.hasOption("registrar")) {
+        RegistrarMain.main(keyStoreFile, Integer.parseInt(port), domainName, forcedMasaUri);
+      }else{
+        throw new Exception("not yet impl");
+      }
 
     } catch (Exception e) {
       logger.error(e.getMessage(), e);

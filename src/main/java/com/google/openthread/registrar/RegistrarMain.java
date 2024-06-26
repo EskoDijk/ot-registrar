@@ -46,102 +46,13 @@ public final class RegistrarMain {
 
   private static Logger logger = LoggerFactory.getLogger(RegistrarMain.class);
 
-  public static void main(String args[]) {
-
-    final String HELP_FORMAT = "registrar [-h] [-v] -d <domain-name> -f <keystore-file> -p <port>";
-
-    HelpFormatter helper = new HelpFormatter();
-    Options options = new Options();
-
-    Option domainNameOpt =
-        Option.builder("d")
-            .longOpt("domainname")
-            .hasArg()
-            .argName("domain-name")
-            .desc("the domain name")
-            .build();
-
-    Option fileOpt =
-        Option.builder("f")
-            .longOpt("file")
-            .hasArg()
-            .argName("keystore-file")
-            .desc("the keystore file in PKCS#12 format")
-            .build();
-
-    Option optPort =
-        Option.builder("p")
-            .longOpt("port")
-            .hasArg()
-            .argName("port")
-            .desc("the port to listen on")
-            .build();
-
-    Option optVerbose =
-        Option.builder("v")
-            .longOpt("verbose")
-            .hasArg(false)
-            .desc("verbose mode with many logs")
-            .build();
-
-    Option optForceMasaUri =
-        Option.builder("m")
-            .longOpt("masa")
-            .hasArg(true)
-            .desc("force the given MASA URI instead of the default one")
-            .build();
-
-    Option helpOpt =
-        Option.builder("h").longOpt("help").hasArg(false).desc("print this message").build();
-
-    options
-        .addOption(domainNameOpt)
-        .addOption(fileOpt)
-        .addOption(optPort)
-        .addOption(optVerbose)
-        .addOption(optForceMasaUri)
-        .addOption(helpOpt);
-
+  public static void main(String keyStoreFile, int port, String domainName, String forcedMasaUri) {
     Registrar registrar;
 
     try {
-      CommandLineParser parser = new DefaultParser();
-      CommandLine cmd = parser.parse(options, args);
-
-      LoggerInitializer.Init(cmd.hasOption('v'));
-
-      if (cmd.hasOption('h')) {
-        helper.printHelp(HELP_FORMAT, options);
-        return;
-      }
-
-      String keyStoreFile = cmd.getOptionValue('f');
-      if (keyStoreFile == null) {
-        throw new IllegalArgumentException("need keystore file!");
-      }
-
-      String port = cmd.getOptionValue('p');
-      if (port == null) {
-        throw new IllegalArgumentException("need port!");
-      }
-
-      String domainName = cmd.getOptionValue('d');
-      if (domainName == null) {
-        throw new IllegalArgumentException("need domain name!");
-      }
-
-      logger.info("using keystore: " + keyStoreFile);
-
       RegistrarBuilder builder = new RegistrarBuilder();
-      Credentials cred =
-          new Credentials(
-              keyStoreFile, CredentialGenerator.REGISTRAR_ALIAS, CredentialGenerator.PASSWORD);
-      Credentials domainCred =
-          new Credentials(
-              keyStoreFile, CredentialGenerator.DOMAINCA_ALIAS, CredentialGenerator.PASSWORD);
-      // Credentials masaCred =
-      //    new Credentials(
-      //        keyStoreFile, CredentialGenerator.MASA_ALIAS, CredentialGenerator.PASSWORD);
+      Credentials cred = new Credentials(keyStoreFile, CredentialGenerator.REGISTRAR_ALIAS, CredentialGenerator.PASSWORD);
+      Credentials domainCred = new Credentials(keyStoreFile, CredentialGenerator.DOMAINCA_ALIAS, CredentialGenerator.PASSWORD);
 
       if (cred.getPrivateKey() == null || cred.getCertificateChain() == null) {
         throw new KeyStoreException("can't find registrar key or certificate in keystore");
@@ -153,7 +64,7 @@ public final class RegistrarMain {
 
       // re-use the same creds for Pledge-facing identity and MASA-facing identity.
       builder.setCredentials(cred);
-      builder.setPort(Integer.parseInt(port));
+      builder.setPort(port);
 
       // if (true) {
       // trust all MASAs by default
@@ -166,19 +77,18 @@ public final class RegistrarMain {
 
       registrar = builder.build();
 
-      if (cmd.hasOption('m')) {
-        registrar.setForcedMasaUri(cmd.getOptionValue('m'));
+      if (forcedMasaUri != null) {
+        registrar.setForcedMasaUri(forcedMasaUri);
       }
 
       DomainCA ca = new DomainCA(domainName, domainCred);
       registrar.setDomainCA(ca);
     } catch (Exception e) {
       logger.error(e.getMessage(), e);
-      helper.printHelp(HELP_FORMAT, options);
       return;
     }
 
     registrar.start();
-    logger.info("Registrar listening at port: " + registrar.getListenPort());
+    logger.info("Registrar listening at port: {}", registrar.getListenPort());
   }
 }
