@@ -30,7 +30,7 @@ All setup commands assume you are starting in the project's root directory.
 
 ## Run services
 
-The OT Registrar JAR file includes the [Registrar](https://tools.ietf.org/id/draft-ietf-anima-bootstrapping-keyinfra-16.html#rfc.section.1.2), [MASA](https://tools.ietf.org/id/draft-ietf-anima-bootstrapping-keyinfra-16.html#rfc.section.1.2) server, and a simulated [Pledge](https://tools.ietf.org/id/draft-ietf-anima-bootstrapping-keyinfra-16.html#rfc.section.1.2).
+The OT Registrar JAR file includes the Registrar, TBD [MASA](https://tools.ietf.org/id/draft-ietf-anima-bootstrapping-keyinfra-16.html#rfc.section.1.2) server, and a simulated [Pledge](https://tools.ietf.org/id/draft-ietf-anima-bootstrapping-keyinfra-16.html#rfc.section.1.2).
 
 ### Credentials
 

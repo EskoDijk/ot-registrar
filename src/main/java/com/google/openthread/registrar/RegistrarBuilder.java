@@ -48,12 +48,10 @@ public class RegistrarBuilder {
   }
 
   /**
-   * Supply the credentials to be used for Registrar in its role as MASA-client. By default, no
-   * separate credentials are used and rather the 'setCredentials()' credentials are used for
-   * authentication to MASA server as a client.
+   * Supply the credentials to be used for Registrar in its role as MASA-client. By default, no separate credentials are used and rather the 'setCredentials()' credentials are used for authentication
+   * to MASA server as a client.
    *
-   * @param cred Credentials to use in client role towards MASA server, or null to re-use the
-   *     'setCredentials()' credentials for this.
+   * @param cred Credentials to use in client role towards MASA server, or null to re-use the 'setCredentials()' credentials for this.
    * @return
    * @throws GeneralSecurityException
    */
@@ -113,8 +111,7 @@ public class RegistrarBuilder {
   }
 
   /**
-   * Add a MASA certificate of a trusted MASA server. Only needed if 'setTrustAllMasas(true)' is not
-   * enabled.
+   * Add a MASA certificate of a trusted MASA server. Only needed if 'setTrustAllMasas(true)' is not enabled.
    *
    * @param masaCertificate
    * @return
@@ -125,8 +122,7 @@ public class RegistrarBuilder {
   }
 
   /**
-   * Sets whether to trust ALL MASAs (true) or only MASAs for which certificates were added (false).
-   * By default, this is 'false'.
+   * Sets whether to trust ALL MASAs (true) or only MASAs for which certificates were added (false). By default, this is 'false'.
    *
    * @param status
    */
@@ -141,8 +137,7 @@ public class RegistrarBuilder {
   }
 
   /**
-   * Sets whether HTTPS is used to communicate with the MASA. This is usually the case (true). Only
-   * for testing situations HTTPS is set to 'false', in which case CoAP will be used.
+   * Sets whether HTTPS is used to communicate with the MASA. This is usually the case (true). Only for testing situations HTTPS is set to 'false', in which case CoAP will be used.
    *
    * @param isHttp true if HTTPS is to be used, false if COAPS is to be used.
    * @return
@@ -153,8 +148,7 @@ public class RegistrarBuilder {
   }
 
   /**
-   * return the number of supported/trusted MASA servers. Use addMasaCertificate() to add more
-   * trusted MASA servers.
+   * return the number of supported/trusted MASA servers. Use addMasaCertificate() to add more trusted MASA servers.
    *
    * @return the number of MASA certificates that are considered trusted.
    */

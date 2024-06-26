@@ -51,8 +51,7 @@ import org.slf4j.LoggerFactory;
 
 public class FunctionalTest {
 
-  public static final String REGISTRAR_URI =
-      "coaps://[::1]:" + Constants.DEFAULT_REGISTRAR_COAPS_PORT;
+  public static final String REGISTRAR_URI = "coaps://[::1]:" + Constants.DEFAULT_REGISTRAR_COAPS_PORT;
 
   public static final String DEFAULT_DOMAIN_NAME = "Thread-Test";
 
@@ -67,7 +66,8 @@ public class FunctionalTest {
 
   private static Logger logger = LoggerFactory.getLogger(FunctionalTest.class);
 
-  @Rule public ExpectedException thrown = ExpectedException.none();
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
   @BeforeClass
   public static void setup() throws Exception {
@@ -77,7 +77,8 @@ public class FunctionalTest {
   }
 
   @AfterClass
-  public static void tearDown() {}
+  public static void tearDown() {
+  }
 
   @Before
   public void init() throws Exception {
@@ -233,8 +234,7 @@ public class FunctionalTest {
   }
 
   /**
-   * Test various status telemetry messages, stand-alone (not associated to enrollment/voucher
-   * request). Current Registrar is implemented to just accept/log these.
+   * Test various status telemetry messages, stand-alone (not associated to enrollment/voucher request). Current Registrar is implemented to just accept/log these.
    *
    * @throws Exception
    */
@@ -242,17 +242,14 @@ public class FunctionalTest {
   public void testStatusTelemetry() throws Exception {
     Assert.assertEquals(
         ResponseCode.CHANGED,
-        pledge.sendEnrollStatusTelemetry(
-            true,
-            "this message should not be here, but may be accepted by Registrar nevertheless."));
+        pledge.sendEnrollStatusTelemetry(true, "this message should not be here, but may be accepted by Registrar nevertheless."));
     Assert.assertEquals(
         ResponseCode.CHANGED,
         pledge.sendVoucherStatusTelemetry(
             true,
             "this message should not be here, but may be accepted by Registrar nevertheless."));
-    byte[] wrongFormatTelemetry =
-        Hex.decode(
-            "a46776657273696f6e6131665374617475730166526561736f6e7822496e666f726d61746976652068756d616e207265616461626c65206d6573736167656e726561736f6e2d636f6e74657874764164646974696f6e616c20696e666f726d6174696f6e");
+    byte[] wrongFormatTelemetry = Hex.decode(
+        "a46776657273696f6e6131665374617475730166526561736f6e7822496e666f726d61746976652068756d616e207265616461626c65206d6573736167656e726561736f6e2d636f6e74657874764164646974696f6e616c20696e666f726d6174696f6e");
     Assert.assertEquals(
         ResponseCode.BAD_REQUEST,
         pledge.sendStatusTelemetry(
@@ -271,9 +268,7 @@ public class FunctionalTest {
             Constants.VOUCHER_STATUS,
             wrongFormatTelemetry,
             ExtendedMediaTypeRegistry.APPLICATION_COSE_SIGN1));
-    wrongFormatTelemetry =
-        Hex.decode(
-            "a36776657273696f6e0166737461747573f467726561736f6e787174686973206b65792069732077726f6e67");
+    wrongFormatTelemetry = Hex.decode("a36776657273696f6e0166737461747573f467726561736f6e787174686973206b65792069732077726f6e67");
     Assert.assertEquals(
         ResponseCode.BAD_REQUEST,
         pledge.sendStatusTelemetry(
@@ -337,8 +332,7 @@ public class FunctionalTest {
   }
 
   /**
-   * In a thread, create a new Pledge and let it do voucher request and enrollment operations. Any
-   * error state is logged internally.
+   * In a thread, create a new Pledge and let it do voucher request and enrollment operations. Any error state is logged internally.
    */
   private class PledgeThread extends Thread {
 
@@ -365,7 +359,9 @@ public class FunctionalTest {
       } catch (Throwable e) {
         errorState = e;
       } finally {
-        if (pledge != null) pledge.shutdown();
+        if (pledge != null) {
+          pledge.shutdown();
+        }
       }
     }
   }
@@ -384,7 +380,7 @@ public class FunctionalTest {
     registrar =
         registrarBuilder
             .setCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
-            .setCertificateChain(new X509Certificate[] {cert, domainCaCert})
+            .setCertificateChain(new X509Certificate[]{cert, domainCaCert})
             .setTrustAllMasas(true)
             .build();
     registrar.setDomainCA(domainCA);
@@ -395,7 +391,8 @@ public class FunctionalTest {
     try {
       response = pledge.sayHello();
       Assert.fail("Pledge mistakenly accepted Registrar without cmcRA");
-    } catch (IOException ex) {;
+    } catch (IOException ex) {
+      ;
     }
 
     // try again without checking strictly for cmcRA
@@ -423,11 +420,9 @@ public class FunctionalTest {
 
     // create new Registrar that uses only CMS-signed JSON voucher requests towards MASA
     RegistrarBuilder registrarBuilder = new RegistrarBuilder();
-    registrar =
-        registrarBuilder
-            .setCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
-            .setTrustAllMasas(true)
-            .build();
+    registrar = registrarBuilder.setCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
+        .setTrustAllMasas(true)
+        .build();
     registrar.setDomainCA(domainCA);
     registrar.setForcedRequestFormat(Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON);
     registrar.start();

@@ -112,14 +112,11 @@ public class Registrar extends CoapServer {
   /**
    * Constructing registrar with specified settings, credentials and listening port.
    *
-   * @param creds the credentials used to serve the DTLS connection from Pledge. Includes
-   *              the certificate chain leading up to domain CA and including domain CA
-   *              certificate.
-   * @param masaTrustAnchors pre-installed MASA trust anchors that are trusted only when given. If
-   *     null, ALL MASAs will be trusted (for interop testing).
-   * @param masaClientCreds credentials to use towards MASA client in Credentials format
-   * @param port the CoAP port to listen on
-   * @param isHttpToMasa whether to use HTTP requests to MASA (true, default) or CoAP (false)
+   * @param creds            the credentials used to serve the DTLS connection from Pledge. Includes the certificate chain leading up to domain CA and including domain CA certificate.
+   * @param masaTrustAnchors pre-installed MASA trust anchors that are trusted only when given. If null, ALL MASAs will be trusted (for interop testing).
+   * @param masaClientCreds  credentials to use towards MASA client in Credentials format
+   * @param port             the CoAP port to listen on
+   * @param isHttpToMasa     whether to use HTTP requests to MASA (true, default) or CoAP (false)
    * @throws RegistrarException
    */
   Registrar(
@@ -170,11 +167,9 @@ public class Registrar extends CoapServer {
   }
 
   /**
-   * By default the Registrar mimics the Pledge's Voucher Request format, when requesting to MASA.
-   * This method changes that to force the Registrar to use one format only.
+   * By default the Registrar mimics the Pledge's Voucher Request format, when requesting to MASA. This method changes that to force the Registrar to use one format only.
    *
-   * @param mediaType one of Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON or
-   *     Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR, or "" to force nothing.
+   * @param mediaType one of Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON or Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR, or "" to force nothing.
    * @return
    */
   public void setForcedRequestFormat(String mediaType) {
@@ -194,17 +189,18 @@ public class Registrar extends CoapServer {
   }
 
   /**
-   * Override the MASA URI encoded in a Pledge's IDevID certificate, by setting a forced MASA-URI
-   * that is always applied. Used typically for testing, or a deployment-specific override of the
-   * MASA-URI. By default, no particular URI is forced but rather the MASA URI is taken from the
-   * Pledge IDevID certificate.
+   * Override the MASA URI encoded in a Pledge's IDevID certificate, by setting a forced MASA-URI that is always applied. Used typically for testing, or a deployment-specific override of the MASA-URI.
+   * By default, no particular URI is forced but rather the MASA URI is taken from the Pledge IDevID certificate.
    *
    * @param uri new MASA URI to always use, or "" to not force any MASA URI.
    * @return
    */
   public void setForcedMasaUri(String uri) {
-    if (uri.length() == 0) this.setForcedMasaUri = null;
-    else this.setForcedMasaUri = uri;
+    if (uri.length() == 0) {
+      this.setForcedMasaUri = null;
+    } else {
+      this.setForcedMasaUri = uri;
+    }
   }
 
   public int getListenPort() {
@@ -407,9 +403,11 @@ public class Registrar extends CoapServer {
         boolean isJsonRVR =
             (forcedVoucherRequestFormat == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON
                 || forcedVoucherRequestFormat
-                    == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_JSON);
+                == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_JSON);
         VoucherRequest req = new VoucherRequest();
-        if (!isJsonRVR) req.setConstrained(true);
+        if (!isJsonRVR) {
+          req.setConstrained(true);
+        }
         req.assertion = pledgeReq.assertion; // assertion copied from PVR
         // Note, section 5.5: assertion MAY be omitted.
 
@@ -475,8 +473,11 @@ public class Registrar extends CoapServer {
         byte[] content = null;
 
         // Uses CBOR or JSON voucher request format.
-        if (isJsonRVR) content = new JSONSerializer().serialize(req);
-        else content = new CBORSerializer().serialize(req);
+        if (isJsonRVR) {
+          content = new JSONSerializer().serialize(req);
+        } else {
+          content = new CBORSerializer().serialize(req);
+        }
 
         // store last sent RVR.
         lastRvr = req;
@@ -486,17 +487,15 @@ public class Registrar extends CoapServer {
         boolean isCms =
             (forcedVoucherRequestFormat == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_CBOR
                 || forcedVoucherRequestFormat
-                    == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON);
+                == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON);
         if (isCms) {
           // CMS signing.
-          requestMediaType =
-              isJsonRVR
-                  ? Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON
-                  : Constants.HTTP_APPLICATION_VOUCHER_CMS_CBOR;
-          requestContentFormat =
-              isJsonRVR
-                  ? ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON
-                  : ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_CBOR;
+          requestMediaType = isJsonRVR
+              ? Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON
+              : Constants.HTTP_APPLICATION_VOUCHER_CMS_CBOR;
+          requestContentFormat = isJsonRVR
+              ? ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON
+              : ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_CBOR;
           try {
             payload =
                 SecurityUtils.genCMSSignedMessage(
@@ -604,7 +603,9 @@ public class Registrar extends CoapServer {
     }
   }
 
-  /** CoAP-based MASA connector, acts as client towards MASA. */
+  /**
+   * CoAP-based MASA connector, acts as client towards MASA.
+   */
   public final class MASAConnector extends CoapClient {
 
     MASAConnector(X509Certificate[] trustAnchors) {
@@ -612,12 +613,11 @@ public class Registrar extends CoapServer {
     }
 
     /**
-     * Send new Voucher Request to MASA. Note that the present format used is not standardized, but
-     * custom to OT-Registrar and OT-Masa.
+     * Send new Voucher Request to MASA. Note that the present format used is not standardized, but custom to OT-Registrar and OT-Masa.
      *
      * @param requestContentFormat the CoAP content-format of the request
-     * @param payload the Voucher Request in cbor format
-     * @param masaURI the MASA URI (without URI path, without coaps:// scheme) to send it to
+     * @param payload              the Voucher Request in cbor format
+     * @param masaURI              the MASA URI (without URI path, without coaps:// scheme) to send it to
      * @return null if a timeout error happens
      */
     public RestfulVoucherResponse requestVoucher(
@@ -630,7 +630,9 @@ public class Registrar extends CoapServer {
               payload,
               requestContentFormat,
               ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
-      if (resp == null) return null;
+      if (resp == null) {
+        return null;
+      }
       return new RestfulVoucherResponse(
           resp.getCode(), resp.getPayload(), resp.getOptions().getContentFormat());
     }
@@ -643,7 +645,9 @@ public class Registrar extends CoapServer {
     }
   }
 
-  /** HTTPS-based MASA connector, acts as client towards MASA. */
+  /**
+   * HTTPS-based MASA connector, acts as client towards MASA.
+   */
   public final class MASAConnectorHttp {
 
     protected SSLContext sc;
@@ -656,8 +660,8 @@ public class Registrar extends CoapServer {
      * Send new Voucher Request to MASA.
      *
      * @param requestMediaType the media type string of the body
-     * @param body the Voucher Request in bytes
-     * @param masaURI the MASA URI (without URI path, without https:// scheme) to send it to
+     * @param body             the Voucher Request in bytes
+     * @param masaURI          the MASA URI (without URI path, without https:// scheme) to send it to
      * @return null if any error happens
      */
     public RestfulVoucherResponse requestVoucher(
@@ -698,11 +702,12 @@ public class Registrar extends CoapServer {
       KeyManagerFactory kmf =
           KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
       kmf.init(masaClientCredentials.getKeyStore(), CredentialGenerator.PASSWORD.toCharArray());
-      sc.init(kmf.getKeyManagers(), new TrustManager[] {new DummyTrustManager()}, null);
+      sc.init(kmf.getKeyManagers(), new TrustManager[]{new DummyTrustManager()}, null);
     }
   }
 
   public class EnrollResource extends CoapResource {
+
     public EnrollResource() {
       this(Constants.SIMPLE_ENROLL);
     }
@@ -746,12 +751,14 @@ public class Registrar extends CoapServer {
   }
 
   public final class ReenrollResource extends EnrollResource {
+
     public ReenrollResource() {
       super(Constants.SIMPLE_REENROLL);
     }
   }
 
   public final class CrtsResource extends CoapResource {
+
     public CrtsResource() {
       super(Constants.CA_CERTIFICATES);
     }
@@ -773,6 +780,7 @@ public class Registrar extends CoapServer {
   }
 
   public final class WellknownCoreResource extends CoapResource {
+
     public WellknownCoreResource() {
       super(Constants.CORE);
     }
@@ -796,19 +804,20 @@ public class Registrar extends CoapServer {
     l.addAll(voucherLog.keySet());
     l.addAll(voucherStatusLog.keySet());
     l.addAll(enrollStatusLog.keySet());
-    return l.toArray(new Principal[] {});
+    return l.toArray(new Principal[]{});
   }
 
   /**
    * get the last voucher-status telemetry that was sent by a specific client.
    *
    * @param client the secure client identifier
-   * @returns If available, the last voucher-status telemetry. If client did not send any
-   *     voucher-status telemetry, it returns null. If client did send voucher-status telemetry, but
-   *     in an unrecognized format, it returns StatusTelemetry.UNDEFINED.
+   * @returns If available, the last voucher-status telemetry. If client did not send any voucher-status telemetry, it returns null. If client did send voucher-status telemetry, but in an unrecognized
+   * format, it returns StatusTelemetry.UNDEFINED.
    */
   public StatusTelemetry getVoucherStatusLogEntry(Principal client) {
-    if (voucherStatusLog.containsKey(client)) return voucherStatusLog.get(client);
+    if (voucherStatusLog.containsKey(client)) {
+      return voucherStatusLog.get(client);
+    }
     return null;
   }
 
@@ -816,12 +825,13 @@ public class Registrar extends CoapServer {
    * get the last enroll-status telemetry that was sent by a specific client.
    *
    * @param client the secure client identifier
-   * @returns If available, the last enroll-status telemetry. If client did not send any
-   *     enroll-status telemetry, it returns null. If client did send enroll-status telemetry, but
-   *     in an unrecognized format, it returns StatusTelemetry.UNDEFINED.
+   * @returns If available, the last enroll-status telemetry. If client did not send any enroll-status telemetry, it returns null. If client did send enroll-status telemetry, but in an unrecognized
+   * format, it returns StatusTelemetry.UNDEFINED.
    */
   public StatusTelemetry getEnrollStatusLogEntry(Principal client) {
-    if (enrollStatusLog.containsKey(client)) return enrollStatusLog.get(client);
+    if (enrollStatusLog.containsKey(client)) {
+      return enrollStatusLog.get(client);
+    }
     return null;
   }
 
@@ -901,13 +911,14 @@ public class Registrar extends CoapServer {
     trustAnchors.add(getDomainCertificate());
 
     CertificateVerifier verifier;
-    if (this.masaTrustAnchors.length == 0)
+    if (this.masaTrustAnchors.length == 0) {
       verifier = new RegistrarCertificateVerifier(null); // trust all clients.
-    else
+    } else {
       verifier =
           new RegistrarCertificateVerifier(
               trustAnchors.toArray(
                   new X509Certificate[trustAnchors.size()])); // trust only given MASA CAs.
+    }
 
     CoapEndpoint endpoint =
         SecurityUtils.genCoapServerEndPoint(
