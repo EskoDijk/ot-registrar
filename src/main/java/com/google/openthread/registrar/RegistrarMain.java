@@ -31,6 +31,7 @@ package com.google.openthread.registrar;
 import com.google.openthread.Credentials;
 import com.google.openthread.LoggerInitializer;
 import com.google.openthread.domainca.DomainCA;
+import com.google.openthread.main.OtRegistrarConfig;
 import com.google.openthread.tools.CredentialGenerator;
 import java.security.KeyStoreException;
 import org.apache.commons.cli.CommandLine;
@@ -44,15 +45,15 @@ import org.slf4j.LoggerFactory;
 
 public final class RegistrarMain {
 
-  private static Logger logger = LoggerFactory.getLogger(RegistrarMain.class);
+  private static final Logger logger = LoggerFactory.getLogger(RegistrarMain.class);
 
-  public static void main(String keyStoreFile, int port, String domainName, String forcedMasaUri) {
+  public static void main(OtRegistrarConfig config) {
     Registrar registrar;
 
     try {
       RegistrarBuilder builder = new RegistrarBuilder();
-      Credentials cred = new Credentials(keyStoreFile, CredentialGenerator.REGISTRAR_ALIAS, CredentialGenerator.PASSWORD);
-      Credentials domainCred = new Credentials(keyStoreFile, CredentialGenerator.DOMAINCA_ALIAS, CredentialGenerator.PASSWORD);
+      Credentials cred = new Credentials(config.keyStoreFile, CredentialGenerator.REGISTRAR_ALIAS, CredentialGenerator.PASSWORD);
+      Credentials domainCred = new Credentials(config.keyStoreFile, CredentialGenerator.DOMAINCA_ALIAS, CredentialGenerator.PASSWORD);
 
       if (cred.getPrivateKey() == null || cred.getCertificateChain() == null) {
         throw new KeyStoreException("can't find registrar key or certificate in keystore");
@@ -64,7 +65,7 @@ public final class RegistrarMain {
 
       // re-use the same creds for Pledge-facing identity and MASA-facing identity.
       builder.setCredentials(cred);
-      builder.setPort(port);
+      builder.setPort(config.serverPortCoaps);
 
       // if (true) {
       // trust all MASAs by default
@@ -77,11 +78,11 @@ public final class RegistrarMain {
 
       registrar = builder.build();
 
-      if (forcedMasaUri != null) {
-        registrar.setForcedMasaUri(forcedMasaUri);
+      if (config.masaUri != null) {
+        registrar.setForcedMasaUri(config.masaUri);
       }
 
-      DomainCA ca = new DomainCA(domainName, domainCred);
+      DomainCA ca = new DomainCA(config.domainName, domainCred);
       registrar.setDomainCA(ca);
     } catch (Exception e) {
       logger.error(e.getMessage(), e);

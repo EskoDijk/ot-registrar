@@ -29,105 +29,53 @@
 package com.google.openthread.pledge;
 
 import com.google.openthread.Credentials;
+import com.google.openthread.main.OtRegistrarConfig;
 import com.google.openthread.tools.CredentialGenerator;
 import java.security.KeyStoreException;
 import java.util.Scanner;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PledgeMain {
 
-  private PledgeMain() {}
+  private PledgeMain() {
+  }
 
-  public static void main(String args[]) {
-    final String HELP_FORMAT = "pledge [-h] -f <keystore-file> -r <registrar-uri>";
+  private static final Logger logger = LoggerFactory.getLogger(PledgeMain.class);
 
-    HelpFormatter helper = new HelpFormatter();
-    Options options = new Options();
-
-    Option fileOpt =
-        Option.builder("f")
-            .longOpt("file")
-            .hasArg()
-            .argName("keystore-file")
-            .desc("the keystore file in PKCS#12 format")
-            .build();
-
-    Option optRegistrar =
-        Option.builder("r")
-            .longOpt("registrar")
-            .hasArg()
-            .argName("registrar-uri")
-            .desc("the registrar connecting to")
-            .build();
-
-    Option helpOpt =
-        Option.builder("h").longOpt("help").hasArg(false).desc("print this message").build();
-
-    options.addOption(fileOpt).addOption(optRegistrar).addOption(helpOpt);
-
+  public static void main(OtRegistrarConfig config) {
     try {
-      CommandLineParser parser = new DefaultParser();
-      CommandLine cmd = parser.parse(options, args);
-
-      if (cmd.hasOption('h')) {
-        helper.printHelp(HELP_FORMAT, options);
-        return;
-      }
-
-      String keyStoreFile = cmd.getOptionValue('f');
-      if (keyStoreFile == null) {
-        throw new IllegalArgumentException("need keystore file!");
-      }
-
-      String registrarUri = cmd.getOptionValue('r');
-      if (registrarUri == null) {
-        throw new IllegalArgumentException("need to specify registrar!");
-      }
-
-      System.out.println("using keystore: " + keyStoreFile);
-
       String password = CredentialGenerator.PASSWORD;
-      Credentials cred = new Credentials(keyStoreFile, CredentialGenerator.PLEDGE_ALIAS, password);
+      Credentials cred = new Credentials(config.keyStoreFile, CredentialGenerator.PLEDGE_ALIAS, password);
 
       if (cred == null || cred.getPrivateKey() == null || cred.getCertificateChain() == null) {
-        throw new KeyStoreException(
-            String.format(
-                "can't find pledge key or certificate: %s", CredentialGenerator.PLEDGE_ALIAS));
+        throw new KeyStoreException(String.format("can't find pledge key or certificate: %s", CredentialGenerator.PLEDGE_ALIAS));
       }
-      Pledge pledge = new Pledge(cred, registrarUri);
-
+      Pledge pledge = new Pledge(cred, config.registrarUri);
       run(pledge);
-
       pledge.shutdown();
-    } catch (IllegalArgumentException e) {
-      System.err.println("error: " + e.getMessage());
-      helper.printHelp(HELP_FORMAT, options);
     } catch (Exception e) {
-      System.err.println("error: " + e.getMessage());
+      logger.error("error: {}", e.getMessage(), e);
       return;
     }
   }
 
   private static void run(Pledge pledge) {
-    final String DOMAIN_NAME = "TestDomainTCE";
     final String help =
-               "rv       -  request voucher\n"
-            + "enroll   -  simple enrollment\n"
-            + "reenroll -  simple reenrollment\n"
-            + "reset    -  reset to initial state\n"
+        "rv       -  request voucher to Registrar (cBRSKI)\n"
+            + "enroll   -  simple enrollment with Registrar (EST)\n"
+            + "reenroll -  simple reenrollment with Registrar (EST)\n"
+            + "reset    -  reset Pledge to initial state\n"
             + "exit     -  exit pledge CLI\n"
             + "help     -  print this help message\n";
+    System.out.println("Pledge CLI commands:\n" + help);
 
     try (Scanner scanner = new Scanner(System.in)) {
       while (true) {
         try {
           System.out.print("> ");
-          switch (scanner.nextLine().trim()) {
+          String cmd = scanner.nextLine().trim();
+          switch (cmd) {
             case "rv":
               pledge.requestVoucher();
               break;
@@ -146,12 +94,13 @@ public class PledgeMain {
               System.out.println(help);
               break;
             default:
+              logger.error("unknown CLI command: {}", cmd);
               System.out.println(help);
           }
 
-          System.out.println("done");
+          System.out.println("Done");
         } catch (Exception e) {
-          e.printStackTrace();
+          logger.error("error: {}", e.getMessage(), e);
         }
       }
     }

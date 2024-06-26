@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2019, The OpenThread Registrar Authors.
+ *    Copyright (c) 2024, The OpenThread Registrar Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
@@ -26,25 +26,38 @@
  *    POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.google.openthread;
+package com.google.openthread.main;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
-import org.apache.logging.log4j.core.config.Configurator;
-import org.slf4j.LoggerFactory;
+public class OtRegistrarConfig {
 
-public class LoggerInitializer {
+  public Role role;
+  public int serverPortCoaps;
+  public String domainName;
+  public String keyStoreFile;
+  public String masaUri;
+  public String registrarUri;
+  public boolean logVerbose;
 
-  private static final String OPENTHREAD = "com.google.openthread";
-  private static final String CALIFORNIUM = "org.eclipse.californium";
+  static OtRegistrarConfig Default() {
+    OtRegistrarConfig config = new OtRegistrarConfig();
+    config.role = Role.None;
+    config.serverPortCoaps = 5684;
+    config.domainName = "DefaultDomain";
+    config.keyStoreFile = "./credentials/default.p12";
+    config.masaUri = null;
+    config.registrarUri = "localhost:5684";
+    config.logVerbose = false;
+    return config;
+  }
 
-  public static void Init(boolean verbose) {
-    if (verbose) {
-      ((Logger) LoggerFactory.getLogger(CALIFORNIUM)).setLevel(Level.DEBUG);
-      Configurator.setLevel(OPENTHREAD, org.apache.logging.log4j.Level.DEBUG);
-    } else {
-      ((Logger) LoggerFactory.getLogger(CALIFORNIUM)).setLevel(Level.WARN);
-      Configurator.setLevel(OPENTHREAD, org.apache.logging.log4j.Level.INFO);
-    }
+  public String ToString() {
+    return
+        "Role                : " + role.toString() + "\n" +
+        "Server port (CoapS) : " + this.serverPortCoaps + "\n" +
+        "Domain Name         : " + this.domainName + "\n" +
+        "Keystore file       : " + this.keyStoreFile + "\n" +
+        "MASA URI            : " + (this.masaUri == null ? "(read from IDevID cert)" : this.masaUri + " (forced)") + "\n" +
+        "Registrar URI       : " + this.registrarUri + "\n" +
+        "Log verbose         : " + (this.logVerbose ? "yes" : "no" ) + "\n";
   }
 }

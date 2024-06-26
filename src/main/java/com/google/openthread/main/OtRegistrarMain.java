@@ -28,14 +28,9 @@
 
 package com.google.openthread.main;
 
-import com.google.openthread.Credentials;
 import com.google.openthread.LoggerInitializer;
-import com.google.openthread.domainca.DomainCA;
-import com.google.openthread.registrar.Registrar;
-import com.google.openthread.registrar.RegistrarBuilder;
 import com.google.openthread.registrar.RegistrarMain;
-import com.google.openthread.tools.CredentialGenerator;
-import java.security.KeyStoreException;
+import com.google.openthread.pledge.PledgeMain;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -45,6 +40,9 @@ import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Main entry point of the OT Registrar JAR. Based on arguments, it will decide what entity to start: a Registrar, a MASA or a Pledge.
+ */
 public final class OtRegistrarMain {
 
   private static Logger logger = LoggerFactory.getLogger(OtRegistrarMain.class);
@@ -109,6 +107,14 @@ public final class OtRegistrarMain {
             .desc("force the given MASA URI instead of the default one")
             .build();
 
+    Option optRegistrarUri =
+        Option.builder("r")
+            .longOpt("registrar")
+            .hasArg()
+            .argName("registrar-uri")
+            .desc("for a Pledge, the Registrar to connect to")
+            .build();
+
     Option helpOpt =
         Option.builder("h").longOpt("help").hasArg(false).desc("print this message").build();
 
@@ -121,45 +127,45 @@ public final class OtRegistrarMain {
         .addOption(optPort)
         .addOption(optVerbose)
         .addOption(optForceMasaUri)
+        .addOption(optRegistrarUri)
         .addOption(helpOpt);
 
+    OtRegistrarConfig config = OtRegistrarConfig.Default();
+
     try {
-      String forcedMasaUri = null;
       CommandLineParser parser = new DefaultParser();
       CommandLine cmd = parser.parse(options, args);
-
-      LoggerInitializer.Init(cmd.hasOption('v'));
 
       if (cmd.hasOption('h')) {
         helper.printHelp(HELP_FORMAT, options);
         return;
       }
 
-      String keyStoreFile = cmd.getOptionValue('f');
-      if (keyStoreFile == null) {
-        keyStoreFile = "credentials/default.p12";
-      }
+      config.logVerbose = cmd.hasOption("v");
+      LoggerInitializer.Init(config.logVerbose);
 
-      String port = cmd.getOptionValue('p');
-      if (port == null) {
-        port = "5683";
+      if (cmd.hasOption('f')) {
+        config.keyStoreFile = cmd.getOptionValue('f');
       }
-
-      String domainName = cmd.getOptionValue('d');
-      if (domainName == null) {
-        domainName = "DefaultDomain";
+      if (cmd.hasOption('p')) {
+        config.serverPortCoaps = Integer.parseInt(cmd.getOptionValue('p'));
       }
-
+      if (cmd.hasOption('d')) {
+        config.domainName = cmd.getOptionValue('d');
+      }
       if (cmd.hasOption('m')) {
-        forcedMasaUri = cmd.getOptionValue('m');
+        config.masaUri = cmd.getOptionValue('m');
       }
-
-      logger.info("using keystore: {}", keyStoreFile);
 
       if (cmd.hasOption("registrar")) {
-        RegistrarMain.main(keyStoreFile, Integer.parseInt(port), domainName, forcedMasaUri);
-      }else{
-        throw new Exception("not yet impl");
+        config.role = Role.Registrar;
+      } else if (cmd.hasOption("masa")) {
+        config.role = Role.Masa;
+      } else if (cmd.hasOption("pledge")) {
+        config.role = Role.Pledge;
+      } else {
+        helper.printHelp(HELP_FORMAT, options);
+        return;
       }
 
     } catch (Exception e) {
@@ -168,5 +174,19 @@ public final class OtRegistrarMain {
       return;
     }
 
+    logger.info("Configuration:\n{}", config.ToString());
+
+    switch (config.role) {
+      case Registrar:
+        RegistrarMain.main(config);
+        break;
+      case Masa:
+        break;
+      case Pledge:
+        PledgeMain.main(config);
+        break;
+      case None:
+        break;
+    }
   }
 }
