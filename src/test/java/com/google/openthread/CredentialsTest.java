@@ -28,6 +28,8 @@
 
 package com.google.openthread;
 
+import com.google.openthread.brski.ConstantsBrski;
+import com.google.openthread.brski.HardwareModuleName;
 import com.google.openthread.tools.CredentialGenerator;
 import java.io.File;
 import java.io.Reader;
@@ -41,7 +43,6 @@ import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -67,7 +68,8 @@ public class CredentialsTest {
   public static final String KEY_STORE_FILE = "test-credentials.temp.p12";
   private static String pledgeSn;
 
-  @Rule public ExpectedException thrown = ExpectedException.none();
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
   @BeforeClass
   public static void createCredentialFile() throws Exception {
@@ -87,61 +89,43 @@ public class CredentialsTest {
   public void testASN1() throws Exception {
     byte[] hardwareModuleName = "OT-9527".getBytes();
     ASN1EncodableVector v = new ASN1EncodableVector();
-    v.add(new ASN1ObjectIdentifier(Constants.HARDWARE_MODULE_NAME_OID));
+    v.add(new ASN1ObjectIdentifier(ConstantsBrski.HARDWARE_MODULE_NAME_OID));
     v.add(new DEROctetString(hardwareModuleName));
     byte[] encoded =
         new GeneralNames(new GeneralName(GeneralName.otherName, new DERSequence(v)))
             .getEncoded(ASN1Encoding.DER);
     GeneralNames names = GeneralNames.getInstance(encoded);
     for (GeneralName name : names.getNames()) {
-      Assert.assertTrue(name.getTagNo() == GeneralName.otherName);
+      Assert.assertEquals(GeneralName.otherName, name.getTagNo());
       ASN1Sequence seq = DERSequence.getInstance(name.getName());
-      Assert.assertTrue(
-          ASN1ObjectIdentifier.getInstance(seq.getObjectAt(0))
-              .getId()
-              .equals(Constants.HARDWARE_MODULE_NAME_OID));
+      Assert.assertEquals(ConstantsBrski.HARDWARE_MODULE_NAME_OID, ASN1ObjectIdentifier.getInstance(seq.getObjectAt(0)).getId());
       ASN1OctetString sn = DEROctetString.getInstance(seq.getObjectAt(1));
-      Assert.assertTrue(Arrays.equals(sn.getOctets(), hardwareModuleName));
+      Assert.assertArrayEquals(sn.getOctets(), hardwareModuleName);
     }
   }
 
   @Test
   public void testDomainCredentials() throws Exception {
-    Credentials domainCred =
-        new Credentials(
-            KEY_STORE_FILE, CredentialGenerator.DOMAINCA_ALIAS, CredentialGenerator.PASSWORD);
+    Credentials domainCred = new Credentials(KEY_STORE_FILE, CredentialGenerator.DOMAINCA_ALIAS, CredentialGenerator.PASSWORD);
+    Credentials registrarCred = new Credentials(KEY_STORE_FILE, CredentialGenerator.REGISTRAR_ALIAS, CredentialGenerator.PASSWORD);
 
-    Credentials registrarCred =
-        new Credentials(
-            KEY_STORE_FILE, CredentialGenerator.REGISTRAR_ALIAS, CredentialGenerator.PASSWORD);
-
-    Assert.assertTrue(domainCred.getCertificate().getVersion() == 3);
-    Assert.assertTrue(registrarCred.getCertificate().getVersion() == 3);
+    Assert.assertEquals(3, domainCred.getCertificate().getVersion());
+    Assert.assertEquals(3, registrarCred.getCertificate().getVersion());
     Assert.assertTrue(registrarCred.getCertificate().getEncoded().length < 1024);
     Assert.assertTrue(registrarCred.getCertificate().getPublicKey().getEncoded().length < 1024);
-    Assert.assertTrue(registrarCred.getCertificateChain().length == 2);
+    Assert.assertEquals(2, registrarCred.getCertificateChain().length);
 
-    Assert.assertTrue(
-        registrarCred
-            .getCertificate()
-            .getIssuerX500Principal()
-            .equals(domainCred.getCertificate().getSubjectX500Principal()));
+    Assert.assertEquals(registrarCred.getCertificate().getIssuerX500Principal(), domainCred.getCertificate().getSubjectX500Principal());
 
     registrarCred.getCertificate().verify(domainCred.getCertificate().getPublicKey());
   }
 
   @Test
   public void testMASACredentials() throws Exception {
-    Credentials masaCred =
-        new Credentials(
-            KEY_STORE_FILE, CredentialGenerator.MASACA_ALIAS, CredentialGenerator.PASSWORD);
+    Credentials masaCred = new Credentials(KEY_STORE_FILE, CredentialGenerator.MASACA_ALIAS, CredentialGenerator.PASSWORD);
+    Credentials pledgeCred = new Credentials(KEY_STORE_FILE, CredentialGenerator.PLEDGE_ALIAS, CredentialGenerator.PASSWORD);
 
-    Credentials pledgeCred =
-        new Credentials(
-            KEY_STORE_FILE, CredentialGenerator.PLEDGE_ALIAS, CredentialGenerator.PASSWORD);
-
-    Assert.assertEquals(
-        SecurityUtils.getMasaUri(pledgeCred.getCertificate()), Constants.DEFAULT_MASA_URI);
+    Assert.assertEquals(SecurityUtils.getMasaUri(pledgeCred.getCertificate()), Constants.DEFAULT_MASA_URI);
     Assert.assertTrue(pledgeCred.getCertificateChain().length == 2);
 
     pledgeCred.getCertificate().verify(masaCred.getCertificate().getPublicKey());
@@ -181,18 +165,16 @@ public class CredentialsTest {
     }
 
     HardwareModuleName hwmn = SecurityUtils.getHWModuleName(cert);
-    Assert.assertTrue(hwmn != null);
+    Assert.assertNotNull(hwmn);
 
-    Assert.assertTrue(Arrays.equals(SERIAL_NUMBER, hwmn.getSerialNumber().getOctets()));
+    Assert.assertArrayEquals(SERIAL_NUMBER, hwmn.getSerialNumber().getOctets());
   }
 
   @Test
   public void testRegistrarCertChainValidationWithSelfFails() throws Exception {
     thrown.expect(CertPathValidatorException.class);
 
-    Credentials registrarCred =
-        new Credentials(
-            KEY_STORE_FILE, CredentialGenerator.REGISTRAR_ALIAS, CredentialGenerator.PASSWORD);
+    Credentials registrarCred = new Credentials(KEY_STORE_FILE, CredentialGenerator.REGISTRAR_ALIAS, CredentialGenerator.PASSWORD);
     X509Certificate cert = registrarCred.getCertificate();
 
     Set<TrustAnchor> trustAnchors = new HashSet<>();

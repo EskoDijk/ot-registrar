@@ -30,7 +30,7 @@ package com.google.openthread.registrar;
 
 import static org.junit.Assert.assertSame;
 
-import com.google.openthread.*;
+import com.google.openthread.Constants;
 import com.google.openthread.brski.*;
 import com.google.openthread.domainca.*;
 import com.google.openthread.masa.*;
@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory;
 
 public class FunctionalTest {
 
-  public static final String REGISTRAR_URI = "coaps://[::1]:" + Constants.DEFAULT_REGISTRAR_COAPS_PORT;
+  public static final String REGISTRAR_URI = "coaps://[::1]:" + ConstantsBrski.DEFAULT_REGISTRAR_COAPS_PORT;
 
   public static final String DEFAULT_DOMAIN_NAME = "Thread-Test";
 
@@ -64,7 +64,7 @@ public class FunctionalTest {
   // credentials used
   private static CredentialGenerator cg;
 
-  private static Logger logger = LoggerFactory.getLogger(FunctionalTest.class);
+  private final static Logger logger = LoggerFactory.getLogger(FunctionalTest.class);
 
   @Rule
   public ExpectedException thrown = ExpectedException.none();
@@ -90,7 +90,7 @@ public class FunctionalTest {
         new MASA(
             credGen.getCredentials(CredentialGenerator.MASA_ALIAS),
             credGen.getCredentials(CredentialGenerator.MASACA_ALIAS),
-            Constants.DEFAULT_MASA_HTTPS_PORT);
+            ConstantsBrski.DEFAULT_MASA_HTTPS_PORT);
     pledge = new Pledge(credGen.getCredentials(CredentialGenerator.PLEDGE_ALIAS), REGISTRAR_URI);
     pledge.setLightweightClientCertificates(true);
 
@@ -124,13 +124,12 @@ public class FunctionalTest {
 
   private void VerifyEnroll(Pledge pledge) throws Exception {
     X509Certificate cert = pledge.getOperationalCert();
-    Assert.assertTrue(cert != null);
+    Assert.assertNotNull(cert);
 
     String domainName = pledge.getDomainName();
-    Assert.assertTrue(domainName.equals(registrar.getDomainName()));
+    Assert.assertEquals(domainName, registrar.getDomainName());
 
-    // we expect the LDevID to NOT contain subject key id, per 802.1AR-2018 spec section 8.10.2 for
-    // LDevID.
+    // we expect the LDevID to NOT contain subject key id, per 802.1AR-2018 spec section 8.10.2 for LDevID.
     byte[] subjKeyId = cert.getExtensionValue("2.5.29.14");
     Assert.assertNull(subjKeyId);
   }
@@ -253,32 +252,32 @@ public class FunctionalTest {
     Assert.assertEquals(
         ResponseCode.BAD_REQUEST,
         pledge.sendStatusTelemetry(
-            Constants.ENROLL_STATUS,
+            ConstantsBrski.ENROLL_STATUS,
             wrongFormatTelemetry,
             ExtendedMediaTypeRegistry.APPLICATION_CBOR));
     Assert.assertEquals(
         ResponseCode.UNSUPPORTED_CONTENT_FORMAT,
         pledge.sendStatusTelemetry(
-            Constants.ENROLL_STATUS,
+            ConstantsBrski.ENROLL_STATUS,
             StatusTelemetry.create(true, null).serializeToBytes(),
             ExtendedMediaTypeRegistry.APPLICATION_COSE_SIGN1));
     Assert.assertEquals(
         ResponseCode.UNSUPPORTED_CONTENT_FORMAT,
         pledge.sendStatusTelemetry(
-            Constants.VOUCHER_STATUS,
+            ConstantsBrski.VOUCHER_STATUS,
             wrongFormatTelemetry,
             ExtendedMediaTypeRegistry.APPLICATION_COSE_SIGN1));
     wrongFormatTelemetry = Hex.decode("a36776657273696f6e0166737461747573f467726561736f6e787174686973206b65792069732077726f6e67");
     Assert.assertEquals(
         ResponseCode.BAD_REQUEST,
         pledge.sendStatusTelemetry(
-            Constants.VOUCHER_STATUS,
+            ConstantsBrski.VOUCHER_STATUS,
             wrongFormatTelemetry,
             ExtendedMediaTypeRegistry.APPLICATION_CBOR));
     Assert.assertEquals(
         ResponseCode.CHANGED,
         pledge.sendStatusTelemetry(
-            Constants.ENROLL_STATUS,
+            ConstantsBrski.ENROLL_STATUS,
             StatusTelemetry.create(true, "this msg is not needed").serializeToBytes(),
             ExtendedMediaTypeRegistry.APPLICATION_CBOR));
   }
@@ -424,7 +423,7 @@ public class FunctionalTest {
         .setTrustAllMasas(true)
         .build();
     registrar.setDomainCA(domainCA);
-    registrar.setForcedRequestFormat(Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON);
+    registrar.setForcedRequestFormat(ConstantsBrski.HTTP_APPLICATION_VOUCHER_CMS_JSON);
     registrar.start();
 
     Voucher voucher = pledge.requestVoucher();

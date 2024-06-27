@@ -28,7 +28,6 @@
 
 package com.google.openthread.registrar;
 
-import com.google.openthread.*;
 import com.google.openthread.brski.*;
 import com.google.openthread.domainca.*;
 import com.google.openthread.masa.*;
@@ -49,7 +48,7 @@ import org.slf4j.LoggerFactory;
 public class IETFConstrainedBrskiTest {
 
   public static final String REGISTRAR_URI =
-      "coaps://[::1]:" + Constants.DEFAULT_REGISTRAR_COAPS_PORT;
+      "coaps://[::1]:" + ConstantsBrski.DEFAULT_REGISTRAR_COAPS_PORT;
 
   public static final String DEFAULT_DOMAIN_NAME = "Thread-Test";
   public static final String CREDENTIALS_KEYSTORE_FILE =
@@ -92,7 +91,7 @@ public class IETFConstrainedBrskiTest {
         new MASA(
             credGen.getCredentials(CredentialGenerator.MASA_ALIAS),
             credGen.getCredentials(CredentialGenerator.MASACA_ALIAS),
-            Constants.DEFAULT_MASA_HTTPS_PORT);
+            ConstantsBrski.DEFAULT_MASA_HTTPS_PORT);
     pledge = new Pledge(credGen.getCredentials(CredentialGenerator.PLEDGE_ALIAS), REGISTRAR_URI);
     pledge.setLightweightClientCertificates(true);
 
@@ -110,7 +109,7 @@ public class IETFConstrainedBrskiTest {
     registrar.setDomainCA(domainCA);
     registrar.setForcedMasaUri(
         "localhost:"
-            + Constants
+            + ConstantsBrski
                 .DEFAULT_MASA_HTTPS_PORT); // force to localhost, don't heed example MASA URI in
                                            // Pledge cert.
 

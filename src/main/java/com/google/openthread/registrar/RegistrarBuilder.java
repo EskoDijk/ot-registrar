@@ -29,6 +29,7 @@
 package com.google.openthread.registrar;
 
 import com.google.openthread.*;
+import com.google.openthread.brski.ConstantsBrski;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
@@ -180,7 +181,7 @@ public class RegistrarBuilder {
   private X509Certificate[] certificateChain;
   private List<X509Certificate> masaCertificates;
   private Credentials credentials, masaClientCredentials;
-  private int port = Constants.DEFAULT_REGISTRAR_COAPS_PORT;
+  private int port = ConstantsBrski.DEFAULT_REGISTRAR_COAPS_PORT;
   private boolean isHttpToMasa = true;
   private boolean isTrustAllMasas = false;
 }

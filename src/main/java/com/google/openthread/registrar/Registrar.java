@@ -33,11 +33,12 @@ import COSE.MessageTag;
 import COSE.OneKey;
 import COSE.Sign1Message;
 import com.google.openthread.BouncyCastleInitializer;
-import com.google.openthread.Constants;
+import com.google.openthread.brski.ConstantsBrski;
 import com.google.openthread.Credentials;
+import com.google.openthread.Constants;
 import com.google.openthread.DummyHostnameVerifier;
 import com.google.openthread.DummyTrustManager;
-import com.google.openthread.ExtendedMediaTypeRegistry;
+import com.google.openthread.brski.ExtendedMediaTypeRegistry;
 import com.google.openthread.RequestDumper;
 import com.google.openthread.SecurityUtils;
 import com.google.openthread.brski.CBORSerializer;
@@ -49,7 +50,6 @@ import com.google.openthread.brski.VoucherRequest;
 import com.google.openthread.domainca.DomainCA;
 import com.google.openthread.pledge.Pledge;
 import com.google.openthread.tools.CredentialGenerator;
-import com.upokecenter.cbor.CBORObject;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.URL;
@@ -176,10 +176,10 @@ public class Registrar extends CoapServer {
     switch (mediaType) {
       case "":
         this.forcedVoucherRequestFormat = -1;
-      case Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON:
+      case ConstantsBrski.HTTP_APPLICATION_VOUCHER_CMS_JSON:
         this.forcedVoucherRequestFormat = ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON;
         break;
-      case Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR:
+      case ConstantsBrski.HTTP_APPLICATION_VOUCHER_COSE_CBOR:
         this.forcedVoucherRequestFormat = ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR;
         break;
       default:
@@ -215,7 +215,7 @@ public class Registrar extends CoapServer {
   public final class VoucherStatusResource extends CoapResource {
 
     public VoucherStatusResource() {
-      super(Constants.VOUCHER_STATUS);
+      super(ConstantsBrski.VOUCHER_STATUS);
     }
 
     @Override
@@ -280,7 +280,7 @@ public class Registrar extends CoapServer {
   public final class EnrollStatusResource extends CoapResource {
 
     public EnrollStatusResource() {
-      super(Constants.ENROLL_STATUS);
+      super(ConstantsBrski.ENROLL_STATUS);
     }
 
     @Override
@@ -341,7 +341,7 @@ public class Registrar extends CoapServer {
   public final class VoucherRequestResource extends CoapResource {
 
     public VoucherRequestResource() {
-      super(Constants.REQUEST_VOUCHER);
+      super(ConstantsBrski.REQUEST_VOUCHER);
     }
 
     @Override
@@ -491,8 +491,8 @@ public class Registrar extends CoapServer {
         if (isCms) {
           // CMS signing.
           requestMediaType = isJsonRVR
-              ? Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON
-              : Constants.HTTP_APPLICATION_VOUCHER_CMS_CBOR;
+              ? ConstantsBrski.HTTP_APPLICATION_VOUCHER_CMS_JSON
+              : ConstantsBrski.HTTP_APPLICATION_VOUCHER_CMS_CBOR;
           requestContentFormat = isJsonRVR
               ? ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON
               : ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_CBOR;
@@ -511,7 +511,7 @@ public class Registrar extends CoapServer {
           }
         } else {
           // COSE signing.
-          requestMediaType = Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR;
+          requestMediaType = ConstantsBrski.HTTP_APPLICATION_VOUCHER_COSE_CBOR;
           requestContentFormat = ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR;
           try {
             payload =
@@ -623,7 +623,7 @@ public class Registrar extends CoapServer {
     public RestfulVoucherResponse requestVoucher(
         int requestContentFormat, byte[] payload, String masaURI)
         throws IOException, ConnectorException {
-      setURI("coaps://" + masaURI + Constants.BRSKI_PATH + "/" + Constants.REQUEST_VOUCHER);
+      setURI("coaps://" + masaURI + ConstantsBrski.BRSKI_PATH + "/" + ConstantsBrski.REQUEST_VOUCHER);
       // send request as CMS signed CBOR, accept only COSE-signed CBOR back.
       CoapResponse resp =
           post(
@@ -669,7 +669,7 @@ public class Registrar extends CoapServer {
         throws IOException, ConnectorException, NoSuchAlgorithmException, KeyManagementException {
       URL url =
           new URL(
-              "https://" + masaURI + Constants.BRSKI_PATH + "/" + Constants.REQUEST_VOUCHER_HTTP);
+              "https://" + masaURI + ConstantsBrski.BRSKI_PATH + "/" + ConstantsBrski.REQUEST_VOUCHER_HTTP);
       // send request as CMS signed JSON, accept only COSE-signed CBOR back.
       HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
       con.setUseCaches(false);
@@ -678,7 +678,7 @@ public class Registrar extends CoapServer {
       con.setRequestMethod("POST");
       con.setDoOutput(true);
       con.setRequestProperty("Content-Type", requestMediaType);
-      con.setRequestProperty("Accept", Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR);
+      con.setRequestProperty("Accept", ConstantsBrski.HTTP_APPLICATION_VOUCHER_COSE_CBOR);
       con.setInstanceFollowRedirects(true);
       con.connect();
       DataOutputStream out = new DataOutputStream(con.getOutputStream());
@@ -694,7 +694,7 @@ public class Registrar extends CoapServer {
       // TODO below assumes the Content-Type of the response, because Accept header was used. May
       // need to be checked though.
       return new RestfulVoucherResponse(
-          con.getResponseCode(), respPayload, Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR);
+          con.getResponseCode(), respPayload, ConstantsBrski.HTTP_APPLICATION_VOUCHER_COSE_CBOR);
     }
 
     private void initEndPoint(X509Certificate[] trustAnchors) throws Exception {
@@ -709,7 +709,7 @@ public class Registrar extends CoapServer {
   public class EnrollResource extends CoapResource {
 
     public EnrollResource() {
-      this(Constants.SIMPLE_ENROLL);
+      this(ConstantsBrski.SIMPLE_ENROLL);
     }
 
     protected EnrollResource(String name) {
@@ -753,14 +753,14 @@ public class Registrar extends CoapServer {
   public final class ReenrollResource extends EnrollResource {
 
     public ReenrollResource() {
-      super(Constants.SIMPLE_REENROLL);
+      super(ConstantsBrski.SIMPLE_REENROLL);
     }
   }
 
   public final class CrtsResource extends CoapResource {
 
     public CrtsResource() {
-      super(Constants.CA_CERTIFICATES);
+      super(ConstantsBrski.CA_CERTIFICATES);
     }
 
     @Override
@@ -782,7 +782,7 @@ public class Registrar extends CoapServer {
   public final class WellknownCoreResource extends CoapResource {
 
     public WellknownCoreResource() {
-      super(Constants.CORE);
+      super(ConstantsBrski.CORE);
     }
 
     @Override
@@ -872,9 +872,9 @@ public class Registrar extends CoapServer {
   }
 
   private void initResources() {
-    CoapResource wellKnown = new CoapResource(Constants.WELL_KNOWN);
-    CoapResource est = new CoapResource(Constants.EST);
-    CoapResource brski = new CoapResource(Constants.BRSKI);
+    CoapResource wellKnown = new CoapResource(ConstantsBrski.WELL_KNOWN);
+    CoapResource est = new CoapResource(ConstantsBrski.EST);
+    CoapResource brski = new CoapResource(ConstantsBrski.BRSKI);
 
     VoucherRequestResource rv = new VoucherRequestResource();
     VoucherStatusResource vs = new VoucherStatusResource();

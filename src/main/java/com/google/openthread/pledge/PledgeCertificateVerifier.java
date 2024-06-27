@@ -28,7 +28,7 @@
 
 package com.google.openthread.pledge;
 
-import com.google.openthread.Constants;
+import com.google.openthread.brski.ConstantsBrski;
 import java.security.cert.CertPath;
 import java.security.cert.CertPathValidator;
 import java.security.cert.CertificateException;
@@ -94,7 +94,7 @@ public class PledgeCertificateVerifier implements CertificateVerifier {
           new X509CertificateHolder(peerCert.getEncoded()); // BouncyCastle equivalent
 
       // Check that it is at least an RA cert
-      Extension ext = peerCertBC.getExtension(Constants.eku);
+      Extension ext = peerCertBC.getExtension(ConstantsBrski.eku);
       // byte[] ekuBytes = peerCert.getExtensionValue(Constants.EXTENDED_KEY_USAGE_OID);
       if (ext == null) throw new CertificateException("EKU not present in Registrar cert");
       ASN1InputStream is = new ASN1InputStream(ext.getExtnValue().getOctets());
@@ -107,7 +107,7 @@ public class PledgeCertificateVerifier implements CertificateVerifier {
       }
       for (ASN1Encodable eku : ekus) {
         if (eku.equals(KeyPurposeId.id_kp_serverAuth.toOID())) isServerAuth = true;
-        if (eku.equals(Constants.id_kp_cmcRA.toOID())) isCmcRa = true;
+        if (eku.equals(ConstantsBrski.id_kp_cmcRA.toOID())) isCmcRa = true;
       }
       is.close();
       if (!isServerAuth) throw new CertificateException("EKU tlsServerAuth not present");

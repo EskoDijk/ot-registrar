@@ -29,9 +29,10 @@
 package com.google.openthread.tools;
 
 import com.google.openthread.Constants;
+import com.google.openthread.brski.ConstantsBrski;
 import com.google.openthread.Credentials;
 import com.google.openthread.CredentialsSet;
-import com.google.openthread.HardwareModuleName;
+import com.google.openthread.brski.HardwareModuleName;
 import com.google.openthread.SecurityUtils;
 import java.io.File;
 import java.io.FileInputStream;
@@ -153,7 +154,7 @@ public class CredentialGenerator extends CredentialsSet {
                 .getEncoded(ASN1Encoding.DER));
 
     OtherName otherName =
-        new OtherName(new ASN1ObjectIdentifier(Constants.HARDWARE_MODULE_NAME_OID), moduleName);
+        new OtherName(new ASN1ObjectIdentifier(ConstantsBrski.HARDWARE_MODULE_NAME_OID), moduleName);
     Extension subjectAltName =
         new Extension(
             Extension.subjectAlternativeName,
@@ -163,7 +164,7 @@ public class CredentialGenerator extends CredentialsSet {
 
     Extension masaUriExt =
         new Extension(
-            new ASN1ObjectIdentifier(Constants.MASA_URI_OID).intern(),
+            new ASN1ObjectIdentifier(ConstantsBrski.MASA_URI_OID).intern(),
             false,
             new DERIA5String(masaUri).getEncoded());
 
@@ -210,7 +211,7 @@ public class CredentialGenerator extends CredentialsSet {
                 new KeyPurposeId[]{
                     KeyPurposeId.id_kp_serverAuth,
                     KeyPurposeId.id_kp_clientAuth,
-                    isIncludeExtKeyUsage ? Constants.id_kp_cmcRA : KeyPurposeId.id_kp_codeSigning
+                    isIncludeExtKeyUsage ? ConstantsBrski.id_kp_cmcRA : KeyPurposeId.id_kp_codeSigning
                 })
                 .getEncoded(ASN1Encoding.DER));
 
@@ -388,7 +389,7 @@ public class CredentialGenerator extends CredentialsSet {
     Credentials masaCaCreds = getCredentials(MASACA_ALIAS);
     String sn = createNewPledgeSerialNumber();
     HardwareModuleName hwModuleName =
-        new HardwareModuleName(Constants.PRIVATE_HARDWARE_TYPE_OID, sn.getBytes());
+        new HardwareModuleName(ConstantsBrski.PRIVATE_HARDWARE_TYPE_OID, sn.getBytes());
 
     if (pledgeCertKeyFiles != null) {
       pledgeCert = loadCertAndLogErrors(pledgeCertKeyFiles[0]);

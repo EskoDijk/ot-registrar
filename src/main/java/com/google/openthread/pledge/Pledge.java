@@ -35,13 +35,15 @@ import COSE.OneKey;
 import COSE.Sign1Message;
 import com.google.openthread.BouncyCastleInitializer;
 import com.google.openthread.Constants;
+import com.google.openthread.brski.ConstantsBrski;
 import com.google.openthread.Credentials;
-import com.google.openthread.ExtendedMediaTypeRegistry;
+import com.google.openthread.brski.ExtendedMediaTypeRegistry;
 import com.google.openthread.SecurityUtils;
 import com.google.openthread.brski.CBORSerializer;
 import com.google.openthread.brski.StatusTelemetry;
 import com.google.openthread.brski.Voucher;
 import com.google.openthread.brski.VoucherRequest;
+import com.google.openthread.thread.ConstantsThread;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -103,7 +105,7 @@ import org.slf4j.LoggerFactory;
 public class Pledge extends CoapClient {
 
   protected static final ASN1ObjectIdentifier THREAD_DOMAIN_NAME_OID_ASN1 =
-      new ASN1ObjectIdentifier(Constants.THREAD_DOMAIN_NAME_OID); // per Thread 1.2 spec
+      new ASN1ObjectIdentifier(ConstantsThread.THREAD_DOMAIN_NAME_OID); // per Thread 1.2 spec
 
   static {
     BouncyCastleInitializer.init();
@@ -174,11 +176,11 @@ public class Pledge extends CoapClient {
     try {
       Collection<List<?>> cSubjAltNames = operationalCertificate.getSubjectAlternativeNames();
       if (cSubjAltNames == null) {
-        return Constants.THREAD_DOMAIN_NAME_DEFAULT;
+        return ConstantsThread.THREAD_DOMAIN_NAME_DEFAULT;
       }
       // loop all subject-alt-names to find a matching 'otherName' item.
       for (List<?> l : cSubjAltNames) {
-        if (l.size() == 2 && l.get(0).equals(Constants.ASN1_TAG_GENERALNAME_OTHERNAME)) {
+        if (l.size() == 2 && l.get(0).equals(ConstantsBrski.ASN1_TAG_GENERALNAME_OTHERNAME)) {
           ASN1Sequence ds = DERSequence.getInstance(DLSequence.fromByteArray((byte[]) l.get(1)));
           // check that the otherName item has the Thread domain OID
           if (ds.size() == 2 && ds.getObjectAt(0).equals(THREAD_DOMAIN_NAME_OID_ASN1)) {
@@ -199,7 +201,7 @@ public class Pledge extends CoapClient {
       return null;
     }
     // if cert correct but not encoded in there, use default name.
-    return Constants.THREAD_DOMAIN_NAME_DEFAULT;
+    return ConstantsThread.THREAD_DOMAIN_NAME_DEFAULT;
   }
 
   // BRSKI protocol
@@ -349,7 +351,7 @@ public class Pledge extends CoapClient {
       throws Exception {
     // create CBOR data structure
     StatusTelemetry st = StatusTelemetry.create(isSuccess, failureReason);
-    setURI(getBRSKIPath() + "/" + Constants.VOUCHER_STATUS);
+    setURI(getBRSKIPath() + "/" + ConstantsBrski.VOUCHER_STATUS);
     CoapResponse resp = post(st.serializeToBytes(), ExtendedMediaTypeRegistry.APPLICATION_CBOR);
     return resp.getCode();
   }
@@ -365,7 +367,7 @@ public class Pledge extends CoapClient {
       throws Exception {
     // create CBOR data structure
     StatusTelemetry st = StatusTelemetry.create(isSuccess, failureReason);
-    setURI(getBRSKIPath() + "/" + Constants.ENROLL_STATUS);
+    setURI(getBRSKIPath() + "/" + ConstantsBrski.ENROLL_STATUS);
     CoapResponse resp = post(st.serializeToBytes(), ExtendedMediaTypeRegistry.APPLICATION_CBOR);
     return resp.getCode();
   }
@@ -410,7 +412,7 @@ public class Pledge extends CoapClient {
             SecurityUtils.SIGNATURE_ALGORITHM,
             operationalKeyPair.getPrivate());
 
-    X509Certificate cert = requestSigning(csr, Constants.SIMPLE_ENROLL);
+    X509Certificate cert = requestSigning(csr, ConstantsBrski.SIMPLE_ENROLL);
     if (cert == null) {
       throw new PledgeException("CSR response includes no certificate");
     }
@@ -454,7 +456,7 @@ public class Pledge extends CoapClient {
             SecurityUtils.SIGNATURE_ALGORITHM,
             operationalKeyPair.getPrivate());
 
-    X509Certificate cert = requestSigning(csr, Constants.SIMPLE_REENROLL);
+    X509Certificate cert = requestSigning(csr, ConstantsBrski.SIMPLE_REENROLL);
     if (cert == null) {
       throw new PledgeException("CSR response includes no certificate");
     }
@@ -473,7 +475,7 @@ public class Pledge extends CoapClient {
   }
 
   public CoapResponse discoverResources() throws IOException, ConnectorException {
-    setURI(hostURI + Constants.CORE_PATH);
+    setURI(hostURI + ConstantsBrski.CORE_PATH);
     return get();
   }
 
@@ -583,7 +585,7 @@ public class Pledge extends CoapClient {
 
   private CoapResponse sendRequestVoucher(VoucherRequest voucherRequest)
       throws IOException, ConnectorException, CoseException {
-    setURI(getBRSKIPath() + "/" + Constants.REQUEST_VOUCHER);
+    setURI(getBRSKIPath() + "/" + ConstantsBrski.REQUEST_VOUCHER);
     byte[] vrEncoded = new CBORSerializer().serialize(voucherRequest);
 
     // COSE_Sign1 signing of the CBOR
@@ -700,11 +702,11 @@ public class Pledge extends CoapClient {
   }
 
   private String getESTPath() {
-    return hostURI + Constants.EST_PATH;
+    return hostURI + ConstantsBrski.EST_PATH;
   }
 
   private String getBRSKIPath() {
-    return hostURI + Constants.BRSKI_PATH;
+    return hostURI + ConstantsBrski.BRSKI_PATH;
   }
 
   private String hostURI;

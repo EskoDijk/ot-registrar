@@ -30,6 +30,8 @@ package com.google.openthread;
 
 import COSE.OneKey;
 import COSE.Sign1Message;
+import com.google.openthread.brski.ConstantsBrski;
+import com.google.openthread.brski.HardwareModuleName;
 import com.google.openthread.tools.CredentialGenerator;
 import com.upokecenter.cbor.CBORObject;
 import java.security.*;
@@ -85,7 +87,7 @@ public class SecurityUtilsTest {
   @Test
   public void testHWModuleName() throws Exception {
     HardwareModuleName name0 =
-        new HardwareModuleName(Constants.PRIVATE_HARDWARE_TYPE_OID, new byte[] {0x01, 0x02, 0x03});
+        new HardwareModuleName(ConstantsBrski.PRIVATE_HARDWARE_TYPE_OID, new byte[] {0x01, 0x02, 0x03});
     HardwareModuleName name1 = HardwareModuleName.getInstance(name0.getEncoded());
     Assert.assertTrue(name0.equals(name1));
   }

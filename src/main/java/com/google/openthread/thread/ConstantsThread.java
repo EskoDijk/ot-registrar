@@ -26,18 +26,17 @@
  *    POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.google.openthread;
+package com.google.openthread.thread;
 
 /**
- * OT Registrar specific constants are defined here.
+ * Thread or OpenThread specific constants are defined here.
  */
-public class Constants {
+public class ConstantsThread {
 
-  // --- URIs, resources and paths
-  public static final String DEFAULT_MASA_URI = "localhost:9443";
-  public static final String HELLO = "hello";
+  // --- OID items
+  public static final String THREAD_DOMAIN_NAME_OID = "1.3.6.1.4.1.44970.1"; // per Thread 1.2 spec
 
   // -- Other items
-  public static final String KEY_STORE_FORMAT = "PKCS12";
-  public static final long CERT_VALIDITY = 5 * 365; // LDevID validity in Days.
+  // Default Thread Domain Name per Thread 1.2 spec. Must not be changed, unless spec changes.
+  public static final String THREAD_DOMAIN_NAME_DEFAULT = "DefaultDomain";
 }

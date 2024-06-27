@@ -34,7 +34,7 @@ import COSE.MessageTag;
 import COSE.OneKey;
 import COSE.Sign1Message;
 import com.google.openthread.BouncyCastleInitializer;
-import com.google.openthread.Constants;
+import com.google.openthread.brski.ConstantsBrski;
 import com.google.openthread.Credentials;
 import com.google.openthread.DummyTrustManager;
 import com.google.openthread.NetworkUtils;
@@ -144,7 +144,7 @@ public class MASA {
       Sign1Message sign1Msg = null;
 
       switch (contentType) {
-        case Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON:
+        case ConstantsBrski.HTTP_APPLICATION_VOUCHER_CMS_JSON:
           try {
             reqContent =
                 SecurityUtils.decodeCMSSignedMessage(
@@ -158,9 +158,9 @@ public class MASA {
           }
           break;
 
-        case Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR:
-        case Constants.HTTP_APPLICATION_COSE_SIGN1:
-        case Constants.HTTP_APPLICATION_COSE:
+        case ConstantsBrski.HTTP_APPLICATION_VOUCHER_COSE_CBOR:
+        case ConstantsBrski.HTTP_APPLICATION_COSE_SIGN1:
+        case ConstantsBrski.HTTP_APPLICATION_COSE:
           try {
             // Verify signature
             sign1Msg = (Sign1Message) Message.DecodeFromBytes(body, MessageTag.Sign1);
@@ -190,7 +190,7 @@ public class MASA {
       }
 
       switch (contentType) {
-        case Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON:
+        case ConstantsBrski.HTTP_APPLICATION_VOUCHER_CMS_JSON:
           try {
             req = (VoucherRequest) new JSONSerializer().deserialize(reqContent);
           } catch (Exception e) {
@@ -200,9 +200,9 @@ public class MASA {
           }
           break;
 
-        case Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR:
-        case Constants.HTTP_APPLICATION_COSE_SIGN1:
-        case Constants.HTTP_APPLICATION_COSE:
+        case ConstantsBrski.HTTP_APPLICATION_VOUCHER_COSE_CBOR:
+        case ConstantsBrski.HTTP_APPLICATION_COSE_SIGN1:
+        case ConstantsBrski.HTTP_APPLICATION_COSE:
           try {
             req = (VoucherRequest) new CBORSerializer().deserialize(sign1Msg.GetContent());
           } catch (Exception e) {
@@ -227,7 +227,7 @@ public class MASA {
             .getResponseHeaders()
             .put(
                 HttpString.tryFromString("Content-Type"),
-                Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR);
+                ConstantsBrski.HTTP_APPLICATION_VOUCHER_COSE_CBOR);
         byte[] content = new CBORSerializer().serialize(resp.getVoucher());
         byte[] payload =
             SecurityUtils.genCoseSign1Message(
@@ -280,7 +280,7 @@ public class MASA {
       X509Certificate registrarCert = reqCerts.get(0);
       if (registrarCert.getExtendedKeyUsage() != null) {
         for (String eku : registrarCert.getExtendedKeyUsage()) {
-          if (eku.equals(Constants.CMC_RA_PKIX_KEY_PURPOSE_OID)) {
+          if (eku.equals(ConstantsBrski.CMC_RA_PKIX_KEY_PURPOSE_OID)) {
             isRA = true;
             break;
           }

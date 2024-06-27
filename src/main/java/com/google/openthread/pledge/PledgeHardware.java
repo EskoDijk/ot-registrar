@@ -29,7 +29,7 @@
 package com.google.openthread.pledge;
 
 import com.fazecast.jSerialComm.*;
-import com.google.openthread.OpenThreadUtils;
+import com.google.openthread.thread.OpenThreadUtils;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;

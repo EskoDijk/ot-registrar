@@ -26,7 +26,7 @@
  *    POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.google.openthread;
+package com.google.openthread.thread;
 
 /**
  * Utilities for dealing with an OpenThread CLI dongle/device. Used when testing an OpenThread CLI

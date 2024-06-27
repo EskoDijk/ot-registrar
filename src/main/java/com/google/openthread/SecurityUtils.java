@@ -34,6 +34,8 @@ import COSE.CoseException;
 import COSE.HeaderKeys;
 import COSE.OneKey;
 import COSE.Sign1Message;
+import com.google.openthread.brski.ConstantsBrski;
+import com.google.openthread.brski.HardwareModuleName;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 import java.io.ByteArrayInputStream;
@@ -182,7 +184,7 @@ public class SecurityUtils {
       GeneralName name = GeneralName.getInstance(obj);
       if (name.getTagNo() == GeneralName.otherName) {
         OtherName otherName = OtherName.getInstance(name.getName());
-        if (otherName.getTypeID().getId().equals(Constants.HARDWARE_MODULE_NAME_OID)) {
+        if (otherName.getTypeID().getId().equals(ConstantsBrski.HARDWARE_MODULE_NAME_OID)) {
           return HardwareModuleName.getInstance(otherName.getValue());
         }
       }
@@ -211,7 +213,7 @@ public class SecurityUtils {
   public static String getMasaUri(X509Certificate cert) {
     try {
       X509CertificateHolder holder = new JcaX509CertificateHolder(cert);
-      Extension masaUri = holder.getExtension(new ASN1ObjectIdentifier(Constants.MASA_URI_OID));
+      Extension masaUri = holder.getExtension(new ASN1ObjectIdentifier(ConstantsBrski.MASA_URI_OID));
       // TODO check if the below can also handle UTF-8 String types. (Not all use IA5String)
       String sUri = DERIA5String.fromByteArray(masaUri.getExtnValue().getOctets()).toString();
       // remove trailing slashes, if any, from MASA URI.
@@ -350,7 +352,7 @@ public class SecurityUtils {
     msg.sign(new OneKey(null, signingKey));
     if (certs != null) {
       CBORObject x5bag = SecurityUtils.createX5BagCertificates(certs);
-      msg.addAttribute(Constants.COSE_X5BAG_HEADER_KEY, x5bag, Attribute.UNPROTECTED);
+      msg.addAttribute(ConstantsBrski.COSE_X5BAG_HEADER_KEY, x5bag, Attribute.UNPROTECTED);
     }
     return msg.EncodeToBytes();
   }
@@ -622,7 +624,7 @@ public class SecurityUtils {
       throws CertificateException {
     List<X509Certificate> certs = new ArrayList<>();
     // look for header parameter
-    CBORObject x5bag = sign1Msg.findAttribute(Constants.COSE_X5BAG_HEADER_KEY);
+    CBORObject x5bag = sign1Msg.findAttribute(ConstantsBrski.COSE_X5BAG_HEADER_KEY);
     if (x5bag == null) return null;
     // if it is an array of certs
     if (x5bag.getType().equals(CBORType.Array) && x5bag.size() > 0) {
