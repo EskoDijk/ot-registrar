@@ -83,11 +83,19 @@ public class MASA {
   protected Credentials credentials; // MASA server credentials
   protected Credentials credentialsCa; // MASA CA credentials (for signing)
 
-  public MASA(Credentials credentials, Credentials credentialsCa, int port) throws Exception {
+  private final int listenPort;
+  private static final Logger logger = LoggerFactory.getLogger(MASA.class);
+
+  public MASA(Credentials credentials, Credentials credentialsCa, int port) throws MASAException {
     this.credentials = credentials;
     this.credentialsCa = credentialsCa;
     this.listenPort = port;
-    initHttpServer();
+    try {
+      initHttpServer();
+    } catch (Exception ex) {
+      logger.debug("initHttpServer() failed:", ex);
+      throw new MASAException("MASAException: HTTP server init failed - " + ex.getMessage());
+    }
   }
 
   public int getListenPort() {
@@ -95,15 +103,21 @@ public class MASA {
   }
 
   public void start() {
-    if (httpServer != null) httpServer.start();
+    if (httpServer != null) {
+      httpServer.start();
+    }
   }
 
   public void stop() {
-    if (httpServer != null) httpServer.stop();
+    if (httpServer != null) {
+      httpServer.stop();
+    }
   }
 
   final class RootResourceHttpHandler implements HttpHandler {
-    public RootResourceHttpHandler() {}
+
+    public RootResourceHttpHandler() {
+    }
 
     @Override
     public void handleRequest(HttpServerExchange exchange) throws Exception {
@@ -119,7 +133,8 @@ public class MASA {
 
   final class VoucherRequestHttpHandler implements HttpHandler {
 
-    public VoucherRequestHttpHandler() {}
+    public VoucherRequestHttpHandler() {
+    }
 
     @Override
     public void handleRequest(HttpServerExchange exchange) throws Exception {
@@ -140,20 +155,18 @@ public class MASA {
       final String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
       List<X509Certificate> reqCerts = new ArrayList<>();
       byte[] reqContent = null;
-      Voucher req = null;
+      VoucherRequest req = null;
       Sign1Message sign1Msg = null;
 
       switch (contentType) {
         case ConstantsBrski.HTTP_APPLICATION_VOUCHER_CMS_JSON:
           try {
-            reqContent =
-                SecurityUtils.decodeCMSSignedMessage(
-                    body, reqCerts); // decode CMS, get embedded reqCerts back.
+            reqContent = SecurityUtils.decodeCMSSignedMessage(body, reqCerts); // decode CMS, get embedded reqCerts back.
           } catch (Exception e) {
-            logger.error("CMS signed voucher request error: " + e.getMessage(), e);
+            logger.error("CMS signed voucher request error: {}", e.getMessage());
+            logger.debug("details:", e);
             exchange.setStatusCode(403);
-            exchange.setReasonPhrase(
-                "CMS signing/decoding error in voucher request: " + e.getMessage());
+            exchange.setReasonPhrase("CMS signing/decoding error in voucher request: " + e.getMessage());
             return;
           }
           break;
@@ -166,19 +179,19 @@ public class MASA {
             sign1Msg = (Sign1Message) Message.DecodeFromBytes(body, MessageTag.Sign1);
             // look for set of x509 certificates in header parameters, per draft-ietf-cose-x509-08
             reqCerts = SecurityUtils.getX5BagCertificates(sign1Msg);
-            if (reqCerts == null || reqCerts.size() < 1)
-              throw new CoseException(
-                  "Registrar signing cert chain not found in X5Bag field of voucher request");
+            if (reqCerts == null || reqCerts.isEmpty()) {
+              throw new CoseException("Registrar signing cert chain not found in X5Bag field of voucher request");
+            }
             if (sign1Msg == null
                 || !sign1Msg.validate(new OneKey(reqCerts.get(0).getPublicKey(), null))) {
               throw new CoseException("COSE-sign1 voucher validation failed");
             }
 
           } catch (Exception e) {
-            logger.error("CBOR signed voucher request error: " + e.getMessage(), e);
+            logger.error("CBOR signed voucher request error: {}", e.getMessage());
+            logger.debug("detail:", e);
             exchange.setStatusCode(403);
-            exchange.setReasonPhrase(
-                "COSE signing/decoding error in voucher request: " + e.getMessage());
+            exchange.setReasonPhrase("COSE signing/decoding error in voucher request: " + e.getMessage());
             return;
           }
           break;
@@ -194,9 +207,10 @@ public class MASA {
           try {
             req = (VoucherRequest) new JSONSerializer().deserialize(reqContent);
           } catch (Exception e) {
-            logger.error("JSON deserialization error: " + e.getMessage(), e);
+            logger.error("JSON deserialization error: {}", e.getMessage(), e);
             exchange.setStatusCode(400);
             exchange.setReasonPhrase("JSON deserialization error: " + e.getMessage());
+            return;
           }
           break;
 
@@ -206,14 +220,15 @@ public class MASA {
           try {
             req = (VoucherRequest) new CBORSerializer().deserialize(sign1Msg.GetContent());
           } catch (Exception e) {
-            logger.error("CBOR deserialization error: " + e.getMessage(), e);
+            logger.error("CBOR deserialization error: {}", e.getMessage(), e);
             exchange.setStatusCode(400);
             exchange.setReasonPhrase("CBOR deserialization error: " + e.getMessage());
+            return;
           }
           break;
 
         default:
-          throw new RuntimeException("Internal MASA error");
+          throw new MASAException("Internal MASA error");
       }
 
       Voucher voucher = new Voucher();
@@ -225,14 +240,12 @@ public class MASA {
         exchange.setStatusCode(200);
         exchange
             .getResponseHeaders()
-            .put(
-                HttpString.tryFromString("Content-Type"),
+            .put(HttpString.tryFromString("Content-Type"),
                 ConstantsBrski.HTTP_APPLICATION_VOUCHER_COSE_CBOR);
         byte[] content = new CBORSerializer().serialize(resp.getVoucher());
         byte[] payload =
-            SecurityUtils.genCoseSign1Message(
-                credentialsCa.getPrivateKey(), SecurityUtils.COSE_SIGNATURE_ALGORITHM, content);
-        logger.info("returning 200 OK with Voucher: " + Hex.toHexString(payload));
+            SecurityUtils.genCoseSign1Message(credentialsCa.getPrivateKey(), SecurityUtils.COSE_SIGNATURE_ALGORITHM, content);
+        logger.info("returning 200 OK with Voucher: {}", Hex.toHexString(payload));
         exchange.getOutputStream().write(payload);
         exchange.getOutputStream().flush();
         exchange.getOutputStream().close();
@@ -245,34 +258,30 @@ public class MASA {
   }
 
   /**
-   * Process incoming Voucher Request (and accompanying certificates of Registrar) and evaluate into
-   * a generic RESTful response. This response can be an error, or success, and can then be served
-   * by the respective CoAP or HTTP (or other) protocol server back to the client.
+   * Process incoming Voucher Request (and accompanying certificates of Registrar) and evaluate into a generic RESTful response. This response can be an error, or success, and can then be served by
+   * the respective CoAP or HTTP (or other) protocol server back to the client.
    *
-   * @param req received Voucher Request object
-   * @param voucher a new Voucher object of the right type, to be returned upon success in
-   *     RestfulResponse.
+   * @param req      received Voucher Request object
+   * @param voucher  a new Voucher object of the right type, to be returned upon success in RestfulResponse.
    * @param reqCerts accompanying certificates of the Registrar to verify against
-   * @return a RESTful response that is either error (with diagnostic message) or success (with
-   *     Voucher)
+   * @return a RESTful response that is either error (with diagnostic message) or success (with Voucher)
    */
   protected RestfulVoucherResponse processVoucherRequest(
       Voucher req, Voucher voucher, List<X509Certificate> reqCerts) {
 
     if (!req.validate() || reqCerts.isEmpty()) {
       logger.error("invalid fields in the voucher request");
-      return new RestfulVoucherResponse(
-          ResponseCode.BAD_REQUEST, "invalid fields in the voucher request");
+      return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, "invalid fields in the voucher request");
     }
 
-    // TODO(wgtdkp):
+    // TODO:
     // Section 5.5.1 BRSKI: MASA renewal of expired vouchers
 
-    // TODO(wgtdkp):
+    // TODO:
     // Section 5.5.2 BRSKI: MASA verification of voucher-request signature
     // consistency
 
-    // TODO(wgtdkp):
+    // TODO:
     // Section 5.5.3 BRSKI: MASA authentication of registrar (certificate)
     // do a first check on RA flag of Registrar cert. BHC-651
     boolean isRA = false;
@@ -297,10 +306,10 @@ public class MASA {
       return new RestfulVoucherResponse(ResponseCode.FORBIDDEN, msg); // per RFC 8995 5.6
     }
 
-    // TODO(wgtdkp):
+    // TODO:
     // Section 5.5.4 BRSKI: MASA revocation checking of registrar (certificate)
 
-    // TODO(wgtdkp):
+    // TODO:
     // Section 5.5.5 BRSKI: MASA verification of pledge prior-signed-voucher-request
     if (req.priorSignedVoucherRequest == null) {
       final String msg = "missing priorSignedVoucherRequest";
@@ -311,17 +320,14 @@ public class MASA {
     // recreate it
     Sign1Message sign1Msg = null;
     try {
-      sign1Msg =
-          (Sign1Message) Message.DecodeFromBytes(req.priorSignedVoucherRequest, MessageTag.Sign1);
+      sign1Msg = (Sign1Message) Message.DecodeFromBytes(req.priorSignedVoucherRequest, MessageTag.Sign1);
       // validate it TODO
     } catch (Exception ex) {
       final String msg = "Couldn't parse priorSignedVoucherRequest COSE.";
       logger.error(msg, ex);
       return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, msg);
     }
-    VoucherRequest pledgeReq =
-        (VoucherRequest)
-            new CBORSerializer().fromCBOR(CBORObject.DecodeFromBytes(sign1Msg.GetContent()));
+    VoucherRequest pledgeReq = (VoucherRequest) new CBORSerializer().fromCBOR(CBORObject.DecodeFromBytes(sign1Msg.GetContent()));
     if (pledgeReq == null) {
       final String msg = "invalid priorSignedVoucherRequest contents";
       logger.error(msg);
@@ -342,10 +348,10 @@ public class MASA {
       return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, msg);
     }
 
-    // TODO(wgtdkp):
+    // TODO:
     // Section 5.5.6 BRSKI: MASA pinning of registrar
 
-    // TODO(wgtdkp):
+    // TODO:
     // Section 5.5.7 BRSKI: MASA nonce handling
 
     // Section 5.6 BRSKI: MASA and Registrar Voucher Response
@@ -371,8 +377,7 @@ public class MASA {
       // logger.error("get encoded subject-public-key-info failed: " +
       // e.getMessage());
       logger.error("get encoded domain-ca-cert failed: " + e.getMessage(), e);
-      return new RestfulVoucherResponse(
-          ResponseCode.INTERNAL_SERVER_ERROR, "Get encoded domain-ca-cert failed.");
+      return new RestfulVoucherResponse(ResponseCode.INTERNAL_SERVER_ERROR, "Get encoded domain-ca-cert failed.");
     }
 
     if (voucher.nonce == null) {
@@ -380,7 +385,7 @@ public class MASA {
       voucher.expiresOn = new Date(System.currentTimeMillis() + 1000 * 60 * 10);
     }
 
-    // TODO(wgtdkp): update audit log
+    // TODO: update audit log
 
     // Generate and send response
     return new RestfulVoucherResponse(voucher);
@@ -395,7 +400,7 @@ public class MASA {
     keyManagers = keyManagerFactory.getKeyManagers();
 
     TrustManager[] trustManagers;
-    trustManagers = new X509TrustManager[] {new DummyTrustManager()};
+    trustManagers = new X509TrustManager[]{new DummyTrustManager()};
 
     SSLContext httpSsl = SSLContext.getInstance("TLS");
     httpSsl.init(keyManagers, trustManagers, null);
@@ -415,8 +420,4 @@ public class MASA {
             .setHandler(masaPathHandler)
             .build();
   }
-
-  private final int listenPort;
-
-  private static final Logger logger = LoggerFactory.getLogger(MASA.class);
 }
