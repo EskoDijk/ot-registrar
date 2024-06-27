@@ -29,17 +29,10 @@
 package com.google.openthread.registrar;
 
 import com.google.openthread.Credentials;
-import com.google.openthread.LoggerInitializer;
 import com.google.openthread.domainca.DomainCA;
 import com.google.openthread.main.OtRegistrarConfig;
 import com.google.openthread.tools.CredentialGenerator;
 import java.security.KeyStoreException;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +40,7 @@ public final class RegistrarMain {
 
   private static final Logger logger = LoggerFactory.getLogger(RegistrarMain.class);
 
-  public static void main(OtRegistrarConfig config) {
+  public static void startRegistrar(OtRegistrarConfig config) {
     Registrar registrar;
 
     try {
@@ -63,15 +56,15 @@ public final class RegistrarMain {
         throw new KeyStoreException("can't find domain CA key or certificate in keystore");
       }
 
-      // re-use the same creds for Pledge-facing identity and MASA-facing identity.
+      // re-use the same creds for Pledge-facing identity and MASA-facing identity of Registrar.
       builder.setCredentials(cred);
-      builder.setPort(config.serverPortCoaps);
+      builder.setPort(config.serverPort);
 
       // if (true) {
       // trust all MASAs by default
       builder.setTrustAllMasas(true);
       // } else {
-      // FIXME if one MASA identity defined in credentials file, use that one as trusted MASA.
+      // FIXME if one MASA identity defined in credentials file, use that one as trusted MASA. Or add config flag.
       // if (masaCred.getCertificate() != null)
       //  builder.addMasaCertificate(masaCred.getCertificate());
       // }
@@ -85,11 +78,12 @@ public final class RegistrarMain {
       DomainCA ca = new DomainCA(config.domainName, domainCred);
       registrar.setDomainCA(ca);
     } catch (Exception e) {
-      logger.error(e.getMessage(), e);
+      logger.error(e.getMessage());
+      logger.debug("details:", e);
       return;
     }
 
     registrar.start();
-    logger.info("Registrar listening at port: {}", registrar.getListenPort());
+    logger.info("Registrar listening (CoAPS) at port: {}", registrar.getListenPort());
   }
 }

@@ -99,7 +99,8 @@ This will open up a text editor where you can specify which commits to squash.
 
 #### Coding conventions and style
 
-OT Registrar does not use the [Google Java Style](https://google.github.io/styleguide/javaguide.html) at this moment. The reason is that it introduces a very narrow line width, which makes code hard to read on normal-size desktop monitors that can handle long line lengths. 
+OT Registrar uses most of the [Google Java Style](https://google.github.io/styleguide/javaguide.html) at this moment. The reason for not using the full set of guidelines is that it introduces a very narrow line width (100), which makes code hard to read on normal-size desktop monitors used for coding that can easily handle long line lengths.
+For an IDE, the XML file for this style can be [downloaded](https://github.com/google/styleguide) and applied and the line width increased to 200.
 
 #### Push and test
 

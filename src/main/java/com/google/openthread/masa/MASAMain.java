@@ -29,99 +29,41 @@
 package com.google.openthread.masa;
 
 import com.google.openthread.Credentials;
-import com.google.openthread.LoggerInitializer;
+import com.google.openthread.main.OtRegistrarConfig;
 import com.google.openthread.tools.CredentialGenerator;
 import java.security.KeyStoreException;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MASAMain {
 
-  private MASAMain() {}
+  private MASAMain() {
+  }
 
-  public static void main(String args[]) {
-    final String HELP_FORMAT = "masa [-h] [-v] [-c] -f <keystore-file> -p <port>";
+  private static final Logger logger = LoggerFactory.getLogger(MASAMain.class);
 
-    HelpFormatter helper = new HelpFormatter();
-    Options options = new Options();
-
-    Option fileOpt =
-        Option.builder("f")
-            .longOpt("file")
-            .hasArg()
-            .argName("keystore-file")
-            .desc("the keystore file in PKCS#12 format")
-            .build();
-
-    Option optPort =
-        Option.builder("p")
-            .longOpt("port")
-            .hasArg()
-            .argName("port")
-            .desc("the port to listen on")
-            .build();
-
-    Option optVerbose =
-        Option.builder("v")
-            .longOpt("verbose")
-            .hasArg(false)
-            .desc("verbose mode with many logs")
-            .build();
-
-    Option optHelp =
-        Option.builder("h").longOpt("help").hasArg(false).desc("print this message").build();
-
-    options.addOption(fileOpt).addOption(optPort).addOption(optVerbose).addOption(optHelp);
-
+  public static void startMasa(OtRegistrarConfig config) {
     MASA masa;
 
     try {
-      CommandLineParser parser = new DefaultParser();
-      CommandLine cmd = parser.parse(options, args);
-
-      if (cmd.hasOption('h')) {
-        helper.printHelp(HELP_FORMAT, options);
-        return;
-      }
-
-      String keyStoreFile = cmd.getOptionValue('f');
-      if (keyStoreFile == null) {
-        throw new IllegalArgumentException("need keystore file!");
-      }
-      String port = cmd.getOptionValue('p');
-      if (port == null) {
-        throw new IllegalArgumentException("need port!");
-      }
-
-      LoggerInitializer.Init(cmd.hasOption('v'));
-
-      System.out.println("using keystore: " + keyStoreFile);
-      Credentials cred =
-          new Credentials(
-              keyStoreFile, CredentialGenerator.MASA_ALIAS, CredentialGenerator.PASSWORD);
-      Credentials credCa =
-          new Credentials(
-              keyStoreFile, CredentialGenerator.MASACA_ALIAS, CredentialGenerator.PASSWORD);
+      Credentials cred = new Credentials(config.keyStoreFile, CredentialGenerator.MASA_ALIAS, CredentialGenerator.PASSWORD);
+      Credentials credCa = new Credentials(config.keyStoreFile, CredentialGenerator.MASACA_ALIAS, CredentialGenerator.PASSWORD);
 
       if (cred.getPrivateKey() == null || cred.getCertificate() == null) {
-        throw new KeyStoreException("can't find MASA server key or certificate");
+        throw new KeyStoreException("can't find MASA server key or certificate in key store");
       }
       if (credCa.getPrivateKey() == null || credCa.getCertificate() == null) {
-        throw new KeyStoreException("can't find MASA CA key or certificate");
+        throw new KeyStoreException("can't find MASA CA key or CA certificate in key store");
       }
 
-      masa = new MASA(cred, credCa, Integer.parseInt(port));
+      masa = new MASA(cred, credCa, config.serverPort);
     } catch (Exception e) {
-      System.err.println("error: " + e.getMessage());
-      helper.printHelp(HELP_FORMAT, options);
+      logger.error(e.getMessage());
+      logger.debug("details:", e);
       return;
     }
 
     masa.start();
-    System.out.println("MASA server listening at " + masa.getListenPort());
+    logger.info("MASA server listening (HTTPS) at port {}", masa.getListenPort());
   }
 }

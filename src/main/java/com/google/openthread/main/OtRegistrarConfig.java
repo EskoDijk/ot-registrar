@@ -31,33 +31,68 @@ package com.google.openthread.main;
 public class OtRegistrarConfig {
 
   public Role role;
-  public int serverPortCoaps;
+  public int serverPort;
   public String domainName;
   public String keyStoreFile;
   public String masaUri;
   public String registrarUri;
   public boolean logVerbose;
 
-  static OtRegistrarConfig Default() {
+  static OtRegistrarConfig DefaultPledge() {
     OtRegistrarConfig config = new OtRegistrarConfig();
-    config.role = Role.None;
-    config.serverPortCoaps = 5684;
-    config.domainName = "DefaultDomain";
-    config.keyStoreFile = "./credentials/default.p12";
+    config.role = Role.Pledge;
+    config.serverPort = 0;
+    config.domainName = null;
+    config.keyStoreFile = "./credentials/default_pledge.p12";
     config.masaUri = null;
     config.registrarUri = "localhost:5684";
     config.logVerbose = false;
     return config;
   }
 
+  static OtRegistrarConfig DefaultRegistrar() {
+    OtRegistrarConfig config = new OtRegistrarConfig();
+    config.role = Role.Registrar;
+    config.serverPort = 5684;
+    config.domainName = "DefaultDomain";
+    config.keyStoreFile = "./credentials/default_registrar.p12";
+    config.masaUri = null;
+    config.registrarUri = null;
+    config.logVerbose = false;
+    return config;
+  }
+
+  static OtRegistrarConfig DefaultMasa() {
+    OtRegistrarConfig config = new OtRegistrarConfig();
+    config.role = Role.Masa;
+    config.serverPort = 9443; // re-using corporate TLS/HTTPS port
+    config.domainName = null;
+    config.keyStoreFile = "./credentials/default_masa.p12";
+    config.masaUri = null;
+    config.registrarUri = null;
+    config.logVerbose = false;
+    return config;
+  }
+
   public String ToString() {
-    return
-        "Role                : " + role.toString() + "\n" +
-        "Server port (CoapS) : " + this.serverPortCoaps + "\n" +
-        "Domain Name         : " + this.domainName + "\n" +
-        "Keystore file       : " + this.keyStoreFile + "\n" +
-        "MASA URI            : " + (this.masaUri == null ? "(read from IDevID cert)" : this.masaUri + " (forced)") + "\n" +
-        "Registrar URI       : " + this.registrarUri + "\n" +
-        "Log verbose         : " + (this.logVerbose ? "yes" : "no" ) + "\n";
+    String s;
+    s = "Role          : " + role.toString() + "\n";
+    if (this.serverPort > 0) {
+      s += "Server port   : " + this.serverPort + "\n";
+    }
+    if (this.domainName != null) {
+      s += "Domain Name   : " + this.domainName + "\n";
+    }
+    if (this.keyStoreFile != null) {
+      s += "Keystore file : " + this.keyStoreFile + "\n";
+    }
+    if (this.masaUri != null) {
+      s += "MASA URI      : " + this.masaUri + " (forced)\n";
+    }
+    if (this.registrarUri != null) {
+      s += "Registrar URI : " + this.registrarUri + "\n";
+    }
+    s += "Log verbose   : " + (this.logVerbose ? "yes" : "no") + "\n";
+    return s;
   }
 }

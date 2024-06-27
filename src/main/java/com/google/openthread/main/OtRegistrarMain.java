@@ -29,6 +29,7 @@
 package com.google.openthread.main;
 
 import com.google.openthread.LoggerInitializer;
+import com.google.openthread.masa.MASAMain;
 import com.google.openthread.registrar.RegistrarMain;
 import com.google.openthread.pledge.PledgeMain;
 import org.apache.commons.cli.CommandLine;
@@ -45,9 +46,9 @@ import org.slf4j.LoggerFactory;
  */
 public final class OtRegistrarMain {
 
-  private static Logger logger = LoggerFactory.getLogger(OtRegistrarMain.class);
+  private static final Logger logger = LoggerFactory.getLogger(OtRegistrarMain.class);
 
-  public static void main(String args[]) {
+  public static void main(String[] args) {
 
     final String HELP_FORMAT = "[-registrar | -masa | -pledge] [-h] [-v] [-d <domain-name>] [-f <keystore-file>] [-p <udp-port>]";
 
@@ -79,44 +80,47 @@ public final class OtRegistrarMain {
 
     Option fileOpt =
         Option.builder("f")
-            .longOpt("file")
+            .longOpt("keyfile")
             .hasArg()
             .argName("keystore-file")
             .desc("the keystore file in PKCS#12 format")
             .build();
 
-    Option optPort =
+    Option portOpt =
         Option.builder("p")
             .longOpt("port")
             .hasArg()
-            .argName("udp-port")
-            .desc("the port to listen on")
+            .argName("server-port")
+            .desc("the server CoAPS or HTTPS port to listen on")
             .build();
 
-    Option optVerbose =
+    Option verboseOpt =
         Option.builder("v")
             .longOpt("verbose")
             .desc("verbose mode with many logs")
             .build();
 
-    Option optForceMasaUri =
+    Option masaUriOpt =
         Option.builder("m")
-            .longOpt("masa")
+            .longOpt("masaUri")
             .hasArg()
-            .argName("force-masa-uri")
+            .argName("forced-masa-uri")
             .desc("force the given MASA URI instead of the default one")
             .build();
 
-    Option optRegistrarUri =
+    Option registrarUriOpt =
         Option.builder("r")
-            .longOpt("registrar")
+            .longOpt("registrarUri")
             .hasArg()
             .argName("registrar-uri")
             .desc("for a Pledge, the Registrar to connect to")
             .build();
 
     Option helpOpt =
-        Option.builder("h").longOpt("help").hasArg(false).desc("print this message").build();
+        Option.builder("h")
+            .longOpt("help")
+            .desc("print this message")
+            .build();
 
     options
         .addOption(registrarOpt)
@@ -124,13 +128,13 @@ public final class OtRegistrarMain {
         .addOption(pledgeOpt)
         .addOption(domainNameOpt)
         .addOption(fileOpt)
-        .addOption(optPort)
-        .addOption(optVerbose)
-        .addOption(optForceMasaUri)
-        .addOption(optRegistrarUri)
+        .addOption(portOpt)
+        .addOption(verboseOpt)
+        .addOption(masaUriOpt)
+        .addOption(registrarUriOpt)
         .addOption(helpOpt);
 
-    OtRegistrarConfig config = OtRegistrarConfig.Default();
+    OtRegistrarConfig config;
 
     try {
       CommandLineParser parser = new DefaultParser();
@@ -141,31 +145,33 @@ public final class OtRegistrarMain {
         return;
       }
 
-      config.logVerbose = cmd.hasOption("v");
+      if (cmd.hasOption("registrar")) {
+        config = OtRegistrarConfig.DefaultRegistrar();
+      } else if (cmd.hasOption("masa")) {
+        config = OtRegistrarConfig.DefaultMasa();
+      } else if (cmd.hasOption("pledge")) {
+        config = OtRegistrarConfig.DefaultPledge();
+      } else {
+        helper.printHelp(HELP_FORMAT, options);
+        return;
+      }
+
+      if (cmd.hasOption('v')) {
+        config.logVerbose = true;
+      }
       LoggerInitializer.Init(config.logVerbose);
 
       if (cmd.hasOption('f')) {
         config.keyStoreFile = cmd.getOptionValue('f');
       }
       if (cmd.hasOption('p')) {
-        config.serverPortCoaps = Integer.parseInt(cmd.getOptionValue('p'));
+        config.serverPort = Integer.parseInt(cmd.getOptionValue('p'));
       }
       if (cmd.hasOption('d')) {
         config.domainName = cmd.getOptionValue('d');
       }
       if (cmd.hasOption('m')) {
         config.masaUri = cmd.getOptionValue('m');
-      }
-
-      if (cmd.hasOption("registrar")) {
-        config.role = Role.Registrar;
-      } else if (cmd.hasOption("masa")) {
-        config.role = Role.Masa;
-      } else if (cmd.hasOption("pledge")) {
-        config.role = Role.Pledge;
-      } else {
-        helper.printHelp(HELP_FORMAT, options);
-        return;
       }
 
     } catch (Exception e) {
@@ -178,14 +184,15 @@ public final class OtRegistrarMain {
 
     switch (config.role) {
       case Registrar:
-        RegistrarMain.main(config);
+        RegistrarMain.startRegistrar(config);
         break;
       case Masa:
+        MASAMain.startMasa(config);
         break;
       case Pledge:
-        PledgeMain.main(config);
+        PledgeMain.startPledge(config);
         break;
-      case None:
+      default:
         break;
     }
   }

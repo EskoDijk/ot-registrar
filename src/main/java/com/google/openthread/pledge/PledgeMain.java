@@ -43,24 +43,25 @@ public class PledgeMain {
 
   private static final Logger logger = LoggerFactory.getLogger(PledgeMain.class);
 
-  public static void main(OtRegistrarConfig config) {
+  public static void startPledge(OtRegistrarConfig config) {
     try {
       String password = CredentialGenerator.PASSWORD;
       Credentials cred = new Credentials(config.keyStoreFile, CredentialGenerator.PLEDGE_ALIAS, password);
 
-      if (cred == null || cred.getPrivateKey() == null || cred.getCertificateChain() == null) {
+      if (cred.getPrivateKey() == null || cred.getCertificateChain() == null) {
         throw new KeyStoreException(String.format("can't find pledge key or certificate: %s", CredentialGenerator.PLEDGE_ALIAS));
       }
       Pledge pledge = new Pledge(cred, config.registrarUri);
-      run(pledge);
+      runCli(pledge);
       pledge.shutdown();
     } catch (Exception e) {
-      logger.error("error: {}", e.getMessage(), e);
+      logger.error(e.getMessage());
+      logger.debug("details:", e);
       return;
     }
   }
 
-  private static void run(Pledge pledge) {
+  private static void runCli(Pledge pledge) {
     final String help =
         "rv       -  request voucher to Registrar (cBRSKI)\n"
             + "enroll   -  simple enrollment with Registrar (EST)\n"
