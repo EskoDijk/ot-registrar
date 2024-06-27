@@ -29,7 +29,7 @@
 
 readonly JAR_FILE=./target/ot-registrar-0.2-jar-with-dependencies.jar
 
-# test if Registrar JAR exists
+# test if OT Registrar JAR exists
 if [ ! -f  "${JAR_FILE}" ]; then
   echo "Please build using 'mvn -DskipTests package' before running."
   exit 1

@@ -29,15 +29,7 @@
 
 set -e
 
-## This is not a public repository, make sure you have the access!
-readonly TRI_REPO=git@bitbucket.org:threadgroup/tce-registrar-java.git
-
 readonly IMAGE_NAME=ot-registrar
-
-if [ ! -d tri ]; then
-    echo "cloning 'tce-registrar-java' into 'tri'..."
-    git clone $TRI_REPO tri
-fi
 
 # Enable ipv6
 if [ ! -f /etc/docker/daemon.json ]; then

@@ -37,4 +37,4 @@ if [ "$#" -eq 1 ]; then
 fi
 
 echo "Pledge using IoTconsultancy credentials with Registrar: ${REGISTRAR}"
-java -cp target/ot-registrar-0.1-SNAPSHOT-jar-with-dependencies.jar com.google.openthread.pledge.PledgeMain -f ./credentials/iotconsultancy-masa/credentials.p12 -r ${REGISTRAR}
+./script/run -pledge -f ./credentials/iotconsultancy-masa/credentials.p12 -r ${REGISTRAR}

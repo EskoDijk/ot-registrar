@@ -29,14 +29,8 @@
 
 # This script is to run the Java Pledge with Honeydukes IDevID.
 # The Honeydukes test vendor/MASA is located at: https://honeydukes.sandelman.ca/
-readonly JAR_FILE=./target/ot-registrar-0.1-SNAPSHOT-jar-with-dependencies.jar
+
 readonly CREDENTIAL=./credentials/honeydukes/credentials.p12
 readonly CRED_DIR=./credentials/honeydukes
 
-# test if build JAR exists
-if [ ! -f  "${JAR_FILE}" ]; then
-  echo "Please build using 'mvn -DskipTests package' before running; and run this script from base directory of repo."
-  exit 1
-fi
-
-java -cp $JAR_FILE com.google.openthread.tools.CredentialGenerator -m $CRED_DIR/vendor.crt -p $CRED_DIR/device.crt $CRED_DIR/key.pem -o $CREDENTIAL
+./script/helper-cp-run.sh com.google.openthread.tools.CredentialGenerator -m $CRED_DIR/vendor.crt -p $CRED_DIR/device.crt $CRED_DIR/key.pem -o $CREDENTIAL

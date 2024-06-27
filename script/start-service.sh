@@ -27,6 +27,8 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
+# Start the OT Registrar service in a Docker container for testing.
+
 readonly SUBNET=fdaa:bb::/64
 readonly IP6_ADDR=fdaa:bb::de6
 readonly NETWORK=network-openthread
