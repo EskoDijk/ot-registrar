@@ -96,6 +96,7 @@ import org.bouncycastle.cms.CMSProcessableByteArray;
 import org.bouncycastle.cms.CMSSignedData;
 import org.bouncycastle.cms.CMSSignedDataGenerator;
 import org.bouncycastle.cms.CMSTypedData;
+import org.bouncycastle.cms.SignerId;
 import org.bouncycastle.cms.SignerInfoGenerator;
 import org.bouncycastle.cms.SignerInformation;
 import org.bouncycastle.cms.SignerInformationStore;
@@ -110,6 +111,7 @@ import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.OperatorException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
+import org.bouncycastle.util.Selector;
 import org.bouncycastle.util.Store;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.scandium.DTLSConnector;
@@ -120,7 +122,9 @@ import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 
-/** Provides common security-related definitions and functionalities. */
+/**
+ * Provides common security-related definitions and functionalities.
+ */
 public class SecurityUtils {
 
   public static final String KEY_ALGORITHM = "EC";
@@ -137,7 +141,7 @@ public class SecurityUtils {
     BouncyCastleInitializer.init();
     try {
       certFactory = CertificateFactory.getInstance("X.509");
-    } catch (CertificateException ex) {;
+    } catch (CertificateException ex) {
       ex.printStackTrace();
     }
   }
@@ -210,21 +214,18 @@ public class SecurityUtils {
     return null;
   }
 
-  public static String getMasaUri(X509Certificate cert) {
+  public static String getMasaUri(X509Certificate cert) throws IOException {
     try {
       X509CertificateHolder holder = new JcaX509CertificateHolder(cert);
       Extension masaUri = holder.getExtension(new ASN1ObjectIdentifier(ConstantsBrski.MASA_URI_OID));
       // TODO check if the below can also handle UTF-8 String types. (Not all use IA5String)
       String sUri = DERIA5String.fromByteArray(masaUri.getExtnValue().getOctets()).toString();
       // remove trailing slashes, if any, from MASA URI.
-      while (sUri.endsWith("/")) sUri = sUri.substring(0, sUri.length() - 1);
+      while (sUri.endsWith("/")) {
+        sUri = sUri.substring(0, sUri.length() - 1);
+      }
       return sUri;
-    } catch (IOException e) {
-      // TODO throw exception from this method, remove the prints.
-      e.printStackTrace();
-      return null;
     } catch (CertificateEncodingException e) {
-      e.printStackTrace();
       return null;
     }
   }
@@ -252,8 +253,7 @@ public class SecurityUtils {
   public static X509Certificate parseCertFromPem(Reader reader)
       throws CertificateException, IOException {
     PEMParser parser = new PEMParser(reader);
-    return new JcaX509CertificateConverter()
-        .getCertificate((X509CertificateHolder) parser.readObject());
+    return new JcaX509CertificateConverter().getCertificate((X509CertificateHolder) parser.readObject());
   }
 
   public static PrivateKey parsePrivateKeyFromPem(Reader reader) throws IOException {
@@ -270,11 +270,12 @@ public class SecurityUtils {
     return new JcaPEMKeyConverter().getPrivateKey(pkInfo);
   }
 
-  /** get the content of subject-key-identifier extension without any encoding. */
+  /**
+   * get the content of subject-key-identifier extension without any encoding.
+   */
   public static byte[] getSubjectKeyId(X509Certificate cert) throws IOException {
     // TODO(wgtdkp): use bouncycastle ?
-    ASN1OctetString octets =
-        DEROctetString.getInstance(cert.getExtensionValue(Extension.subjectKeyIdentifier.getId()));
+    ASN1OctetString octets = DEROctetString.getInstance(cert.getExtensionValue(Extension.subjectKeyIdentifier.getId()));
     if (octets == null) {
       // Create subject key identifier if the certificate doesn't include it.
       return SecurityUtils.createSubjectKeyId(cert.getPublicKey()).getEncoded();
@@ -285,9 +286,7 @@ public class SecurityUtils {
   }
 
   /**
-   * get the entire Authority Key Identifier OCTET STRING from the certificate. This is an octet
-   * string that contains an embedded SEQUENCE that defines the AKI extension structure. See RFC
-   * 5280.
+   * get the entire Authority Key Identifier OCTET STRING from the certificate. This is an octet string that contains an embedded SEQUENCE that defines the AKI extension structure. See RFC 5280.
    *
    * @param cert
    * @return the entire Authority Key Identifier ASN.1 SEQUENCE, or null if not present.
@@ -297,18 +296,16 @@ public class SecurityUtils {
   }
 
   /**
-   * get only the KeyIdentifier sub-field (OCTET STRING) from the Authority Key Identifier of the
-   * certificate. See RFC 5280.
+   * get only the KeyIdentifier sub-field (OCTET STRING) from the Authority Key Identifier of the certificate. See RFC 5280.
    *
    * @param cert
-   * @return only the KeyIdentifier OCTET STRING bytes part of the AKI of the certificate, or null
-   *     if not found.
+   * @return only the KeyIdentifier OCTET STRING bytes part of the AKI of the certificate, or null if not found.
    */
   public static byte[] getAuthorityKeyIdentifierKeyId(X509Certificate cert) {
-    ASN1OctetString octets =
-        DEROctetString.getInstance(
-            cert.getExtensionValue(Extension.authorityKeyIdentifier.getId()));
-    if (octets == null) return null;
+    ASN1OctetString octets = DEROctetString.getInstance(cert.getExtensionValue(Extension.authorityKeyIdentifier.getId()));
+    if (octets == null) {
+      return null;
+    }
     AuthorityKeyIdentifier aki = AuthorityKeyIdentifier.getInstance(octets.getOctets());
     return aki.getKeyIdentifier();
   }
@@ -332,14 +329,12 @@ public class SecurityUtils {
   }
 
   /**
-   * Cose-sign1 with optionally X509 certs included in an x5bag structure per
-   * draft-ietf-anima-constrained-voucher. See draft-ietf-cose-x509-08 for x5bag encoding.
+   * Cose-sign1 with optionally X509 certs included in an x5bag structure per draft-ietf-anima-constrained-voucher. See draft-ietf-cose-x509-08 for x5bag encoding.
    *
    * @param signingKey
    * @param signingAlg
    * @param content
-   * @param certs additional certs to package into an x5bag structure into the COSE object, or null
-   *     if none.
+   * @param certs      additional certs to package into an x5bag structure into the COSE object, or null if none.
    * @return
    * @throws CoseException
    */
@@ -390,17 +385,24 @@ public class SecurityUtils {
     generator.addCertificate(holder);
 
     // Empty data
-    CMSTypedData data = new CMSProcessableByteArray(new byte[] {});
+    CMSTypedData data = new CMSProcessableByteArray(new byte[]{});
     return generator.generate(data, true);
   }
 
+  @SuppressWarnings("unchecked")
   public static boolean validateCMSSignedMessage(CMSSignedData signedData) throws Exception {
     Store<X509CertificateHolder> certs = signedData.getCertificates();
     SignerInformationStore signers = signedData.getSignerInfos();
 
     for (SignerInformation signerInfo : signers.getSigners()) {
-      X509CertificateHolder holder =
-          (X509CertificateHolder) certs.getMatches(signerInfo.getSID()).iterator().next();
+      Selector<X509CertificateHolder> signerId;
+      try {
+        // FIXME see if a newer BouncyCastle could avoid the 'unchecked' warnings, instead of try/catch/suppress.
+        signerId = (Selector<X509CertificateHolder>) signerInfo.getSID();
+      } catch (ClassCastException ex) {
+        continue;
+      }
+      X509CertificateHolder holder = certs.getMatches(signerId).iterator().next();
 
       SignerInformationVerifier verifier = new JcaSimpleSignerInfoVerifierBuilder().build(holder);
       return signerInfo.verify(verifier);
@@ -436,14 +438,13 @@ public class SecurityUtils {
   /**
    * Generate a certificate with default signature and digest algorithm.
    *
-   * @param subKeyPair subject key pair
-   * @param subName subject distinguished name
+   * @param subKeyPair    subject key pair
+   * @param subName       subject distinguished name
    * @param issuerKeyPair issuer key pair
-   * @param issuerName issuer distinguished name
-   * @param ca is this certificate used as a CA
-   * @param extensions additional extensions
+   * @param issuerName    issuer distinguished name
+   * @param ca            is this certificate used as a CA
+   * @param extensions    additional extensions
    * @return generated certificate
-   * @throws Exception
    */
   public static X509Certificate genCertificate(
       KeyPair subKeyPair,
@@ -530,7 +531,7 @@ public class SecurityUtils {
         -1, trustAnchors, privateKey, certificateChain, verifier, false, isSniEnabled);
   }
 
-  public static final CoapEndpoint genCoapServerEndPoint(
+  public static CoapEndpoint genCoapServerEndPoint(
       int port,
       X509Certificate[] trustAnchors,
       PrivateKey privateKey,
@@ -540,7 +541,7 @@ public class SecurityUtils {
     return genCoapEndPoint(port, trustAnchors, privateKey, certificateChain, verifier, true, true);
   }
 
-  private static final CoapEndpoint genCoapEndPoint(
+  private static CoapEndpoint genCoapEndPoint(
       int port,
       X509Certificate[] trustAnchors,
       PrivateKey privateKey,
@@ -550,13 +551,15 @@ public class SecurityUtils {
       boolean isSniEnabled) {
     DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder();
 
-    if (isServerEndPoint)
+    if (isServerEndPoint) {
       config.setSupportedCipherSuites(
           CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
           CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM,
           CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8,
           CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM);
-    else config.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+    } else {
+      config.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+    }
 
     config.setRetransmissionTimeout(10 * 1000);
 
@@ -575,9 +578,13 @@ public class SecurityUtils {
       config.setClientOnly();
     }
 
-    if (verifier != null) config.setCertificateVerifier(verifier);
+    if (verifier != null) {
+      config.setCertificateVerifier(verifier);
+    }
 
-    if (trustAnchors != null) config.setTrustStore(trustAnchors);
+    if (trustAnchors != null) {
+      config.setTrustStore(trustAnchors);
+    }
 
     List<CertificateType> types = new ArrayList<>();
 
@@ -613,19 +620,19 @@ public class SecurityUtils {
   }
 
   /**
-   * Get the X509 certificates encoded in a COSE-Sign1 message in an 'x5bag' header attribute,
-   * either protected (tried first) or unprotected (tried last). Per draft-ietf-cose-x509-08.
+   * Get the X509 certificates encoded in a COSE-Sign1 message in an 'x5bag' header attribute, either protected (tried first) or unprotected (tried last). Per draft-ietf-cose-x509-08.
    *
    * @param sign1Msg
-   * @return List of X509Certificate, decoded from COSE-sign1 message, or null if nothing found in
-   *     header parameters.
+   * @return List of X509Certificate, decoded from COSE-sign1 message, or null if nothing found in header parameters.
    */
   public static List<X509Certificate> getX5BagCertificates(Sign1Message sign1Msg)
       throws CertificateException {
     List<X509Certificate> certs = new ArrayList<>();
     // look for header parameter
     CBORObject x5bag = sign1Msg.findAttribute(ConstantsBrski.COSE_X5BAG_HEADER_KEY);
-    if (x5bag == null) return null;
+    if (x5bag == null) {
+      return null;
+    }
     // if it is an array of certs
     if (x5bag.getType().equals(CBORType.Array) && x5bag.size() > 0) {
       for (int idx = 0; idx < x5bag.size(); idx++) {
@@ -644,21 +651,22 @@ public class SecurityUtils {
   }
 
   /**
-   * Create an x5bag structure per draft-ietf-cose-x509-08. If one certificate, it simply encodes
-   * the cert as CBOR byte array. If multiple, it uses CBOR array of byte-arrays.
+   * Create an x5bag structure per draft-ietf-cose-x509-08. If one certificate, it simply encodes the cert as CBOR byte array. If multiple, it uses CBOR array of byte-arrays.
    *
    * @param certs
    * @return
    */
   public static CBORObject createX5BagCertificates(X509Certificate[] certs)
       throws CertificateEncodingException {
-    if (certs.length == 0) return CBORObject.NewArray();
+    if (certs.length == 0) {
+      return CBORObject.NewArray();
+    }
     if (certs.length == 1) {
       return CBORObject.FromObject(certs[0].getEncoded()); // create CBOR byte string
     } else {
       CBORObject ca = CBORObject.NewArray();
-      for (int i = 0; i < certs.length; i++) {
-        ca.Add(CBORObject.FromObject(certs[i].getEncoded()));
+      for (X509Certificate cert : certs) {
+        ca.Add(CBORObject.FromObject(cert.getEncoded()));
       }
       return ca;
     }

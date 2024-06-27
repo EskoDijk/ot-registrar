@@ -59,17 +59,12 @@ import org.bouncycastle.util.encoders.Hex;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 public class CredentialsTest {
 
   public static final String KEY_STORE_FILE = "test-credentials.temp.p12";
   private static String pledgeSn;
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @BeforeClass
   public static void createCredentialFile() throws Exception {
@@ -82,7 +77,7 @@ public class CredentialsTest {
   @AfterClass
   public static void cleanCredentialFile() {
     File f = new File(KEY_STORE_FILE);
-    f.delete();
+    Assert.assertTrue(f.delete());
   }
 
   @Test
@@ -126,17 +121,17 @@ public class CredentialsTest {
     Credentials pledgeCred = new Credentials(KEY_STORE_FILE, CredentialGenerator.PLEDGE_ALIAS, CredentialGenerator.PASSWORD);
 
     Assert.assertEquals(SecurityUtils.getMasaUri(pledgeCred.getCertificate()), Constants.DEFAULT_MASA_URI);
-    Assert.assertTrue(pledgeCred.getCertificateChain().length == 2);
+    Assert.assertEquals(2, pledgeCred.getCertificateChain().length);
 
     pledgeCred.getCertificate().verify(masaCred.getCertificate().getPublicKey());
 
     String pledgeSN = SecurityUtils.getSerialNumber(pledgeCred.getCertificate());
-    Assert.assertTrue(pledgeSN != null);
-    Assert.assertTrue(pledgeSN.equals(pledgeSn));
+    Assert.assertNotNull(pledgeSN);
+    Assert.assertEquals(pledgeSN, pledgeSn);
     HardwareModuleName hwsn = SecurityUtils.getHWModuleName(pledgeCred.getCertificate());
 
-    Assert.assertTrue(hwsn != null);
-    Assert.assertTrue(new String(hwsn.getSerialNumber().getOctets()).equals(pledgeSn));
+    Assert.assertNotNull(hwsn);
+    Assert.assertEquals(new String(hwsn.getSerialNumber().getOctets()), pledgeSn);
   }
 
   @Test
@@ -170,10 +165,8 @@ public class CredentialsTest {
     Assert.assertArrayEquals(SERIAL_NUMBER, hwmn.getSerialNumber().getOctets());
   }
 
-  @Test
+  @Test(expected = CertPathValidatorException.class)
   public void testRegistrarCertChainValidationWithSelfFails() throws Exception {
-    thrown.expect(CertPathValidatorException.class);
-
     Credentials registrarCred = new Credentials(KEY_STORE_FILE, CredentialGenerator.REGISTRAR_ALIAS, CredentialGenerator.PASSWORD);
     X509Certificate cert = registrarCred.getCertificate();
 

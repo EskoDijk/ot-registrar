@@ -146,14 +146,14 @@ public class Pledge extends CoapClient {
         return serialNumber;
       }
 
+      // FIXME check in specs which serial nr is required.
       logger.info("extracting Serial-Number from certificate failed, trying HW-Serial-Number");
 
       // Base64 encoded to convert it to printable string
-      return Base64.toBase64String(
-          SecurityUtils.getHWModuleName(idevid).getSerialNumber().getOctets());
+      return Base64.toBase64String(SecurityUtils.getHWModuleName(idevid).getSerialNumber().getOctets());
     } catch (CertificateEncodingException e) {
-      logger.error("bad certificate: " + e.getMessage());
-      e.printStackTrace();
+      logger.warn("bad certificate: {}", e.getMessage());
+      logger.debug("details:", e);
       return null;
     }
   }

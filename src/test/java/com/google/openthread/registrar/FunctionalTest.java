@@ -45,14 +45,12 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.junit.*;
-import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class FunctionalTest {
 
   public static final String REGISTRAR_URI = "coaps://[::1]:" + ConstantsBrski.DEFAULT_REGISTRAR_COAPS_PORT;
-
   public static final String DEFAULT_DOMAIN_NAME = "Thread-Test";
 
   // the acting entities
@@ -65,9 +63,6 @@ public class FunctionalTest {
   private static CredentialGenerator cg;
 
   private final static Logger logger = LoggerFactory.getLogger(FunctionalTest.class);
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @BeforeClass
   public static void setup() throws Exception {
@@ -112,17 +107,13 @@ public class FunctionalTest {
   }
 
   @After
-  public void finalize() {
-    stopEntities();
-  }
-
-  protected void stopEntities() {
+  public void shutdown() {
     pledge.shutdown();
     registrar.stop();
     masa.stop();
   }
 
-  private void VerifyEnroll(Pledge pledge) throws Exception {
+  private void verifyEnroll(Pledge pledge) {
     X509Certificate cert = pledge.getOperationalCert();
     Assert.assertNotNull(cert);
 
@@ -134,7 +125,7 @@ public class FunctionalTest {
     Assert.assertNull(subjKeyId);
   }
 
-  private void VerifyPledge(Pledge pledge) {
+  private void verifyPledge(Pledge pledge) {
     Assert.assertNotEquals(pledge.getState(), CertState.NO_CONTACT);
     Assert.assertNotEquals(pledge.getState(), CertState.PROVISIONALLY_ACCEPT);
     // TODO - implement state verification of Pledge after voucher request, while enroll may or may
@@ -166,7 +157,7 @@ public class FunctionalTest {
   public void testVoucherRequest() throws Exception {
     Voucher voucher = pledge.requestVoucher();
     Assert.assertTrue(voucher.validate());
-    VerifyPledge(pledge);
+    verifyPledge(pledge);
     Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
   }
 
@@ -177,8 +168,8 @@ public class FunctionalTest {
     Assert.assertTrue(voucher.validate());
 
     pledge.enroll();
-    VerifyPledge(pledge);
-    VerifyEnroll(pledge);
+    verifyPledge(pledge);
+    verifyEnroll(pledge);
     Assert.assertEquals(ResponseCode.CHANGED, pledge.sendEnrollStatusTelemetry(true, null));
   }
 
@@ -203,7 +194,7 @@ public class FunctionalTest {
     // start a new set of entities, using loaded credentials.
     CredentialGenerator cred = new CredentialGenerator();
     cred.load(CredentialGenerator.CREDENTIALS_FILE_IOTCONSULTANCY);
-    this.stopEntities();
+    this.shutdown();
     this.initEntities(cred);
     registrar.setForcedMasaUri(Constants.DEFAULT_MASA_URI); // force to local.
 
@@ -212,8 +203,8 @@ public class FunctionalTest {
     Assert.assertTrue(voucher.validate());
 
     pledge.enroll();
-    VerifyPledge(pledge);
-    VerifyEnroll(pledge);
+    verifyPledge(pledge);
+    verifyEnroll(pledge);
     Assert.assertEquals(ResponseCode.CHANGED, pledge.sendEnrollStatusTelemetry(true, null));
   }
 
@@ -224,18 +215,16 @@ public class FunctionalTest {
 
     pledge.enroll();
     Assert.assertTrue(voucher.validate());
-    VerifyPledge(pledge);
-    VerifyEnroll(pledge);
+    verifyPledge(pledge);
+    verifyEnroll(pledge);
     Assert.assertEquals(ResponseCode.CHANGED, pledge.sendEnrollStatusTelemetry(true, null));
 
     pledge.reenroll();
-    VerifyEnroll(pledge);
+    verifyEnroll(pledge);
   }
 
   /**
    * Test various status telemetry messages, stand-alone (not associated to enrollment/voucher request). Current Registrar is implemented to just accept/log these.
-   *
-   * @throws Exception
    */
   @Test
   public void testStatusTelemetry() throws Exception {
@@ -286,17 +275,17 @@ public class FunctionalTest {
   public void testReset() throws Exception {
     pledge.requestVoucher();
     pledge.enroll();
-    VerifyEnroll(pledge);
+    verifyEnroll(pledge);
     pledge.reenroll();
-    VerifyEnroll(pledge);
+    verifyEnroll(pledge);
 
     pledge.reset();
 
     pledge.requestVoucher();
     pledge.enroll();
-    VerifyEnroll(pledge);
+    verifyEnroll(pledge);
     pledge.reenroll();
-    VerifyEnroll(pledge);
+    verifyEnroll(pledge);
   }
 
   @Test
@@ -336,7 +325,7 @@ public class FunctionalTest {
   private class PledgeThread extends Thread {
 
     public Throwable errorState = null;
-    public Pledge pledge = null;
+    public Pledge pledge;
 
     public PledgeThread() throws Exception {
       cg.makePledge(null); // create a new Pledge identity and serial number
@@ -349,11 +338,11 @@ public class FunctionalTest {
         pledge.requestVoucher();
         Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
         pledge.enroll();
-        VerifyEnroll(pledge);
+        verifyEnroll(pledge);
         Assert.assertEquals(ResponseCode.CHANGED, pledge.sendEnrollStatusTelemetry(true, null));
 
         pledge.reenroll();
-        VerifyEnroll(pledge);
+        verifyEnroll(pledge);
 
       } catch (Throwable e) {
         errorState = e;
@@ -386,12 +375,12 @@ public class FunctionalTest {
     registrar.start();
 
     // test connection does not work - our Pledge checks for cmcRA in certificate
-    CoapResponse response = null;
+    CoapResponse response;
     try {
-      response = pledge.sayHello();
+      pledge.sayHello();
       Assert.fail("Pledge mistakenly accepted Registrar without cmcRA");
     } catch (IOException ex) {
-      ;
+      // expected IOException here.
     }
 
     // try again without checking strictly for cmcRA
@@ -429,7 +418,7 @@ public class FunctionalTest {
     Voucher voucher = pledge.requestVoucher();
     Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
     pledge.enroll();
-    VerifyEnroll(pledge);
+    verifyEnroll(pledge);
     voucher.validate();
     Assert.assertEquals(ResponseCode.CHANGED, pledge.sendEnrollStatusTelemetry(true, null));
   }
