@@ -28,6 +28,8 @@
 
 package com.google.openthread.main;
 
+import com.google.openthread.brski.ConstantsBrski;
+
 public class OtRegistrarConfig {
 
   public Role role;
@@ -65,7 +67,7 @@ public class OtRegistrarConfig {
   static OtRegistrarConfig DefaultMasa() {
     OtRegistrarConfig config = new OtRegistrarConfig();
     config.role = Role.Masa;
-    config.serverPort = 9443; // re-using corporate TLS/HTTPS port
+    config.serverPort = ConstantsBrski.DEFAULT_MASA_HTTPS_PORT; // re-using corporate TLS/HTTPS port
     config.domainName = null;
     config.keyStoreFile = "./credentials/default_masa.p12";
     config.masaUri = null;

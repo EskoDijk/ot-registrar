@@ -49,7 +49,7 @@ rm -rf $LOGS
 mkdir -p $LOGS
 
 echo "starting Registrar server (CoAPS), log=${REGISTRAR_LOG}..."
-./script/run -registrar -v -d $DOMAIN_NAME -f $CREDENTIAL \
+./script/run -registrar -v -d $DOMAIN_NAME -f $CREDENTIAL -m localhost:9994 \
     >> $REGISTRAR_LOG 2>&1 &
 
 echo "starting MASA server (HTTPS), log=${MASA_LOG}..."

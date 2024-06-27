@@ -41,9 +41,9 @@ echo "creating subnet ${NETWORK}=${SUBNET} ..."
 sudo docker network rm $NETWORK
 sudo docker network create --ipv6 --subnet=$SUBNET $NETWORK
 
-echo "starting registrar(ip=${IP6_ADDR}) container..."
+echo "starting ot-registrar(ip=${IP6_ADDR}) container..."
 sudo docker run -dt --privileged \
     --network $NETWORK --ip6 $IP6_ADDR \
     --sysctl 'net.ipv6.conf.all.disable_ipv6=0 net.ipv4.conf.all.forwarding=1 net.ipv6.conf.all.forwarding=1' \
     -v $ROOT_DIR:/home/ot-registrar \
-    ubuntu:ot-registrar
+    ot-registrar:latest

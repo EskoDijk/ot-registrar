@@ -25,7 +25,7 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-FROM ubuntu:18.04
+FROM ubuntu:22.04
 
 RUN apt-get update
 
@@ -37,7 +37,7 @@ RUN apt-get install maven git sudo lsb-core net-tools -y
 
 #RUN add-apt-repository ppa:openjdk-r/ppa
 #RUN apt-get update
-RUN apt-get install openjdk-8-jdk -y
+RUN apt-get install openjdk-11-jdk -y
 RUN java -version
 
 WORKDIR /home/ot-registrar
@@ -46,10 +46,11 @@ COPY . .
 
 # RUN mvn clean package
 
+# CMD triggers a warning as per https://docs.docker.com/reference/build-checks/json-args-recommended/
+# FIXME check if it should be CMD or SHELL; and if the 'bash' part should be split off.
 CMD ./script/run-servers.sh && bash
 
+# TODO: enable ports to let Registrar receive external traffic (5684).
 #EXPOSE 5683:5683/udp
-
-#EXPOSE 5684:5684/udp
-
+EXPOSE 5684:5684/udp
 #EXPOSE 5685:5685/udp
