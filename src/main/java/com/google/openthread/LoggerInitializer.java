@@ -55,5 +55,7 @@ public class LoggerInitializer {
           break;
       }
     }
+
+    ((Logger)LoggerFactory.getLogger(CALIFORNIUM)).setLevel(levelLibrary);
   }
 }

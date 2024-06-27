@@ -45,7 +45,7 @@ public class OtRegistrarConfig {
     config.domainName = null;
     config.keyStoreFile = "./credentials/default_pledge.p12";
     config.masaUri = null;
-    config.registrarUri = "localhost:5684";
+    config.registrarUri = "coaps://localhost:5684";
     config.logVerbose = false;
     return config;
   }

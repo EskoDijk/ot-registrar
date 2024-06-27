@@ -101,7 +101,8 @@ public class PledgeMain {
 
           System.out.println("Done");
         } catch (Exception e) {
-          logger.error("error: {}", e.getMessage(), e);
+          logger.error("error: {}", e.getMessage());
+          logger.debug("details:", e);
         }
       }
     }
