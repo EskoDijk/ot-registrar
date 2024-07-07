@@ -1,5 +1,5 @@
 /*
- *    Copyright (c) 2021, The OpenThread Registrar Authors.
+ *    Copyright (c) 2024, The OpenThread Registrar Authors.
  *    All rights reserved.
  *
  *    Redistribution and use in source and binary forms, with or without
@@ -26,21 +26,17 @@
  *    POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.google.openthread;
+package com.google.openthread.thread;
 
-import com.fazecast.jSerialComm.*;
-import org.junit.*;
-import org.slf4j.*;
+/**
+ * Thread or OpenThread specific constants are defined here.
+ */
+public class ConstantsThread {
 
-public class SerialPortsTest {
+  // --- OID items
+  public static final String THREAD_DOMAIN_NAME_OID = "1.3.6.1.4.1.44970.1"; // per Thread 1.2 spec
 
-  private static Logger logger = LoggerFactory.getLogger(SerialPortsTest.class);
-
-  @Test
-  public void testSerialPortEnumeration() throws Exception {
-    SerialPort[] comPorts = SerialPort.getCommPorts();
-    for (int i = 0; i < comPorts.length; i++) {
-      logger.info(comPorts[0].toString());
-    }
-  }
+  // -- Other items
+  // Default Thread Domain Name per Thread 1.2 spec. Must not be changed, unless spec changes.
+  public static final String THREAD_DOMAIN_NAME_DEFAULT = "DefaultDomain";
 }

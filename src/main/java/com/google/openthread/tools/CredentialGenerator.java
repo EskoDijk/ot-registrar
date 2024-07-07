@@ -29,9 +29,10 @@
 package com.google.openthread.tools;
 
 import com.google.openthread.Constants;
+import com.google.openthread.brski.ConstantsBrski;
 import com.google.openthread.Credentials;
 import com.google.openthread.CredentialsSet;
-import com.google.openthread.HardwareModuleName;
+import com.google.openthread.brski.HardwareModuleName;
 import com.google.openthread.SecurityUtils;
 import java.io.File;
 import java.io.FileInputStream;
@@ -92,8 +93,7 @@ public class CredentialGenerator extends CredentialsSet {
   public static final String PLEDGE_SN = "OT-";
   public static final String PLEDGE_DNAME = DNAME_PREFIX + PLEDGE_ALIAS + ",SERIALNUMBER=";
 
-  public static final String CREDENTIALS_FILE_IOTCONSULTANCY =
-      "credentials/iotconsultancy-masa/credentials.p12";
+  public static final String CREDENTIALS_FILE_IOTCONSULTANCY = "credentials/iotconsultancy-masa/credentials.p12";
   public static final String CREDENTIALS_FILE_HONEYDUKES = "credentials/honeydukes/credentials.p12";
 
   private String masaUri = Constants.DEFAULT_MASA_URI;
@@ -107,19 +107,16 @@ public class CredentialGenerator extends CredentialsSet {
   }
 
   /**
-   * Set the MASA URI that will be included in a generated Pledge certificate, in the MASA URI
-   * extension (RFC 8995 2.3.2).
+   * Set the MASA URI that will be included in a generated Pledge certificate, in the MASA URI extension (RFC 8995 2.3.2).
    *
-   * @param masaUri string that is typically only the 'authority' part of a URI. See RFC 8995 for
-   *     exception cases where more elements can be added.
+   * @param masaUri string that is typically only the 'authority' part of a URI. See RFC 8995 for exception cases where more elements can be added.
    */
   public void setMasaUri(String masaUri) {
     this.masaUri = masaUri;
   }
 
   /**
-   * Sets whether the Extended Key Usage (EKU) extensions is included in any generated Registrar
-   * cert. By default, it is included and must be included to comply to specifications. For testing
+   * Sets whether the Extended Key Usage (EKU) extensions is included in any generated Registrar cert. By default, it is included and must be included to comply to specifications. For testing
    * situations it can be excluded.
    *
    * @param isIncluded true if EKU is included (should be used by default), false if not.
@@ -157,7 +154,7 @@ public class CredentialGenerator extends CredentialsSet {
                 .getEncoded(ASN1Encoding.DER));
 
     OtherName otherName =
-        new OtherName(new ASN1ObjectIdentifier(Constants.HARDWARE_MODULE_NAME_OID), moduleName);
+        new OtherName(new ASN1ObjectIdentifier(ConstantsBrski.HARDWARE_MODULE_NAME_OID), moduleName);
     Extension subjectAltName =
         new Extension(
             Extension.subjectAlternativeName,
@@ -167,7 +164,7 @@ public class CredentialGenerator extends CredentialsSet {
 
     Extension masaUriExt =
         new Extension(
-            new ASN1ObjectIdentifier(Constants.MASA_URI_OID).intern(),
+            new ASN1ObjectIdentifier(ConstantsBrski.MASA_URI_OID).intern(),
             false,
             new DERIA5String(masaUri).getEncoded());
 
@@ -180,11 +177,9 @@ public class CredentialGenerator extends CredentialsSet {
   }
 
   /**
-   * generate a Registrar's certificate which has the cmcRA extended key usage (EKU) set by default.
-   * Due to RFC 5280 4.2.1.12 rules, if the EKU is present also the 'server' EKU must be present or
-   * else the identity is not allowed to operate as server. Similar for 'client' EKU; as the
-   * Registrar also must operate as a client towards MASA potentially with same identity (or
-   * potentially with another.)
+   * generate a Registrar's certificate which has the cmcRA extended key usage (EKU) set by default. Due to RFC 5280 4.2.1.12 rules, if the EKU is present also the 'server' EKU must be present or else
+   * the identity is not allowed to operate as server. Similar for 'client' EKU; as the Registrar also must operate as a client towards MASA potentially with same identity (or potentially with
+   * another.)
    *
    * @param subKeyPair
    * @param subName
@@ -202,10 +197,10 @@ public class CredentialGenerator extends CredentialsSet {
             Extension.keyUsage,
             true,
             new KeyUsage(
-                    KeyUsage.digitalSignature
-                        | KeyUsage.keyEncipherment
-                        | KeyUsage.dataEncipherment
-                        | KeyUsage.keyAgreement)
+                KeyUsage.digitalSignature
+                    | KeyUsage.keyEncipherment
+                    | KeyUsage.dataEncipherment
+                    | KeyUsage.keyAgreement)
                 .getEncoded(ASN1Encoding.DER));
 
     Extension extKeyUsage =
@@ -213,11 +208,11 @@ public class CredentialGenerator extends CredentialsSet {
             Extension.extendedKeyUsage,
             false,
             new ExtendedKeyUsage(
-                    new KeyPurposeId[] {
-                      KeyPurposeId.id_kp_serverAuth,
-                      KeyPurposeId.id_kp_clientAuth,
-                      isIncludeExtKeyUsage ? Constants.id_kp_cmcRA : KeyPurposeId.id_kp_codeSigning
-                    })
+                new KeyPurposeId[]{
+                    KeyPurposeId.id_kp_serverAuth,
+                    KeyPurposeId.id_kp_clientAuth,
+                    isIncludeExtKeyUsage ? ConstantsBrski.id_kp_cmcRA : KeyPurposeId.id_kp_codeSigning
+                })
                 .getEncoded(ASN1Encoding.DER));
 
     List<Extension> extensions = new ArrayList<>();
@@ -228,8 +223,7 @@ public class CredentialGenerator extends CredentialsSet {
   }
 
   /**
-   * Generate a new Registrar certificate using default Registrar/DomainCA credentials stored in
-   * this object.
+   * Generate a new Registrar certificate using default Registrar/DomainCA credentials stored in this object.
    *
    * @return
    */
@@ -254,17 +248,17 @@ public class CredentialGenerator extends CredentialsSet {
             Extension.keyUsage,
             true,
             new KeyUsage(
-                    KeyUsage.digitalSignature
-                        | KeyUsage.keyEncipherment
-                        | KeyUsage.dataEncipherment
-                        | KeyUsage.keyAgreement)
+                KeyUsage.digitalSignature
+                    | KeyUsage.keyEncipherment
+                    | KeyUsage.dataEncipherment
+                    | KeyUsage.keyAgreement)
                 .getEncoded(ASN1Encoding.DER));
 
     Extension extKeyUsage =
         new Extension(
             Extension.extendedKeyUsage,
             false,
-            new ExtendedKeyUsage(new KeyPurposeId[] {KeyPurposeId.id_kp_serverAuth})
+            new ExtendedKeyUsage(new KeyPurposeId[]{KeyPurposeId.id_kp_serverAuth})
                 .getEncoded(ASN1Encoding.DER));
 
     // for MASA certs, include dns name so that Registrar HTTP client can accept it.
@@ -285,18 +279,13 @@ public class CredentialGenerator extends CredentialsSet {
   /**
    * Make/generate a complete set of certificates and store locally within this CredentialsSet.
    *
-   * @param domaincaCertKeyFiles filenames for CA cert file and private key file, respectively, or
-   *     null to generate this key/cert
-   * @param masaCaCertKeyFiles filenames for MASA CA cert file and private key file, respectively,
-   *     or null to generate this key/cert, or a single filename to a MASA CA cert file only
-   *     (without private key)
-   * @param masaCertKeyFiles filenames for MASA server cert file and private key file, respectively,
-   *     or null to generate this key/cert, or a single filename to a MASA server cert file only
-   *     (without private key)
-   * @param registrarCertKeyFiles filenames for Registrar cert file and private key file,
-   *     respectively, or null to generate this key/cert
-   * @param pledgeCertKeyFiles filenames for Pledge cert file and private key file, respectively, or
-   *     null to generate this key/cert
+   * @param domaincaCertKeyFiles  filenames for CA cert file and private key file, respectively, or null to generate this key/cert
+   * @param masaCaCertKeyFiles    filenames for MASA CA cert file and private key file, respectively, or null to generate this key/cert, or a single filename to a MASA CA cert file only (without
+   *                              private key)
+   * @param masaCertKeyFiles      filenames for MASA server cert file and private key file, respectively, or null to generate this key/cert, or a single filename to a MASA server cert file only
+   *                              (without private key)
+   * @param registrarCertKeyFiles filenames for Registrar cert file and private key file, respectively, or null to generate this key/cert
+   * @param pledgeCertKeyFiles    filenames for Pledge cert file and private key file, respectively, or null to generate this key/cert
    * @throws Exception various error cases
    */
   public void make(
@@ -323,7 +312,7 @@ public class CredentialGenerator extends CredentialsSet {
       masaCaCert = genSelfSignedCert(masaCaKeyPair, MASACA_DNAME);
     }
     this.setCredentials(
-        MASACA_ALIAS, new X509Certificate[] {masaCaCert}, masaCaKeyPair.getPrivate());
+        MASACA_ALIAS, new X509Certificate[]{masaCaCert}, masaCaKeyPair.getPrivate());
 
     // MASA server
     X509Certificate cert;
@@ -341,7 +330,7 @@ public class CredentialGenerator extends CredentialsSet {
           genMasaServerCertificate(
               keyPair, MASA_DNAME, masaCaKeyPair, masaCaCert.getSubjectX500Principal().getName());
     }
-    this.setCredentials(MASA_ALIAS, new X509Certificate[] {cert, masaCaCert}, keyPair.getPrivate());
+    this.setCredentials(MASA_ALIAS, new X509Certificate[]{cert, masaCaCert}, keyPair.getPrivate());
 
     // Pledge
     makePledge(pledgeCertKeyFiles);
@@ -357,7 +346,7 @@ public class CredentialGenerator extends CredentialsSet {
       domaincaCert = genSelfSignedCert(domaincaKeyPair, DOMAINCA_DNAME);
     }
     this.setCredentials(
-        DOMAINCA_ALIAS, new X509Certificate[] {domaincaCert}, domaincaKeyPair.getPrivate());
+        DOMAINCA_ALIAS, new X509Certificate[]{domaincaCert}, domaincaKeyPair.getPrivate());
 
     // Registrar
     if (registrarCertKeyFiles != null) {
@@ -373,7 +362,7 @@ public class CredentialGenerator extends CredentialsSet {
               domaincaCert.getSubjectX500Principal().getName());
     }
     this.setCredentials(
-        REGISTRAR_ALIAS, new X509Certificate[] {cert, domaincaCert}, keyPair.getPrivate());
+        REGISTRAR_ALIAS, new X509Certificate[]{cert, domaincaCert}, keyPair.getPrivate());
 
     // Commissioner - not yet loading from a file. TODO
     keyPair = SecurityUtils.genKeyPair();
@@ -386,14 +375,13 @@ public class CredentialGenerator extends CredentialsSet {
             false,
             null);
     this.setCredentials(
-        COMMISSIONER_ALIAS, new X509Certificate[] {cert, domaincaCert}, keyPair.getPrivate());
+        COMMISSIONER_ALIAS, new X509Certificate[]{cert, domaincaCert}, keyPair.getPrivate());
   }
 
   /**
    * Make a new Pledge certificate.
    *
-   * @param pledgeCertKeyFiles filenames for Pledge cert file and private key file, respectively, or
-   *     null to generate
+   * @param pledgeCertKeyFiles filenames for Pledge cert file and private key file, respectively, or null to generate
    */
   public void makePledge(String[] pledgeCertKeyFiles) throws Exception {
     X509Certificate pledgeCert;
@@ -401,7 +389,7 @@ public class CredentialGenerator extends CredentialsSet {
     Credentials masaCaCreds = getCredentials(MASACA_ALIAS);
     String sn = createNewPledgeSerialNumber();
     HardwareModuleName hwModuleName =
-        new HardwareModuleName(Constants.PRIVATE_HARDWARE_TYPE_OID, sn.getBytes());
+        new HardwareModuleName(ConstantsBrski.PRIVATE_HARDWARE_TYPE_OID, sn.getBytes());
 
     if (pledgeCertKeyFiles != null) {
       pledgeCert = loadCertAndLogErrors(pledgeCertKeyFiles[0]);
@@ -419,7 +407,7 @@ public class CredentialGenerator extends CredentialsSet {
     }
     this.setCredentials(
         PLEDGE_ALIAS,
-        new X509Certificate[] {pledgeCert, masaCaCreds.getCertificate()},
+        new X509Certificate[]{pledgeCert, masaCaCreds.getCertificate()},
         pledgeKeyPair.getPrivate());
   }
 
@@ -433,8 +421,7 @@ public class CredentialGenerator extends CredentialsSet {
   }
 
   /**
-   * load a certificate PEM from file and log any load/parse errors to the log. Any exception is
-   * thrown to caller.
+   * load a certificate PEM from file and log any load/parse errors to the log. Any exception is thrown to caller.
    *
    * @param fn
    * @return
@@ -457,8 +444,7 @@ public class CredentialGenerator extends CredentialsSet {
   }
 
   /**
-   * load the private key PEM file in 'fn' and combine this with the public key in 'cert', to return
-   * the combined KeyPair. Any errors in load/parse are logged and any exceptions are thrown up.
+   * load the private key PEM file in 'fn' and combine this with the public key in 'cert', to return the combined KeyPair. Any errors in load/parse are logged and any exceptions are thrown up.
    *
    * @param cert
    * @param fn
@@ -518,7 +504,7 @@ public class CredentialGenerator extends CredentialsSet {
 
   public void dumpSeparateFiles() throws Exception {
     String[] files = {
-      MASACA_ALIAS, MASA_ALIAS, PLEDGE_ALIAS, DOMAINCA_ALIAS, REGISTRAR_ALIAS, COMMISSIONER_ALIAS
+        MASACA_ALIAS, MASA_ALIAS, PLEDGE_ALIAS, DOMAINCA_ALIAS, REGISTRAR_ALIAS, COMMISSIONER_ALIAS
     };
 
     for (int i = 0; i < files.length; ++i) {

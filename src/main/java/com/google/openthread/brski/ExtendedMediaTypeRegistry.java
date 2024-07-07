@@ -26,7 +26,7 @@
  *    POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.google.openthread;
+package com.google.openthread.brski;
 
 import java.util.HashMap;
 import java.util.Set;

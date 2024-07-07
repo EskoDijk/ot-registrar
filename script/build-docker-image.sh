@@ -29,15 +29,8 @@
 
 set -e
 
-## This is not a public repository, make sure you have the access!
-readonly TRI_REPO=git@bitbucket.org:threadgroup/tce-registrar-java.git
-
 readonly IMAGE_NAME=ot-registrar
-
-if [ ! -d tri ]; then
-    echo "cloning 'tce-registrar-java' into 'tri'..."
-    git clone $TRI_REPO tri
-fi
+readonly VERSION=latest
 
 # Enable ipv6
 if [ ! -f /etc/docker/daemon.json ]; then
@@ -46,12 +39,14 @@ if [ ! -f /etc/docker/daemon.json ]; then
     sudo systemctl restart docker
 fi
 
-# Create docker image if not exist
+# Create docker image if not existing yet
 if ! $(sudo docker image ls | grep -q "${IMAGE_NAME}"); then
-    echo "building docker image..."
-    sudo docker build --no-cache -f script/Dockerfile -t ubuntu:${IMAGE_NAME} .
-fi
+    # Building package
+    echo "building OT Registrar package..."
+    mvn clean -Dmaven.test.skip=true package
 
-# Building package
-echo "building OT Registrar package..."
-mvn clean -Dmaven.test.skip=true package
+    echo "building docker image..."
+    sudo docker build --no-cache -f script/Dockerfile -t ${IMAGE_NAME}:${VERSION} .
+else
+    echo "Docker image '${IMAGE_NAME}' is already present."
+fi

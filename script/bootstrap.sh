@@ -29,8 +29,6 @@
 
 set -e
 
-ACE_REPO=https://bitbucket.org/marco-tiloca-sics/ace-java
-
 ## Test if we has the given command.
 ## Args: $1, the command.
 has_command() {
@@ -61,15 +59,4 @@ install_toolchain() {
     mvn -verion
 }
 
-install_ace() {
-    if [ ! -d ace ]; then
-        git clone $ACE_REPO ace
-    fi
-    cd ace
-        mvn -DskipTests install
-    cd -
-    rm -rf ace
-}
-
 install_toolchain
-install_ace

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#  Copyright (c) 2022, The OpenThread Registrar Authors.
+#  Copyright (c) 2024, The OpenThread Registrar Authors.
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -27,20 +27,12 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-set -e
+readonly JAR_FILE=./target/ot-registrar-0.2-jar-with-dependencies.jar
 
-readonly PORT=9443
-readonly JAR_FILE=./target/ot-registrar-0.1-SNAPSHOT-jar-with-dependencies.jar
-readonly CREDENTIAL=credentials/iotconsultancy-masa/credentials.p12
-
-# test if Registrar JAR exists
+# test if OT Registrar JAR exists
 if [ ! -f  "${JAR_FILE}" ]; then
   echo "Please build using 'mvn -DskipTests package' before running."
   exit 1
 fi
 
-echo "starting MASA server, port=${PORT} ..."
-java -cp $JAR_FILE \
-    com.google.openthread.masa.MASAMain \
-    -v -p $PORT -f $CREDENTIAL \
-    "$@"
+java -cp $JAR_FILE $@

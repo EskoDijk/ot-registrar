@@ -28,17 +28,10 @@
 #
 
 # This script is to run the Java Pledge with IoTconsultancy IDevID.
-readonly JAR_FILE=./target/ot-registrar-0.1-SNAPSHOT-jar-with-dependencies.jar
 readonly CRED_DIR=./credentials/iotconsultancy-masa
 readonly CREDENTIAL=${CRED_DIR}/credentials.p12
 
-# test if build JAR exists
-if [ ! -f  "${JAR_FILE}" ]; then
-  echo "Please build using 'mvn -DskipTests package' before running; and run this script from base directory of repo."
-  exit 1
-fi
-
-java -cp $JAR_FILE com.google.openthread.tools.CredentialGenerator \
+./script/helper-cp-run.sh com.google.openthread.tools.CredentialGenerator \
    -ms $CRED_DIR/TestVendor_masa.pem $CRED_DIR/privkey_TestVendor_masa.pem \
    -m $CRED_DIR/TestVendor_masa_ca.pem $CRED_DIR/privkey_TestVendor_masa_ca.pem \
    -p $CRED_DIR/TestVendor_1.pem $CRED_DIR/privkey_TestVendor_1.pem \

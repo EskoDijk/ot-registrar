@@ -29,119 +29,24 @@
 package com.google.openthread.registrar;
 
 import com.google.openthread.Credentials;
-import com.google.openthread.LoggerInitializer;
 import com.google.openthread.domainca.DomainCA;
+import com.google.openthread.main.OtRegistrarConfig;
 import com.google.openthread.tools.CredentialGenerator;
 import java.security.KeyStoreException;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class RegistrarMain {
 
-  private static Logger logger = LoggerFactory.getLogger(RegistrarMain.class);
+  private static final Logger logger = LoggerFactory.getLogger(RegistrarMain.class);
 
-  public static void main(String args[]) {
-
-    final String HELP_FORMAT = "registrar [-h] [-v] -d <domain-name> -f <keystore-file> -p <port>";
-
-    HelpFormatter helper = new HelpFormatter();
-    Options options = new Options();
-
-    Option domainNameOpt =
-        Option.builder("d")
-            .longOpt("domainname")
-            .hasArg()
-            .argName("domain-name")
-            .desc("the domain name")
-            .build();
-
-    Option fileOpt =
-        Option.builder("f")
-            .longOpt("file")
-            .hasArg()
-            .argName("keystore-file")
-            .desc("the keystore file in PKCS#12 format")
-            .build();
-
-    Option optPort =
-        Option.builder("p")
-            .longOpt("port")
-            .hasArg()
-            .argName("port")
-            .desc("the port to listen on")
-            .build();
-
-    Option optVerbose =
-        Option.builder("v")
-            .longOpt("verbose")
-            .hasArg(false)
-            .desc("verbose mode with many logs")
-            .build();
-
-    Option optForceMasaUri =
-        Option.builder("m")
-            .longOpt("masa")
-            .hasArg(true)
-            .desc("force the given MASA URI instead of the default one")
-            .build();
-
-    Option helpOpt =
-        Option.builder("h").longOpt("help").hasArg(false).desc("print this message").build();
-
-    options
-        .addOption(domainNameOpt)
-        .addOption(fileOpt)
-        .addOption(optPort)
-        .addOption(optVerbose)
-        .addOption(optForceMasaUri)
-        .addOption(helpOpt);
-
+  public static void startRegistrar(OtRegistrarConfig config) {
     Registrar registrar;
 
     try {
-      CommandLineParser parser = new DefaultParser();
-      CommandLine cmd = parser.parse(options, args);
-
-      LoggerInitializer.Init(cmd.hasOption('v'));
-
-      if (cmd.hasOption('h')) {
-        helper.printHelp(HELP_FORMAT, options);
-        return;
-      }
-
-      String keyStoreFile = cmd.getOptionValue('f');
-      if (keyStoreFile == null) {
-        throw new IllegalArgumentException("need keystore file!");
-      }
-
-      String port = cmd.getOptionValue('p');
-      if (port == null) {
-        throw new IllegalArgumentException("need port!");
-      }
-
-      String domainName = cmd.getOptionValue('d');
-      if (domainName == null) {
-        throw new IllegalArgumentException("need domain name!");
-      }
-
-      logger.info("using keystore: " + keyStoreFile);
-
       RegistrarBuilder builder = new RegistrarBuilder();
-      Credentials cred =
-          new Credentials(
-              keyStoreFile, CredentialGenerator.REGISTRAR_ALIAS, CredentialGenerator.PASSWORD);
-      Credentials domainCred =
-          new Credentials(
-              keyStoreFile, CredentialGenerator.DOMAINCA_ALIAS, CredentialGenerator.PASSWORD);
-      // Credentials masaCred =
-      //    new Credentials(
-      //        keyStoreFile, CredentialGenerator.MASA_ALIAS, CredentialGenerator.PASSWORD);
+      Credentials cred = new Credentials(config.keyStoreFile, CredentialGenerator.REGISTRAR_ALIAS, CredentialGenerator.PASSWORD);
+      Credentials domainCred = new Credentials(config.keyStoreFile, CredentialGenerator.DOMAINCA_ALIAS, CredentialGenerator.PASSWORD);
 
       if (cred.getPrivateKey() == null || cred.getCertificateChain() == null) {
         throw new KeyStoreException("can't find registrar key or certificate in keystore");
@@ -151,34 +56,34 @@ public final class RegistrarMain {
         throw new KeyStoreException("can't find domain CA key or certificate in keystore");
       }
 
-      // re-use the same creds for Pledge-facing identity and MASA-facing identity.
+      // re-use the same creds for Pledge-facing identity and MASA-facing identity of Registrar.
       builder.setCredentials(cred);
-      builder.setPort(Integer.parseInt(port));
+      builder.setPort(config.serverPort);
 
       // if (true) {
       // trust all MASAs by default
       builder.setTrustAllMasas(true);
       // } else {
-      // FIXME if one MASA identity defined in credentials file, use that one as trusted MASA.
+      // FIXME if one MASA identity defined in credentials file, use that one as trusted MASA. Or add config flag.
       // if (masaCred.getCertificate() != null)
       //  builder.addMasaCertificate(masaCred.getCertificate());
       // }
 
       registrar = builder.build();
 
-      if (cmd.hasOption('m')) {
-        registrar.setForcedMasaUri(cmd.getOptionValue('m'));
+      if (config.masaUri != null) {
+        registrar.setForcedMasaUri(config.masaUri);
       }
 
-      DomainCA ca = new DomainCA(domainName, domainCred);
+      DomainCA ca = new DomainCA(config.domainName, domainCred);
       registrar.setDomainCA(ca);
     } catch (Exception e) {
-      logger.error(e.getMessage(), e);
-      helper.printHelp(HELP_FORMAT, options);
+      logger.error(e.getMessage());
+      logger.debug("details:", e);
       return;
     }
 
     registrar.start();
-    logger.info("Registrar listening at port: " + registrar.getListenPort());
+    logger.info("Registrar listening (CoAPS) at port: {}", registrar.getListenPort());
   }
 }

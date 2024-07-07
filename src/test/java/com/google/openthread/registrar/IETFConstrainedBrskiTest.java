@@ -28,7 +28,6 @@
 
 package com.google.openthread.registrar;
 
-import com.google.openthread.*;
 import com.google.openthread.brski.*;
 import com.google.openthread.domainca.*;
 import com.google.openthread.masa.*;
@@ -42,19 +41,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This test code is to specifically produce the COSE examples in the Appendix of
- * IETF draft "Constrained BRSKI" - see 
- * https://datatracker.ietf.org/doc/html/draft-ietf-anima-constrained-voucher
- *
+ * This test code is to specifically produce the COSE examples in the Appendix of IETF draft
+ * "Constrained BRSKI" - see https://datatracker.ietf.org/doc/html/draft-ietf-anima-constrained-voucher
  */
 public class IETFConstrainedBrskiTest {
 
-  public static final String REGISTRAR_URI =
-      "coaps://[::1]:" + Constants.DEFAULT_REGISTRAR_COAPS_PORT;
-
+  public static final String REGISTRAR_URI = "coaps://[::1]:" + ConstantsBrski.DEFAULT_REGISTRAR_COAPS_PORT;
   public static final String DEFAULT_DOMAIN_NAME = "Thread-Test";
   public static final String CREDENTIALS_KEYSTORE_FILE = "credentials/keystore_ietf-draft-constrained-brski.p12";
-  
+
   // the acting entities
   private DomainCA domainCA;
   private Registrar registrar;
@@ -75,12 +70,15 @@ public class IETFConstrainedBrskiTest {
   }
 
   @AfterClass
-  public static void tearDown() {}
+  public static void tearDown() {
+  }
 
   @Before
   public void init() throws Exception {
     // disable debug logging.
-    ch.qos.logback.classic.Logger rootLogger = (ch.qos.logback.classic.Logger)LoggerFactory.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
+    ch.qos.logback.classic.Logger rootLogger =
+        (ch.qos.logback.classic.Logger)
+            LoggerFactory.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
     rootLogger.setLevel(ch.qos.logback.classic.Level.INFO);
     initEntities(cg);
   }
@@ -90,7 +88,7 @@ public class IETFConstrainedBrskiTest {
         new MASA(
             credGen.getCredentials(CredentialGenerator.MASA_ALIAS),
             credGen.getCredentials(CredentialGenerator.MASACA_ALIAS),
-            Constants.DEFAULT_MASA_HTTPS_PORT);
+            ConstantsBrski.DEFAULT_MASA_HTTPS_PORT);
     pledge = new Pledge(credGen.getCredentials(CredentialGenerator.PLEDGE_ALIAS), REGISTRAR_URI);
     pledge.setLightweightClientCertificates(true);
 
@@ -106,18 +104,18 @@ public class IETFConstrainedBrskiTest {
             .setTrustAllMasas(true) // or enable this, to trust all MASAs.
             .build();
     registrar.setDomainCA(domainCA);
-    registrar.setForcedMasaUri("localhost:" + Constants.DEFAULT_MASA_HTTPS_PORT); // force to localhost, don't heed example MASA URI in Pledge cert.
+    registrar.setForcedMasaUri(
+        "localhost:"
+            + ConstantsBrski
+            .DEFAULT_MASA_HTTPS_PORT); // force to localhost, don't heed example MASA URI in
+    // Pledge cert.
 
     masa.start();
     registrar.start();
   }
 
   @After
-  public void finalize() {
-    stopEntities();
-  }
-
-  protected void stopEntities() {
+  public void shutdown() {
     pledge.shutdown();
     registrar.stop();
     masa.stop();
@@ -135,17 +133,15 @@ public class IETFConstrainedBrskiTest {
     Assert.assertTrue(voucher.validate());
     VerifyPledge(pledge);
     Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
-    
+
     // display the artifacts.
     logger.info("Pledge Voucher Request (PVR) sent by Pledge:\n" + pledge.getLastPvr().toString());
     logger.info("Pledge Voucher Request (PVR) sent by Pledge as Hex string:\n" + Hex.toHexString(pledge.getLastPvrCoseSigned()));
-    
+
     logger.info("Registrar Voucher Request (RVR) sent by Registrar:\n" + registrar.getLastRvr().toString());
     logger.info("Registrar Voucher Request (RVR) sent by Registrar as Hex string:\n" + Hex.toHexString(registrar.getLastRvrCoseSigned()));
-    
+
     logger.info("Voucher created by MASA:\n" + voucher);
     logger.info("Voucher created by MASA as Hex string:\n" + Hex.toHexString(pledge.getLastVoucherCoseSigned()));
-    
   }
-
 }

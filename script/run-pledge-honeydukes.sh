@@ -30,4 +30,5 @@
 # This runs a Pledge using Honeydukes IDevID, onboarding via cloud Registrar.
 # The script create-pledge-credentials-p12-honeydukes.sh can be used to create 
 # or recreate the credentials file.
-java -cp target/ot-registrar-0.1-SNAPSHOT-jar-with-dependencies.jar com.google.openthread.pledge.PledgeMain -f ./credentials/honeydukes/credentials.p12 -r coaps://masa.iotconsultancy.nl
+
+./script/run -pledge -f ./credentials/honeydukes/credentials.p12 -r coaps://masa.iotconsultancy.nl

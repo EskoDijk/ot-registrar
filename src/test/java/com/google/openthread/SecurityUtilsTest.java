@@ -30,6 +30,8 @@ package com.google.openthread;
 
 import COSE.OneKey;
 import COSE.Sign1Message;
+import com.google.openthread.brski.ConstantsBrski;
+import com.google.openthread.brski.HardwareModuleName;
 import com.google.openthread.tools.CredentialGenerator;
 import com.upokecenter.cbor.CBORObject;
 import java.security.*;
@@ -44,13 +46,9 @@ import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder;
 import org.bouncycastle.util.encoders.Hex;
 import org.junit.Assert;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 public class SecurityUtilsTest {
-
-  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testSignatureVerification() throws Exception {
@@ -84,10 +82,9 @@ public class SecurityUtilsTest {
 
   @Test
   public void testHWModuleName() throws Exception {
-    HardwareModuleName name0 =
-        new HardwareModuleName(Constants.PRIVATE_HARDWARE_TYPE_OID, new byte[] {0x01, 0x02, 0x03});
+    HardwareModuleName name0 = new HardwareModuleName(ConstantsBrski.PRIVATE_HARDWARE_TYPE_OID, new byte[]{0x01, 0x02, 0x03});
     HardwareModuleName name1 = HardwareModuleName.getInstance(name0.getEncoded());
-    Assert.assertTrue(name0.equals(name1));
+    Assert.assertEquals(name0, name1);
   }
 
   @Test
@@ -108,42 +105,38 @@ public class SecurityUtilsTest {
   public void testX5BagEncoding() throws Exception {
     KeyPair kp = SecurityUtils.genKeyPair();
     X509Certificate cert = SecurityUtils.genCertificate(kp, "CN=Root", kp, "CN=Root", true, null);
-    CBORObject bagSingle = SecurityUtils.createX5BagCertificates(new X509Certificate[] {cert});
+    CBORObject bagSingle = SecurityUtils.createX5BagCertificates(new X509Certificate[]{cert});
+    Assert.assertNotNull(bagSingle);
 
     KeyPair kp2 = SecurityUtils.genKeyPair();
-    X509Certificate cert2 =
-        SecurityUtils.genCertificate(
-            kp, "CN=AnotherRoot/L=InSpace", kp2, "CN=AnotherRoot/L=InSpace", true, null);
-    CBORObject bagMultiple =
-        SecurityUtils.createX5BagCertificates(new X509Certificate[] {cert, cert2});
-    byte[] payload = new byte[] {1, 2, 3, 4, 5};
+    X509Certificate cert2 = SecurityUtils.genCertificate(kp, "CN=AnotherRoot/L=InSpace", kp2, "CN=AnotherRoot/L=InSpace", true, null);
+    CBORObject bagMultiple = SecurityUtils.createX5BagCertificates(new X509Certificate[]{cert, cert2});
+    Assert.assertNotNull(bagMultiple);
+
+    byte[] payload = new byte[]{1, 2, 3, 4, 5};
 
     // try single bag
-    byte[] cose =
-        SecurityUtils.genCoseSign1Message(
-            kp.getPrivate(),
-            SecurityUtils.COSE_SIGNATURE_ALGORITHM,
-            payload,
-            new X509Certificate[] {cert});
+    byte[] cose = SecurityUtils.genCoseSign1Message(kp.getPrivate(), SecurityUtils.COSE_SIGNATURE_ALGORITHM, payload, new X509Certificate[]{cert});
     Sign1Message sign1 = (Sign1Message) Sign1Message.DecodeFromBytes(cose);
     Assert.assertTrue(sign1.validate(new OneKey(kp.getPublic(), kp.getPrivate())));
     List<X509Certificate> certList = SecurityUtils.getX5BagCertificates(sign1);
-    Assert.assertTrue(certList.size() == 1);
-    Assert.assertEquals(certList.get(0), cert);
+    Assert.assertNotNull(certList);
+    Assert.assertEquals(1, certList.size());
+    Assert.assertEquals(cert, certList.get(0));
 
     // try multi bag
-    cose =
-        SecurityUtils.genCoseSign1Message(
-            kp2.getPrivate(),
-            SecurityUtils.COSE_SIGNATURE_ALGORITHM,
-            payload,
-            new X509Certificate[] {cert, cert2});
+    cose = SecurityUtils.genCoseSign1Message(
+        kp2.getPrivate(),
+        SecurityUtils.COSE_SIGNATURE_ALGORITHM,
+        payload,
+        new X509Certificate[]{cert, cert2});
     sign1 = (Sign1Message) Sign1Message.DecodeFromBytes(cose);
     Assert.assertTrue(sign1.validate(new OneKey(kp2.getPublic(), kp2.getPrivate())));
     certList = SecurityUtils.getX5BagCertificates(sign1);
-    Assert.assertTrue(certList.size() == 2);
-    Assert.assertEquals(certList.get(0), cert);
-    Assert.assertEquals(certList.get(1), cert2);
+    Assert.assertNotNull(certList);
+    Assert.assertEquals(2, certList.size());
+    Assert.assertEquals(cert, certList.get(0));
+    Assert.assertEquals(cert2, certList.get(1));
   }
 
   @Test
@@ -154,12 +147,13 @@ public class SecurityUtilsTest {
         cg.getCredentials(CredentialGenerator.PLEDGE_ALIAS).getCertificate();
     byte[] akiOctetString = SecurityUtils.getAuthorityKeyIdentifier(pledgeCert);
     byte[] keyId = SecurityUtils.getAuthorityKeyIdentifierKeyId(pledgeCert);
-    Assert.assertTrue(akiOctetString.length == 26);
-    Assert.assertTrue(keyId.length == 20);
+    Assert.assertNotNull(keyId);
+    Assert.assertEquals(26, akiOctetString.length);
+    Assert.assertEquals(20, keyId.length);
 
     // verify that the last part of akiOctetString in fact contains the keyId.
     byte[] akiOctetStringLastPart = new byte[20];
     System.arraycopy(akiOctetString, 6, akiOctetStringLastPart, 0, 20);
-    Assert.assertTrue(Arrays.equals(keyId, akiOctetStringLastPart));
+    Assert.assertArrayEquals(keyId, akiOctetStringLastPart); // TODO check order expected, actual here.
   }
 }

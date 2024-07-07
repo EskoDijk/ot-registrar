@@ -30,7 +30,8 @@ package com.google.openthread;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
-import org.apache.logging.log4j.core.config.Configurator;
+import ch.qos.logback.classic.LoggerContext;
+import java.util.List;
 import org.slf4j.LoggerFactory;
 
 public class LoggerInitializer {
@@ -39,12 +40,22 @@ public class LoggerInitializer {
   private static final String CALIFORNIUM = "org.eclipse.californium";
 
   public static void Init(boolean verbose) {
-    if (verbose) {
-      ((Logger) LoggerFactory.getLogger(CALIFORNIUM)).setLevel(Level.DEBUG);
-      Configurator.setLevel(OPENTHREAD, org.apache.logging.log4j.Level.DEBUG);
-    } else {
-      ((Logger) LoggerFactory.getLogger(CALIFORNIUM)).setLevel(Level.INFO);
-      Configurator.setLevel(OPENTHREAD, org.apache.logging.log4j.Level.INFO);
+    final Level level = verbose ? Level.DEBUG : Level.INFO;
+    final Level levelLibrary = verbose ? Level.INFO : Level.WARN;
+
+    LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+    List<Logger> loggerList = loggerContext.getLoggerList();
+    for (Logger logger : loggerList) {
+      switch (logger.getName()) {
+        case OPENTHREAD:
+          logger.setLevel(level);
+          break;
+        case CALIFORNIUM:
+          logger.setLevel(levelLibrary);
+          break;
+      }
     }
+
+    ((Logger)LoggerFactory.getLogger(CALIFORNIUM)).setLevel(levelLibrary);
   }
 }

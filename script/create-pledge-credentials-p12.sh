@@ -27,14 +27,7 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-readonly JAR_FILE=./target/ot-registrar-0.1-SNAPSHOT-jar-with-dependencies.jar
 readonly CREDENTIAL=./credentials/pledge_credentials.p12
 readonly CRED_DIR=./credentials/local-masa
 
-# test if build JAR exists
-if [ ! -f  "${JAR_FILE}" ]; then
-  echo "Please build using 'mvn -DskipTests package' before running; and run this script from base directory of repo."
-  exit 1
-fi
-
-java -cp $JAR_FILE com.google.openthread.tools.CredentialGenerator -m $CRED_DIR/masa_cert.pem $CRED_DIR/masa_private.pem -p $1 $2 -o $CREDENTIAL
+./script/helper-cp-run.sh com.google.openthread.tools.CredentialGenerator -m $CRED_DIR/masa_cert.pem $CRED_DIR/masa_private.pem -p $1 $2 -o $CREDENTIAL

@@ -12,15 +12,15 @@ Help us keep OpenThread open and inclusive.  Please read and follow our [Code of
 
 ## Bugs
 
-If you find a bug in the source code, you can help us by [submitting a GitHub Issue](https://github.com/openthread/ot-registrar/issues/new). Even better, you can [submit a Pull Request](#submitting-a-pull-request) with a fix.
+If you find a bug in the source code, you can help us by [submitting a GitHub Issue](https://github.com/EskoDijk/ot-registrar/issues/new). Even better, you can [submit a Pull Request](#submitting-a-pull-request) with a fix.
 
 ## New features
 
-You can request a new feature by [submitting a GitHub Issue](https://github.com/openthread/ot-registrar/issues/new).
+You can request a new feature by [submitting a GitHub Issue](https://github.com/EskoDijk/ot-registrar/issues/new).
 
 If you would like to implement a new feature, please consider the scope of the new feature:
 
-* *Large feature* — [Submit a GitHub Issue](https://github.com/openthread/ot-registrar/issues/new) with your proposal so that the community can review and provide feedback first. Early feedback helps to ensure your proposal is accepted by the community, better coordinate our efforts, and minimize duplicated work.
+* *Large feature* — [Submit a GitHub Issue](https://github.com/EskoDijk/ot-registrar/issues/new) with your proposal so that the community can review and provide feedback first. Early feedback helps to ensure your proposal is accepted by the community, better coordinate our efforts, and minimize duplicated work.
 
 * *Small feature* — Can be implemented and directly [submitted as a Pull Request](#submitting-a-pull-request) without a proposal.
 
@@ -32,17 +32,17 @@ The OpenThread Project follows the "Fork-and-Pull" model for accepting contribut
 
 Setup your GitHub fork and continuous integration services:
 
-1. Fork the [OT Registrar repository](https://github.com/openthread/ot-registrar) by clicking **Fork** on the web UI.
-2. Enable [Travis CI](https://travis-ci.org/) by logging into the respective service with your GitHub account and enabling your newly created fork. We use Travis CI for Linux-based continuous integration checks. All contributions must pass these checks to be accepted.
+1. Fork the [OT Registrar repository](https://github.com/EskoDijk/ot-registrar) by clicking **Fork** on the web UI.
+2. Enable GitHub CI by logging into your GitHub account and enabling it on your newly created fork. We use CI for Linux-based continuous integration checks. All contributions must pass these checks to be accepted.
 
 Setup your local development environment:
 
 ```bash
 # Clone your fork
-git clone git@github.com:<username>/ot-registrar.git
+git clone https://<username>@github.com/EskoDijk/ot-registrar.git
 
 # Configure upstream alias
-git remote add upstream git@github.com:openthread/ot-registrar.git
+git remote add upstream https://<username>@github.com/EskoDijk/ot-registrar.git
 ```
 
 ### Submitting a pull request
@@ -99,11 +99,8 @@ This will open up a text editor where you can specify which commits to squash.
 
 #### Coding conventions and style
 
-OT Registrar uses and enforces the [Google Java Style](https://google.github.io/styleguide/javaguide.html) on all code. OT Registrar will automatically reformat the code when building the project with [maven](https://maven.apache.org). Use command `mvn com.coveo:fmt-maven-plugin:format` and `mvn com.coveo:fmt-maven-plugin:check` to explicitly reformat code and check for code-style compliance, respectively.
-
-As part of the cleanup process, also run `mvn com.coveo:fmt-maven-plugin:check` to ensure that your code passes the baseline code style checks.
-
-Make sure to include any code format changes in your commits.
+OT Registrar uses most of the [Google Java Style](https://google.github.io/styleguide/javaguide.html) at this moment. The reason for not using the full set of guidelines is that it introduces a very narrow line width (100), which makes code hard to read on normal-size desktop monitors used for coding that can easily handle long line lengths.
+For an IDE, the XML file for this style can be [downloaded](https://github.com/google/styleguide) and applied and the line width increased to 200.
 
 #### Push and test
 
@@ -115,8 +112,8 @@ git checkout <branch-name>
 git push origin <branch-name>
 ```
 
-This will trigger the Travis Continuous Integration (CI) checks. You can view the results in the respective services. Note that the integration checks will report failures on occasion. If a failure occurs, you may try rerunning the test using the Travis web UI.
+This will trigger Github Continuous Integration (CI) checks. You can view the results in the respective services.
 
 #### Submit the pull request
 
-Once you've validated the Travis CI results, go to the page for your fork on GitHub, select your development branch, and click the **Pull Request** button. If you need to make any adjustments to your pull request, push the updates to GitHub. Your pull request will automatically track the changes on your development branch and update.
+Once you've validated the CI results, go to the page for your fork on GitHub, select your development branch, and click the **Pull Request** button. If you need to make any adjustments to your pull request, push the updates to GitHub. Your pull request will automatically track the changes on your development branch and update.

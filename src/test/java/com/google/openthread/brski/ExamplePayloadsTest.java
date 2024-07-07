@@ -29,15 +29,12 @@
 package com.google.openthread.brski;
 
 import com.google.openthread.*;
-import com.google.openthread.commissioner.*;
 import com.google.openthread.pledge.*;
 import com.google.openthread.registrar.*;
 import com.upokecenter.cbor.CBORObject;
 import java.security.KeyPair;
 import java.util.Date;
-import org.bouncycastle.asn1.est.CsrAttrs;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
-import org.bouncycastle.util.encoders.Hex;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -77,25 +74,5 @@ public class ExamplePayloadsTest {
 
     logger.info("example constrained voucher payload:");
     logger.info(new CBORSerializer().toCBOR(cv).toString());
-  }
-
-  @Test
-  public void csrAttrsExamplePayload() throws Exception {
-    CSRAttributes attrs = new CSRAttributes(CSRAttributes.DEFAULT_FILE);
-
-    CsrAttrs csrAttrs = new CsrAttrs(attrs.getAttrAndOids());
-    CBORObject resp = CBORObject.FromObject(csrAttrs.getEncoded());
-    logger.info("example CSR attributes response:");
-    logger.info(resp.toString());
-    logger.info("the CBOR encoded:");
-    logger.info(Hex.toHexString(resp.EncodeToBytes()));
-  }
-
-  @Test
-  public void comTokenExamplePayload() throws Exception {
-    KeyPair kp = SecurityUtils.genKeyPair();
-    CBORObject req = Commissioner.genTokenRequest("OpenThread-TCE-TEST", kp.getPublic());
-    logger.info("example COM_TOK.req payload:");
-    logger.info(req.toString());
   }
 }

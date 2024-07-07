@@ -30,9 +30,8 @@ package com.google.openthread.registrar;
 
 import static org.junit.Assert.assertSame;
 
-import com.google.openthread.*;
+import com.google.openthread.Constants;
 import com.google.openthread.brski.*;
-import com.google.openthread.commissioner.*;
 import com.google.openthread.domainca.*;
 import com.google.openthread.masa.*;
 import com.google.openthread.pledge.*;
@@ -46,31 +45,24 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.junit.*;
-import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import se.sics.ace.cwt.CWT;
 
 public class FunctionalTest {
 
-  public static final String REGISTRAR_URI =
-      "coaps://[::1]:" + Constants.DEFAULT_REGISTRAR_COAPS_PORT;
-
+  public static final String REGISTRAR_URI = "coaps://[::1]:" + ConstantsBrski.DEFAULT_REGISTRAR_COAPS_PORT;
   public static final String DEFAULT_DOMAIN_NAME = "Thread-Test";
 
   // the acting entities
   private DomainCA domainCA;
   private Registrar registrar;
-  private Commissioner commissioner;
   private Pledge pledge;
   private MASA masa;
 
   // credentials used
   private static CredentialGenerator cg;
 
-  private static Logger logger = LoggerFactory.getLogger(FunctionalTest.class);
-
-  @Rule public ExpectedException thrown = ExpectedException.none();
+  private final static Logger logger = LoggerFactory.getLogger(FunctionalTest.class);
 
   @BeforeClass
   public static void setup() throws Exception {
@@ -80,7 +72,8 @@ public class FunctionalTest {
   }
 
   @AfterClass
-  public static void tearDown() {}
+  public static void tearDown() {
+  }
 
   @Before
   public void init() throws Exception {
@@ -92,7 +85,7 @@ public class FunctionalTest {
         new MASA(
             credGen.getCredentials(CredentialGenerator.MASA_ALIAS),
             credGen.getCredentials(CredentialGenerator.MASACA_ALIAS),
-            Constants.DEFAULT_MASA_HTTPS_PORT);
+            ConstantsBrski.DEFAULT_MASA_HTTPS_PORT);
     pledge = new Pledge(credGen.getCredentials(CredentialGenerator.PLEDGE_ALIAS), REGISTRAR_URI);
     pledge.setLightweightClientCertificates(true);
 
@@ -109,38 +102,30 @@ public class FunctionalTest {
             .build();
     registrar.setDomainCA(domainCA);
 
-    commissioner = new Commissioner(credGen.getCredentials(CredentialGenerator.COMMISSIONER_ALIAS));
-
     masa.start();
     registrar.start();
   }
 
   @After
-  public void finalize() {
-    stopEntities();
-  }
-
-  protected void stopEntities() {
+  public void shutdown() {
     pledge.shutdown();
-    commissioner.shutdown();
     registrar.stop();
     masa.stop();
   }
 
-  private void VerifyEnroll(Pledge pledge) throws Exception {
+  private void verifyEnroll(Pledge pledge) {
     X509Certificate cert = pledge.getOperationalCert();
-    Assert.assertTrue(cert != null);
+    Assert.assertNotNull(cert);
 
     String domainName = pledge.getDomainName();
-    Assert.assertTrue(domainName.equals(registrar.getDomainName()));
+    Assert.assertEquals(domainName, registrar.getDomainName());
 
-    // we expect the LDevID to NOT contain subject key id, per 802.1AR-2018 spec section 8.10.2 for
-    // LDevID.
+    // we expect the LDevID to NOT contain subject key id, per 802.1AR-2018 spec section 8.10.2 for LDevID.
     byte[] subjKeyId = cert.getExtensionValue("2.5.29.14");
     Assert.assertNull(subjKeyId);
   }
 
-  private void VerifyPledge(Pledge pledge) {
+  private void verifyPledge(Pledge pledge) {
     Assert.assertNotEquals(pledge.getState(), CertState.NO_CONTACT);
     Assert.assertNotEquals(pledge.getState(), CertState.PROVISIONALLY_ACCEPT);
     // TODO - implement state verification of Pledge after voucher request, while enroll may or may
@@ -172,23 +157,7 @@ public class FunctionalTest {
   public void testVoucherRequest() throws Exception {
     Voucher voucher = pledge.requestVoucher();
     Assert.assertTrue(voucher.validate());
-    VerifyPledge(pledge);
-    Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
-  }
-
-  /**
-   * Test BRSKI voucher request while first requesting CSR attributes. The returned attributes
-   * aren't used. Requesting this is not recommended anymore for constrained Pledges, but tested
-   * here nevertheless.
-   *
-   * @throws Exception
-   */
-  @Test
-  public void testCsrAttrsRequest() throws Exception {
-    Voucher voucher = pledge.requestVoucher();
-    pledge.requestCSRAttributes();
-    Assert.assertTrue(voucher.validate());
-    VerifyPledge(pledge);
+    verifyPledge(pledge);
     Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
   }
 
@@ -199,8 +168,8 @@ public class FunctionalTest {
     Assert.assertTrue(voucher.validate());
 
     pledge.enroll();
-    VerifyPledge(pledge);
-    VerifyEnroll(pledge);
+    verifyPledge(pledge);
+    verifyEnroll(pledge);
     Assert.assertEquals(ResponseCode.CHANGED, pledge.sendEnrollStatusTelemetry(true, null));
   }
 
@@ -225,7 +194,7 @@ public class FunctionalTest {
     // start a new set of entities, using loaded credentials.
     CredentialGenerator cred = new CredentialGenerator();
     cred.load(CredentialGenerator.CREDENTIALS_FILE_IOTCONSULTANCY);
-    this.stopEntities();
+    this.shutdown();
     this.initEntities(cred);
     registrar.setForcedMasaUri(Constants.DEFAULT_MASA_URI); // force to local.
 
@@ -234,8 +203,8 @@ public class FunctionalTest {
     Assert.assertTrue(voucher.validate());
 
     pledge.enroll();
-    VerifyPledge(pledge);
-    VerifyEnroll(pledge);
+    verifyPledge(pledge);
+    verifyEnroll(pledge);
     Assert.assertEquals(ResponseCode.CHANGED, pledge.sendEnrollStatusTelemetry(true, null));
   }
 
@@ -246,66 +215,58 @@ public class FunctionalTest {
 
     pledge.enroll();
     Assert.assertTrue(voucher.validate());
-    VerifyPledge(pledge);
-    VerifyEnroll(pledge);
+    verifyPledge(pledge);
+    verifyEnroll(pledge);
     Assert.assertEquals(ResponseCode.CHANGED, pledge.sendEnrollStatusTelemetry(true, null));
 
     pledge.reenroll();
-    VerifyEnroll(pledge);
+    verifyEnroll(pledge);
   }
 
   /**
-   * Test various status telemetry messages, stand-alone (not associated to enrollment/voucher
-   * request). Current Registrar is implemented to just accept/log these.
-   *
-   * @throws Exception
+   * Test various status telemetry messages, stand-alone (not associated to enrollment/voucher request). Current Registrar is implemented to just accept/log these.
    */
   @Test
   public void testStatusTelemetry() throws Exception {
     Assert.assertEquals(
         ResponseCode.CHANGED,
-        pledge.sendEnrollStatusTelemetry(
-            true,
-            "this message should not be here, but may be accepted by Registrar nevertheless."));
+        pledge.sendEnrollStatusTelemetry(true, "this message should not be here, but may be accepted by Registrar nevertheless."));
     Assert.assertEquals(
         ResponseCode.CHANGED,
         pledge.sendVoucherStatusTelemetry(
             true,
             "this message should not be here, but may be accepted by Registrar nevertheless."));
-    byte[] wrongFormatTelemetry =
-        Hex.decode(
-            "a46776657273696f6e6131665374617475730166526561736f6e7822496e666f726d61746976652068756d616e207265616461626c65206d6573736167656e726561736f6e2d636f6e74657874764164646974696f6e616c20696e666f726d6174696f6e");
+    byte[] wrongFormatTelemetry = Hex.decode(
+        "a46776657273696f6e6131665374617475730166526561736f6e7822496e666f726d61746976652068756d616e207265616461626c65206d6573736167656e726561736f6e2d636f6e74657874764164646974696f6e616c20696e666f726d6174696f6e");
     Assert.assertEquals(
         ResponseCode.BAD_REQUEST,
         pledge.sendStatusTelemetry(
-            Constants.ENROLL_STATUS,
+            ConstantsBrski.ENROLL_STATUS,
             wrongFormatTelemetry,
             ExtendedMediaTypeRegistry.APPLICATION_CBOR));
     Assert.assertEquals(
         ResponseCode.UNSUPPORTED_CONTENT_FORMAT,
         pledge.sendStatusTelemetry(
-            Constants.ENROLL_STATUS,
+            ConstantsBrski.ENROLL_STATUS,
             StatusTelemetry.create(true, null).serializeToBytes(),
             ExtendedMediaTypeRegistry.APPLICATION_COSE_SIGN1));
     Assert.assertEquals(
         ResponseCode.UNSUPPORTED_CONTENT_FORMAT,
         pledge.sendStatusTelemetry(
-            Constants.VOUCHER_STATUS,
+            ConstantsBrski.VOUCHER_STATUS,
             wrongFormatTelemetry,
             ExtendedMediaTypeRegistry.APPLICATION_COSE_SIGN1));
-    wrongFormatTelemetry =
-        Hex.decode(
-            "a36776657273696f6e0166737461747573f467726561736f6e787174686973206b65792069732077726f6e67");
+    wrongFormatTelemetry = Hex.decode("a36776657273696f6e0166737461747573f467726561736f6e787174686973206b65792069732077726f6e67");
     Assert.assertEquals(
         ResponseCode.BAD_REQUEST,
         pledge.sendStatusTelemetry(
-            Constants.VOUCHER_STATUS,
+            ConstantsBrski.VOUCHER_STATUS,
             wrongFormatTelemetry,
             ExtendedMediaTypeRegistry.APPLICATION_CBOR));
     Assert.assertEquals(
         ResponseCode.CHANGED,
         pledge.sendStatusTelemetry(
-            Constants.ENROLL_STATUS,
+            ConstantsBrski.ENROLL_STATUS,
             StatusTelemetry.create(true, "this msg is not needed").serializeToBytes(),
             ExtendedMediaTypeRegistry.APPLICATION_CBOR));
   }
@@ -314,25 +275,17 @@ public class FunctionalTest {
   public void testReset() throws Exception {
     pledge.requestVoucher();
     pledge.enroll();
-    VerifyEnroll(pledge);
+    verifyEnroll(pledge);
     pledge.reenroll();
-    VerifyEnroll(pledge);
+    verifyEnroll(pledge);
 
     pledge.reset();
 
     pledge.requestVoucher();
     pledge.enroll();
-    VerifyEnroll(pledge);
+    verifyEnroll(pledge);
     pledge.reenroll();
-    VerifyEnroll(pledge);
-  }
-
-  @Test
-  public void testCommissionerTokenRequest() throws Exception {
-    CWT comTok = commissioner.requestToken("TestDomainTCE", REGISTRAR_URI);
-    // TODO check result more; try 'bad commissioner' cases.
-    Assert.assertTrue(comTok.getClaims().size() > 0);
-    Assert.assertTrue(comTok.isValid(System.currentTimeMillis() + 500000));
+    verifyEnroll(pledge);
   }
 
   @Test
@@ -367,13 +320,12 @@ public class FunctionalTest {
   }
 
   /**
-   * In a thread, create a new Pledge and let it do voucher request and enrollment operations. Any
-   * error state is logged internally.
+   * In a thread, create a new Pledge and let it do voucher request and enrollment operations. Any error state is logged internally.
    */
   private class PledgeThread extends Thread {
 
     public Throwable errorState = null;
-    public Pledge pledge = null;
+    public Pledge pledge;
 
     public PledgeThread() throws Exception {
       cg.makePledge(null); // create a new Pledge identity and serial number
@@ -386,16 +338,18 @@ public class FunctionalTest {
         pledge.requestVoucher();
         Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
         pledge.enroll();
-        VerifyEnroll(pledge);
+        verifyEnroll(pledge);
         Assert.assertEquals(ResponseCode.CHANGED, pledge.sendEnrollStatusTelemetry(true, null));
 
         pledge.reenroll();
-        VerifyEnroll(pledge);
+        verifyEnroll(pledge);
 
       } catch (Throwable e) {
         errorState = e;
       } finally {
-        if (pledge != null) pledge.shutdown();
+        if (pledge != null) {
+          pledge.shutdown();
+        }
       }
     }
   }
@@ -414,18 +368,19 @@ public class FunctionalTest {
     registrar =
         registrarBuilder
             .setCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
-            .setCertificateChain(new X509Certificate[] {cert, domainCaCert})
+            .setCertificateChain(new X509Certificate[]{cert, domainCaCert})
             .setTrustAllMasas(true)
             .build();
     registrar.setDomainCA(domainCA);
     registrar.start();
 
     // test connection does not work - our Pledge checks for cmcRA in certificate
-    CoapResponse response = null;
+    CoapResponse response;
     try {
-      response = pledge.sayHello();
+      pledge.sayHello();
       Assert.fail("Pledge mistakenly accepted Registrar without cmcRA");
-    } catch (IOException ex) {;
+    } catch (IOException ex) {
+      // expected IOException here.
     }
 
     // try again without checking strictly for cmcRA
@@ -453,19 +408,17 @@ public class FunctionalTest {
 
     // create new Registrar that uses only CMS-signed JSON voucher requests towards MASA
     RegistrarBuilder registrarBuilder = new RegistrarBuilder();
-    registrar =
-        registrarBuilder
-            .setCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
-            .setTrustAllMasas(true)
-            .build();
+    registrar = registrarBuilder.setCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
+        .setTrustAllMasas(true)
+        .build();
     registrar.setDomainCA(domainCA);
-    registrar.setForcedRequestFormat(Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON);
+    registrar.setForcedRequestFormat(ConstantsBrski.HTTP_APPLICATION_VOUCHER_CMS_JSON);
     registrar.start();
 
     Voucher voucher = pledge.requestVoucher();
     Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
     pledge.enroll();
-    VerifyEnroll(pledge);
+    verifyEnroll(pledge);
     voucher.validate();
     Assert.assertEquals(ResponseCode.CHANGED, pledge.sendEnrollStatusTelemetry(true, null));
   }

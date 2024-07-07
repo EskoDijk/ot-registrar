@@ -1,7 +1,5 @@
 package com.google.openthread.brski;
 
-import com.google.openthread.Constants;
-import com.google.openthread.ExtendedMediaTypeRegistry;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 
 /**
@@ -68,7 +66,7 @@ public class RestfulVoucherResponse {
     this.code = codeFromHttpStatus(httpStatus);
     this.payload = payload;
     if (contentType != null
-        && !contentType.toLowerCase().equals(Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR))
+        && !contentType.toLowerCase().equals(ConstantsBrski.HTTP_APPLICATION_VOUCHER_COSE_CBOR))
       throw new IllegalArgumentException("Unsupported Content-Type " + contentType);
     this.contentFormat = ExtendedMediaTypeRegistry.parse(contentType);
   }

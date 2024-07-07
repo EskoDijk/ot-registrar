@@ -27,4 +27,4 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-java -cp target/ot-registrar-0.1-SNAPSHOT-jar-with-dependencies.jar com.google.openthread.tools.CoseValidator $1 $2
+./script/helper-cp-run.sh com.google.openthread.tools.CoseValidator $@

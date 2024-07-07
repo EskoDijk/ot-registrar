@@ -1,7 +1,7 @@
-# Compiled class file
+# Compiled class files
 *.class
 
-# Log file
+# Log files
 *.log
 logs
 
@@ -11,7 +11,7 @@ logs
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
 
-# Package Files #
+# Package Files
 *.jar
 *.war
 *.nar
@@ -28,22 +28,15 @@ hs_err_pid*
 # maven
 target
 
-# idea
+# IDE files
 .idea
 .project
 *.iml
-
-# vscode
 .vscode
-
 .settings
 
-# utils
+# auto-generated config files
 Californium.properties
-thread-registrar.iml
 
 # Mac OS X
 .DS_Store
-
-# Thread Registrar Interface
-tri

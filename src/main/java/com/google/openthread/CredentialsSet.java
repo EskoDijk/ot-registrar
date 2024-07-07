@@ -28,6 +28,8 @@
 
 package com.google.openthread;
 
+import com.google.openthread.brski.ConstantsBrski;
+
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.security.KeyStore;
