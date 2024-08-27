@@ -231,32 +231,21 @@ public class Registrar extends CoapServer {
 
         // TODO: check latest draft to see if JSON support is mandatory here.
         if (contentFormat != ExtendedMediaTypeRegistry.APPLICATION_CBOR) {
-          logger.warn(
-              "unsupported content-format for voucher status report: content-format="
-                  + contentFormat);
-          exchange.respond(
-              ResponseCode.UNSUPPORTED_CONTENT_FORMAT,
+          logger.warn("unsupported content-format for voucher status report: content-format=" + contentFormat);
+          exchange.respond(ResponseCode.UNSUPPORTED_CONTENT_FORMAT,
               "Only Content Format " + ExtendedMediaTypeRegistry.APPLICATION_CBOR + " supported.");
           return;
         }
 
         voucherStatus = StatusTelemetry.deserialize(exchange.getRequestPayload());
         if (voucherStatus.cbor == null) {
-          logger.warn(
-              "decoding CBOR payload failed for voucher status report: "
-                  + voucherStatus.parseResultStatus);
-          exchange.respond(
-              ResponseCode.BAD_REQUEST,
-              "decoding CBOR payload failed for voucher status report: "
-                  + voucherStatus.parseResultStatus);
+          logger.warn("decoding CBOR payload failed for voucher status report: " + voucherStatus.parseResultStatus);
+          exchange.respond(ResponseCode.BAD_REQUEST,
+              "decoding CBOR payload failed for voucher status report: " + voucherStatus.parseResultStatus);
           return;
         }
 
-        logger.info(
-            "received voucher status report; status="
-                + voucherStatus.status
-                + ": "
-                + voucherStatus.toString());
+        logger.info("received voucher status report:" + voucherStatus.toString());
 
         // log the result for this Pledge
         voucherStatusLog.put(clientId, voucherStatus);
@@ -270,9 +259,7 @@ public class Registrar extends CoapServer {
       if (voucherStatus.isValidFormat) { // success response
         exchange.respond(ResponseCode.CHANGED);
       } else {
-        exchange.respond(
-            ResponseCode.BAD_REQUEST,
-            "payload error: " + voucherStatus.parseResultStatus); // client submitted wrong format.
+        exchange.respond(ResponseCode.BAD_REQUEST, "error: " + voucherStatus.parseResultStatus); // client submitted wrong format.
       }
     }
   }

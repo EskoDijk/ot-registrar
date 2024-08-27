@@ -6,7 +6,7 @@
 
   <groupId>com.google.openthread</groupId>
   <artifactId>ot-registrar</artifactId>
-  <version>0.2</version>
+  <version>0.3</version>
 
   <name>OT Registrar</name>
   <url>https://openthread.io/</url>
