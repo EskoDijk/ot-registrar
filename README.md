@@ -18,6 +18,7 @@ Contributors are required to abide by our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Versioning
 
+Release notes for versions are kept in MD files in [releases](releases).
 OT Registrar follows the [Semantic Versioning guidelines](http://semver.org/) for release cycle transparency and to maintain backwards compatibility. OT Registrar's versioning is independent of the Thread protocol specification version.
 
 ## License
