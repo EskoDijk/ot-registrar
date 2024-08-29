@@ -27,12 +27,4 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-readonly JAR_FILE=./target/ot-registrar-0.3-jar-with-dependencies.jar
-
-# test if OT Registrar JAR exists
-if [ ! -f  "${JAR_FILE}" ]; then
-  echo "Please build project using 'mvn -DskipTests package' before running."
-  exit 1
-fi
-
-java -jar $JAR_FILE $@
+mvn package -DskipTests

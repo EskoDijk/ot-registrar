@@ -48,7 +48,7 @@ public class IETFConstrainedBrskiTest {
 
   public static final String REGISTRAR_URI = "coaps://[::1]:" + ConstantsBrski.DEFAULT_REGISTRAR_COAPS_PORT;
   public static final String DEFAULT_DOMAIN_NAME = "Thread-Test";
-  public static final String CREDENTIALS_KEYSTORE_FILE = "credentials/keystore_ietf-draft-constrained-brski.p12";
+  public static final String CREDENTIALS_KEYSTORE_FILE = "credentials/ietf-draft-constrained-brski/credentials.p12";
 
   // the acting entities
   private DomainCA domainCA;
@@ -76,9 +76,7 @@ public class IETFConstrainedBrskiTest {
   @Before
   public void init() throws Exception {
     // disable debug logging.
-    ch.qos.logback.classic.Logger rootLogger =
-        (ch.qos.logback.classic.Logger)
-            LoggerFactory.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
+    ch.qos.logback.classic.Logger rootLogger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
     rootLogger.setLevel(ch.qos.logback.classic.Level.INFO);
     initEntities(cg);
   }
@@ -92,9 +90,7 @@ public class IETFConstrainedBrskiTest {
     pledge = new Pledge(credGen.getCredentials(CredentialGenerator.PLEDGE_ALIAS), REGISTRAR_URI);
     pledge.setLightweightClientCertificates(true);
 
-    domainCA =
-        new DomainCA(
-            DEFAULT_DOMAIN_NAME, credGen.getCredentials(CredentialGenerator.DOMAINCA_ALIAS));
+    domainCA = new DomainCA(DEFAULT_DOMAIN_NAME, credGen.getCredentials(CredentialGenerator.DOMAINCA_ALIAS));
 
     RegistrarBuilder registrarBuilder = new RegistrarBuilder();
     registrar =
@@ -104,11 +100,7 @@ public class IETFConstrainedBrskiTest {
             .setTrustAllMasas(true) // or enable this, to trust all MASAs.
             .build();
     registrar.setDomainCA(domainCA);
-    registrar.setForcedMasaUri(
-        "localhost:"
-            + ConstantsBrski
-            .DEFAULT_MASA_HTTPS_PORT); // force to localhost, don't heed example MASA URI in
-    // Pledge cert.
+    registrar.setForcedMasaUri("localhost:" + ConstantsBrski.DEFAULT_MASA_HTTPS_PORT); // force localhost, don't use MASA URI in Pledge IDevID
 
     masa.start();
     registrar.start();

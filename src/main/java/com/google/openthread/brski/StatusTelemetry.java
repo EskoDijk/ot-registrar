@@ -57,8 +57,7 @@ public class StatusTelemetry {
   public String parseResultStatus = "";
 
   /**
-   * stores the CBOR object as sent by the Pledge, for reference. Null if couldn't be parsed as
-   * CBOR.
+   * stores the CBOR object as sent by the Pledge, for reference. Null if it couldn't be parsed as CBOR.
    */
   public CBORObject cbor = null;
 
@@ -67,13 +66,11 @@ public class StatusTelemetry {
   }
 
   /**
-   * Create a new StatusTelemetry object with given state info. This is useful to serialize it to
-   * CBOR or byte[].
+   * Create a new StatusTelemetry object with given state info.
    *
    * @param isSuccess true if status should indicate success, false otherwise.
-   * @param reason required human-readable failure reason if isSuccess==false, should be null
-   *     otherwise (but not necessarily).
-   * @return
+   * @param reason    required human-readable failure reason if isSuccess==false, should be null otherwise (but not necessarily).
+   * @return New StatusTelemetry object.
    */
   public static StatusTelemetry create(boolean isSuccess, String reason) {
     StatusTelemetry st = new StatusTelemetry();
@@ -108,16 +105,16 @@ public class StatusTelemetry {
   }
 
   /**
-   * Deserialize a status telemetry report from CBOR bytes. In case of invalid 'data', i.e. invalid
-   * CBOR format or invalid report format, flags in the StatusTelemetry object are set to indicate
-   * this.
+   * Deserialize a status telemetry report from CBOR bytes. In case of invalid 'data', i.e. invalid CBOR
+   * format or invalid report format, flags in the StatusTelemetry object are set to indicate this.
    *
-   * @param data CBOR bytes
-   * @return new StatusTelemetry object
+   * @param data CBOR bytes of an encoded status telemetry object
+   * @return New StatusTelemetry object
    */
   public static StatusTelemetry deserialize(byte[] data) {
     StatusTelemetry st = new StatusTelemetry();
     st.isValidFormat = true;
+
     try {
       CBORObject stCbor = CBORObject.DecodeFromBytes(data);
       if (stCbor == null
@@ -166,11 +163,23 @@ public class StatusTelemetry {
     }
 
     // evaluate more cases of invalid format.
-    if (st.status == false && (st.reason == null || st.reason.length() == 0)) {
+    if (st.isValidFormat && !st.status && (st.reason == null || st.reason.length() == 0)) {
       st.isValidFormat = false;
       st.parseResultStatus = "'reason' field must be provided if status==false";
     }
 
     return st;
+  }
+
+  public String toString() {
+    String s = "{status=" + this.status;
+    if (reason != null) {
+      s += ", reason=" + reason;
+    }
+    if (!this.isValidFormat){
+      s += " (INVALID: " +this.parseResultStatus+ ")";
+    }
+    s += "}";
+    return s;
   }
 }
