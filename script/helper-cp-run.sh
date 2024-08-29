@@ -27,7 +27,7 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-readonly JAR_FILE=./target/ot-registrar-0.2-jar-with-dependencies.jar
+readonly JAR_FILE=./target/ot-registrar-0.3-jar-with-dependencies.jar
 
 # test if OT Registrar JAR exists
 if [ ! -f  "${JAR_FILE}" ]; then
