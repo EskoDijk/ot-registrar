@@ -463,7 +463,7 @@ public class SecurityUtils {
             new X500Name(issuerName),
             allocateSerialNumber(),
             new Date(System.currentTimeMillis()),
-            new Date(System.currentTimeMillis() + (1000L * 3600 * 24 * Constants.CERT_VALIDITY)),
+            new Date(System.currentTimeMillis() + Constants.CERT_VALIDITY_MILLISECONDS),
             new X500Name(subName),
             subPub);
 

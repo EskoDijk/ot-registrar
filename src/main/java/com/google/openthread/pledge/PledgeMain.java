@@ -95,7 +95,7 @@ public class PledgeMain {
               System.out.println(help);
               break;
             default:
-              logger.error("unknown CLI command: {}", cmd);
+              logger.error("unknown CLI command: '{}'", cmd);
               System.out.println(help);
           }
 

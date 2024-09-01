@@ -29,7 +29,7 @@
 package com.google.openthread;
 
 /**
- * OT Registrar specific constants are defined here.
+ * OT Registrar project-specific constants are defined here.
  */
 public class Constants {
 
@@ -39,5 +39,6 @@ public class Constants {
 
   // -- Other items
   public static final String KEY_STORE_FORMAT = "PKCS12";
-  public static final long CERT_VALIDITY = 5 * 365; // LDevID validity in Days.
+  public static final long CERT_VALIDITY_DAYS = 5 * 365; // LDevID validity in Days.
+  public static final long CERT_VALIDITY_MILLISECONDS = CERT_VALIDITY_DAYS * 24 * 3600 * 1000;
 }

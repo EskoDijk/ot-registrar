@@ -407,16 +407,16 @@ public class MASA {
     PathHandler masaPathHandler =
         new PathHandler()
             .addExactPath("/", new BlockingHandler(new RootResourceHttpHandler()))
-            .addExactPath(
-                "/.well-known/brski/requestvoucher",
+            .addExactPath("/.well-known/brski/requestvoucher",
                 new BlockingHandler(new VoucherRequestHttpHandler()));
-    // the :: binds to IPv6 addresses only.
+    // the :: binds to (hopefully) all available IPv4 and IPv6 addresses.
+    // the specific listeners using NetworkUtils.getIPvXHost() are meant to pick specific addresses only.
     httpServer =
         Undertow.builder()
-            // .addHttpsListener(listenPort, "::", httpSsl)
-            .addHttpsListener(listenPort, "localhost", httpSsl)
-            .addHttpsListener(listenPort, NetworkUtils.getIPv4Host(), httpSsl)
-            .addHttpsListener(listenPort, NetworkUtils.getIPv6Host(), httpSsl)
+            .addHttpsListener(listenPort, "::", httpSsl)
+            //.addHttpsListener(listenPort, "localhost", httpSsl)
+            //.addHttpsListener(listenPort, NetworkUtils.getIPv4Host(), httpSsl)
+            //.addHttpsListener(listenPort, NetworkUtils.getIPv6Host(), httpSsl)
             .setHandler(masaPathHandler)
             .build();
   }

@@ -50,7 +50,7 @@ public final class OtRegistrarMain {
 
   public static void main(String[] args) {
 
-    final String HELP_FORMAT = "[-registrar | -masa | -pledge] [-h] [-v] [-d <domain-name>] [-f <keystore-file>] [-p <udp-port>]";
+    final String HELP_FORMAT = "[-registrar | -masa | -pledge] [-h] [-d <domain-name>] [-f <keystore-file>] [-p <udp-port>] [-v] [-vv] [-vvv] [-vvvv]";
 
     HelpFormatter helper = new HelpFormatter();
     Options options = new Options();
@@ -97,7 +97,22 @@ public final class OtRegistrarMain {
     Option verboseOpt =
         Option.builder("v")
             .longOpt("verbose")
-            .desc("verbose mode with many logs")
+            .desc("verbose mode for logs")
+            .build();
+
+    Option verboseVvOpt =
+        Option.builder("vv")
+            .desc("more verbose mode for logs")
+            .build();
+
+    Option verboseVvvOpt =
+        Option.builder("vvv")
+            .desc("even more verbose mode for logs")
+            .build();
+
+    Option verboseVvvvOpt =
+        Option.builder("vvvv")
+            .desc("most verbose mode for logs")
             .build();
 
     Option masaUriOpt =
@@ -130,6 +145,9 @@ public final class OtRegistrarMain {
         .addOption(fileOpt)
         .addOption(portOpt)
         .addOption(verboseOpt)
+        .addOption(verboseVvOpt)
+        .addOption(verboseVvvOpt)
+        .addOption(verboseVvvvOpt)
         .addOption(masaUriOpt)
         .addOption(registrarUriOpt)
         .addOption(helpOpt);
@@ -156,10 +174,20 @@ public final class OtRegistrarMain {
         return;
       }
 
+      config.logVerbosity = 0;
       if (cmd.hasOption('v')) {
-        config.logVerbose = true;
+        config.logVerbosity = 1;
       }
-      LoggerInitializer.Init(config.logVerbose);
+      if (cmd.hasOption("vv")) {
+        config.logVerbosity = 2;
+      }
+      if (cmd.hasOption("vvv")) {
+        config.logVerbosity = 3;
+      }
+      if (cmd.hasOption("vvvv")) {
+        config.logVerbosity = 4;
+      }
+      LoggerInitializer.Init(config.logVerbosity);
 
       if (cmd.hasOption('f')) {
         config.keyStoreFile = cmd.getOptionValue('f');
@@ -180,7 +208,8 @@ public final class OtRegistrarMain {
       return;
     }
 
-    logger.info("Configuration:\n{}", config.ToString());
+    logger.info("Configuration: {}", config.ToStringSingleLine());
+    System.out.println("Configuration :\n" + config.ToString());
 
     switch (config.role) {
       case Registrar:

@@ -39,8 +39,9 @@ public class NetworkUtils {
 
   /**
    * Returns the IPv6-specific host string for a global address of the current host. For example,
-   * "[2001:db8::3]". If no global IPv6 available it returns "[::1]". It will try to find an address
-   * over all interfaces.
+   * "[2a01:7e01::ca98]". If no global IPv6 available it returns "[::1]". It will try to find an address
+   * over all interfaces. It will avoid the example IPv6 addresses "[2001:db8:...]" which may be used
+   * by Docker.
    *
    * @return IPv6-specific host string or "[::1]" if no global address available.
    */
@@ -49,6 +50,7 @@ public class NetworkUtils {
     Enumeration<NetworkInterface> nifs;
     InetAddress addr;
     String retVal = "[::1]";
+    String addrStr;
     nifs = NetworkInterface.getNetworkInterfaces();
 
     // look for addresses per NIF
@@ -57,10 +59,12 @@ public class NetworkUtils {
       Enumeration<InetAddress> nifAddrs = nif.getInetAddresses();
       while (nifAddrs.hasMoreElements()) {
         addr = nifAddrs.nextElement();
+        addrStr = addr.getHostAddress();
         if (addr instanceof Inet6Address
             && !addr.isLinkLocalAddress()
             && !addr.isLoopbackAddress()
-            && !addr.isSiteLocalAddress()) {
+            && !addr.isSiteLocalAddress()
+            && !addrStr.startsWith("2001:db8")) {
           // ((Inet6Address) addr).getScopeId() // could check for scope id
           retVal = "[" + addr.getHostAddress() + "]";
         }

@@ -38,10 +38,41 @@ public class LoggerInitializer {
 
   private static final String OPENTHREAD = "com.google.openthread";
   private static final String CALIFORNIUM = "org.eclipse.californium";
+  private static final String XNIO = "org.xnio";
+  private static final String JBOSS = "org.jboss";
+  private static final String UNDERTOW = "io.undertow";
 
-  public static void Init(boolean verbose) {
-    final Level level = verbose ? Level.DEBUG : Level.INFO;
-    final Level levelLibrary = verbose ? Level.INFO : Level.WARN;
+  public static void Init(int verbosity) {
+    Level level, levelLibrary;
+
+    switch (verbosity) {
+      case 0:
+        level = Level.WARN;
+        levelLibrary = Level.ERROR;
+        break;
+      case 1:
+        level = Level.INFO;
+        levelLibrary = Level.WARN;
+        break;
+      case 2:
+        level = Level.DEBUG;
+        levelLibrary = Level.INFO;
+        break;
+      case 3:
+        level = Level.DEBUG;
+        levelLibrary = Level.DEBUG;
+        break;
+      case 4:
+        level = Level.TRACE;
+        levelLibrary = Level.DEBUG;
+        break;
+      case 5:
+        level = Level.TRACE;
+        levelLibrary = Level.TRACE;
+        break;
+      default:
+        throw new IllegalArgumentException("verbosity parameter must be <= 5");
+    }
 
     LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
     List<Logger> loggerList = loggerContext.getLoggerList();
@@ -51,11 +82,19 @@ public class LoggerInitializer {
           logger.setLevel(level);
           break;
         case CALIFORNIUM:
+        case XNIO:
+        case JBOSS:
+        case UNDERTOW:
           logger.setLevel(levelLibrary);
           break;
       }
     }
 
+    ((Logger)LoggerFactory.getLogger(OPENTHREAD)).setLevel(level);
+
     ((Logger)LoggerFactory.getLogger(CALIFORNIUM)).setLevel(levelLibrary);
+    ((Logger)LoggerFactory.getLogger(XNIO)).setLevel(levelLibrary);
+    ((Logger)LoggerFactory.getLogger(JBOSS)).setLevel(levelLibrary);
+    ((Logger)LoggerFactory.getLogger(UNDERTOW)).setLevel(levelLibrary);
   }
 }

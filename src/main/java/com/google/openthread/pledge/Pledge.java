@@ -420,14 +420,12 @@ public class Pledge extends CoapClient {
     cert.verify(domainPublicKey);
 
     subjectName = cert.getSubjectX500Principal().getName();
-    logger.info("enrolled with operational certificate, subject: " + subjectName);
+    logger.info("enrolled with operational certificate, subject: {}", subjectName);
 
     operationalCertificate = cert;
 
-    logger.info(
-        "operational certificate (PEM): \n" + SecurityUtils.toPEMFormat(operationalCertificate));
-    logger.info(
-        "operational private key (PEM): \n" + SecurityUtils.toPEMFormat(operationalKeyPair));
+    logger.info("operational certificate (PEM): \n{}", SecurityUtils.toPEMFormat(operationalCertificate));
+    logger.info("operational private key (PEM): \n{}", SecurityUtils.toPEMFormat(operationalKeyPair));
   }
 
   /**
@@ -593,6 +591,7 @@ public class Pledge extends CoapClient {
     // store the transmitted PVR
     this.lastPvr = voucherRequest;
     this.lastPvrCoseSigned = payload;
+    logger.debug("Voucher request: CoAP POST {} ", getURI());
     return post(payload, ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
   }
 
@@ -672,6 +671,7 @@ public class Pledge extends CoapClient {
   // here send a 'CoAP ping' to registrar to have this session built.
   private void connect() {
     setURI(getBRSKIPath());
+    logger.debug("DTLS session establishment and sending CoAP ping...");
     ping();
   }
 

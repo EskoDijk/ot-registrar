@@ -38,7 +38,7 @@ public class OtRegistrarConfig {
   public String keyStoreFile;
   public String masaUri;
   public String registrarUri;
-  public boolean logVerbose;
+  public int logVerbosity;
 
   static OtRegistrarConfig DefaultPledge() {
     OtRegistrarConfig config = new OtRegistrarConfig();
@@ -48,7 +48,7 @@ public class OtRegistrarConfig {
     config.keyStoreFile = "./credentials/default_pledge.p12";
     config.masaUri = null;
     config.registrarUri = "coaps://localhost:5684";
-    config.logVerbose = false;
+    config.logVerbosity = 0;
     return config;
   }
 
@@ -60,7 +60,7 @@ public class OtRegistrarConfig {
     config.keyStoreFile = "./credentials/default_registrar.p12";
     config.masaUri = null;
     config.registrarUri = null;
-    config.logVerbose = false;
+    config.logVerbosity = 0;
     return config;
   }
 
@@ -72,7 +72,7 @@ public class OtRegistrarConfig {
     config.keyStoreFile = "./credentials/default_masa.p12";
     config.masaUri = null;
     config.registrarUri = null;
-    config.logVerbose = false;
+    config.logVerbosity = 0;
     return config;
   }
 
@@ -94,7 +94,29 @@ public class OtRegistrarConfig {
     if (this.registrarUri != null) {
       s += "Registrar URI : " + this.registrarUri + "\n";
     }
-    s += "Log verbose   : " + (this.logVerbose ? "yes" : "no") + "\n";
+    s += "Log verbosity : " + this.logVerbosity + "\n";
+    return s;
+  }
+
+  public String ToStringSingleLine() {
+    String s;
+    s = "role=" + role.toString();
+    if (this.serverPort > 0) {
+      s += " port=" + this.serverPort;
+    }
+    if (this.domainName != null) {
+      s += " domain=" + this.domainName;
+    }
+    if (this.keyStoreFile != null) {
+      s += " keyfile=" + this.keyStoreFile;
+    }
+    if (this.masaUri != null) {
+      s += " masaUri=" + this.masaUri;
+    }
+    if (this.registrarUri != null) {
+      s += " registrarUri=" + this.registrarUri;
+    }
+    s += " verbosity=" + this.logVerbosity;
     return s;
   }
 }
