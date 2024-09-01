@@ -118,7 +118,7 @@ public class DomainCA {
     X500Name issuer = getSubjectName();
     BigInteger serial = allocateSerialNumber();
     Date notBefore = new Date();
-    Date notAfter = new Date(System.currentTimeMillis() + Constants.CERT_VALIDITY * 3600 * 24 * 1000);
+    Date notAfter = new Date(System.currentTimeMillis() + Constants.CERT_VALIDITY_MILLISECONDS);
     X509v3CertificateBuilder builder = new X509v3CertificateBuilder(issuer, serial, notBefore, notAfter, csr.getSubject(), csr.getSubjectPublicKeyInfo());
 
     logger.info("operational certificate not-before: " + notBefore.toString());

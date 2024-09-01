@@ -40,7 +40,7 @@ public class CBORSerializer implements VoucherSerializer {
 
   protected CBORObject container;
   protected int parentSid = 0;
-  private static Logger logger = LoggerFactory.getLogger(CBORSerializer.class);
+  private static final Logger logger = LoggerFactory.getLogger(CBORSerializer.class);
   Voucher voucher;
 
   @Override
@@ -191,7 +191,7 @@ public class CBORSerializer implements VoucherSerializer {
         break;
       }
     } catch (Exception e) {
-      logger.error("bad voucher: " + e.getMessage(), e);
+      logger.error("bad voucher: {}", e.getMessage(), e);
       return null;
     }
 
