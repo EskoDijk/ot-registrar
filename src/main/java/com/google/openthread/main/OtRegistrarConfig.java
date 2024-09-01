@@ -118,4 +118,5 @@ public class OtRegistrarConfig {
     }
     s += " verbosity=" + this.logVerbosity;
     return s;
-  }}
+  }
+}
