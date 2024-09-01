@@ -593,6 +593,7 @@ public class Pledge extends CoapClient {
     // store the transmitted PVR
     this.lastPvr = voucherRequest;
     this.lastPvrCoseSigned = payload;
+    logger.debug("Voucher request: CoAP POST {} ", getURI());
     return post(payload, ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
   }
 
@@ -672,6 +673,7 @@ public class Pledge extends CoapClient {
   // here send a 'CoAP ping' to registrar to have this session built.
   private void connect() {
     setURI(getBRSKIPath());
+    logger.debug("DTLS session establishment and sending CoAP ping...");
     ping();
   }
 
