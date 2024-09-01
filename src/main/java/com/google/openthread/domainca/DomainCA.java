@@ -48,7 +48,6 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.logging.Logger;
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.DERIA5String;
@@ -70,6 +69,8 @@ import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.operator.jcajce.JcaContentVerifierProviderBuilder;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DomainCA {
 
@@ -205,5 +206,5 @@ public class DomainCA {
 
   private X509Certificate certificate;
 
-  private final static Logger logger = Logger.getLogger(DomainCA.class.getCanonicalName());
+  private final static Logger logger = LoggerFactory.getLogger(DomainCA.class);
 }

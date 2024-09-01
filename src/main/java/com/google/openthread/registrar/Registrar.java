@@ -943,5 +943,5 @@ public class Registrar extends CoapServer {
 
   private byte[] lastRvrCoseSigned = null;
 
-  private static Logger logger = LoggerFactory.getLogger(Registrar.class);
+  private final static Logger logger = LoggerFactory.getLogger(Registrar.class);
 }
