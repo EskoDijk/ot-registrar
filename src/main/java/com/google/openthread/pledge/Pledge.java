@@ -420,14 +420,12 @@ public class Pledge extends CoapClient {
     cert.verify(domainPublicKey);
 
     subjectName = cert.getSubjectX500Principal().getName();
-    logger.info("enrolled with operational certificate, subject: " + subjectName);
+    logger.info("enrolled with operational certificate, subject: {}", subjectName);
 
     operationalCertificate = cert;
 
-    logger.info(
-        "operational certificate (PEM): \n" + SecurityUtils.toPEMFormat(operationalCertificate));
-    logger.info(
-        "operational private key (PEM): \n" + SecurityUtils.toPEMFormat(operationalKeyPair));
+    logger.info("operational certificate (PEM): \n{}", SecurityUtils.toPEMFormat(operationalCertificate));
+    logger.info("operational private key (PEM): \n{}", SecurityUtils.toPEMFormat(operationalKeyPair));
   }
 
   /**

@@ -282,9 +282,7 @@ public class Registrar extends CoapServer {
 
         // TODO: check latest draft if JSON mandatory here too.
         if (contentFormat != ExtendedMediaTypeRegistry.APPLICATION_CBOR) {
-          logger.warn(
-              "unexpected content format for enroll status report: content-format="
-                  + contentFormat);
+          logger.warn("unexpected content format for enroll status report: content-format={}", contentFormat);
           exchange.respond(
               ResponseCode.UNSUPPORTED_CONTENT_FORMAT,
               "Only Content Format " + ExtendedMediaTypeRegistry.APPLICATION_CBOR + " supported.");
@@ -293,10 +291,8 @@ public class Registrar extends CoapServer {
 
         enrollStatus = StatusTelemetry.deserialize(exchange.getRequestPayload());
         if (enrollStatus.cbor == null) {
-          logger.warn(
-              "status telemetry report message decoding error: " + enrollStatus.parseResultStatus);
-          exchange.respond(
-              ResponseCode.BAD_REQUEST, "payload error: " + enrollStatus.parseResultStatus);
+          logger.warn("status telemetry report message decoding error: {}", enrollStatus.parseResultStatus);
+          exchange.respond(ResponseCode.BAD_REQUEST, "payload error: " + enrollStatus.parseResultStatus);
           return;
         }
 
@@ -724,12 +720,14 @@ public class Registrar extends CoapServer {
         PKCS10CertificationRequest csr = new PKCS10CertificationRequest(payload);
         X509Certificate cert = domainCA.signCertificate(csr);
 
+        logger.info("Signed new LDevID cert: subj=[{}]\n{}", cert.getSubjectX500Principal().toString(), SecurityUtils.toPEMFormat(cert));
+
         exchange.respond(
             ResponseCode.CHANGED,
             cert.getEncoded(),
             ExtendedMediaTypeRegistry.APPLICATION_PKIX_CERT);
       } catch (Exception e) {
-        logger.warn("sign certificate failed: " + e.getMessage(), e);
+        logger.warn("sign certificate failed: {}", e.getMessage(), e);
         // TODO(wgtdkp):
         exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
         return;
