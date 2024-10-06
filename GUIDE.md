@@ -26,7 +26,7 @@ All setup commands assume you are starting in the project's root directory.
     mvn -DskipTests package
     ```
 
-    Either of these creates a JAR file at `target/ot-registrar-0.3-jar-with-dependencies.jar`.
+    Either of these creates a JAR file at `target/ot-registrar-x.y.z-jar-with-dependencies.jar`, where `x.y.z` is the version number.
 
 ## Run services
 
@@ -45,14 +45,16 @@ Start the registrar at default CoAPS port 5684, using the default credentials:
 
 ```bash
 $ ./script/run -registrar
+...
 ```
 
 Use the `-h` option to learn what arguments are available:
 
 ```text
 $ ./script/run -h
-usage: [-registrar | -masa | -pledge] [-h] [-v] [-d <domain-name>] [-f
-                   <keystore-file>] [-p <udp-port>]
+usage: [-registrar | -masa | -pledge] [-h] [-d <domain-name>] [-f
+                   <keystore-file>] [-p <udp-port>] [-v] [-vv] [-vvv]
+                   [-vvvv]
  -d,--domainname <domain-name>       the domain name
  -f,--keyfile <keystore-file>        the keystore file in PKCS#12 format
  -h,--help                           print this message
@@ -65,8 +67,15 @@ usage: [-registrar | -masa | -pledge] [-h] [-v] [-d <domain-name>] [-f
  -r,--registrarUri <registrar-uri>   for a Pledge, the Registrar to
                                      connect to
  -registrar                          start as cBRSKI Registrar
- -v,--verbose                        verbose mode with many logs
+ -v,--verbose                        verbose mode for logs
+ -vv                                 more verbose mode for logs
+ -vvv                                even more verbose mode for logs
+ -vvvv                               most verbose mode for logs
 ```
+
+NOTE: for any of the `./script/run` commands above and below, the verbosity flags (`-v -vv` etc) can 
+be added to see more output about the process. So, this guide can be repeated with more 
+verbose logging.
 
 ### Run the MASA server
 
@@ -98,8 +107,8 @@ reenroll -  simple reenrollment with Registrar (EST)
 reset    -  reset Pledge to initial state
 exit     -  exit pledge CLI
 help     -  print this help message
+
 Done
->
 ```
 
 Use the `exit` command to exit or **Ctrl+c** to force exit.
@@ -108,39 +117,16 @@ Use `rv` to let the Pledge attempt a cBRSKI Voucher Request:
 
 ```text
 > rv
-19:30:24.606 [DTLS-Connection-Handler-5] INFO com.google.openthread.pledge.PledgeCertificateVerifier - registrar provisionally accepted without verification!
 Done
+> 
 ```
 
 Now the Voucher is obtained from MASA, via the Registrar. Mutual trust is established for the active DTLS connection. Use `enroll` to perform the EST-CoAPS enrollment:
 
 ```text
 > enroll
-19:34:58.825 [main] INFO com.google.openthread.pledge.Pledge - enrolled with operational certificate, subject: C=US,ST=CA,L=San Ramon,O=TestVendor,2.5.4.5=#130a41383544333330303031,CN=TestVendor IoT device
-19:34:58.827 [main] INFO com.google.openthread.pledge.Pledge - operational certificate (PEM): 
------BEGIN CERTIFICATE-----
-MIICEDCCAbegAwIBAgIBAzAKBggqhkjOPQQDAjBTMREwDwYDVQQDDAhkb21haW5j
-YTETMBEGA1UECwwKT3BlblRocmVhZDEPMA0GA1UECgwGR29vZ2xlMQswCQYDVQQH
-DAJTSDELMAkGA1UEBhMCQ04wHhcNMjQwODI4MTkzNDU4WhcNMjkwODI3MTkzNDU4
-WjB4MR4wHAYDVQQDDBVUZXN0VmVuZG9yIElvVCBkZXZpY2UxEzARBgNVBAUTCkE4
-NUQzMzAwMDExEzARBgNVBAoMClRlc3RWZW5kb3IxEjAQBgNVBAcMCVNhbiBSYW1v
-bjELMAkGA1UECAwCQ0ExCzAJBgNVBAYTAlVTMFkwEwYHKoZIzj0CAQYIKoZIzj0D
-AQcDQgAEGwAmAr657PJ63qBg2axjNTK0FhT0pI11qn5mUq6TQFF6RjU22zqqbJZl
-a7EbDmVRouS+6jIM/8yycqE2NrwQ3aNXMFUwCQYDVR0TBAIwADAfBgNVHSMEGDAW
-gBSe2sIzlf9yKOt9rsh9GC356FdvVzAnBgNVHREEIDAeoBwGCSsGAQQBgt8qAaAP
-Fg1EZWZhdWx0RG9tYWluMAoGCCqGSM49BAMCA0cAMEQCIDD63H5wYJVvo+sKgt3S
-U38XMON3cYz/5KlF1PmxnmJjAiBKujydxak63+L2aZB/H3YoYq0M53xRQMRUGRku
-75pjeg==
------END CERTIFICATE-----
-
-19:34:58.829 [main] INFO com.google.openthread.pledge.Pledge - operational private key (PEM): 
------BEGIN EC PRIVATE KEY-----
-MHcCAQEEIPPqdOhhBgm/RdVsd4SVQ2g3/U4KVC2mtP2RzCbgL0oNoAoGCCqGSM49
-AwEHoUQDQgAEGwAmAr657PJ63qBg2axjNTK0FhT0pI11qn5mUq6TQFF6RjU22zqq
-bJZla7EbDmVRouS+6jIM/8yycqE2NrwQ3Q==
------END EC PRIVATE KEY-----
-
 Done
+> 
 ```
 
 ## The Docker service

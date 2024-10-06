@@ -1,9 +1,9 @@
-# OT Registrar 0.3
+# OT Registrar 0.3.x
 
 This is the Registrar, MASA and Pledge release optimized for testing the cBRSKI protocol.
 See [cBRSKI draft](https://datatracker.ietf.org/doc/html/draft-ietf-anima-constrained-voucher-25).
-It is a follow-up release made in TBD 2024 by IoTconsultancy.nl for testing cBRSKI Thread devices
-in a Github branch of the [OTNS2 simulator](https://github.com/EskoDijk/ot-ns).
+It is a follow-up release made in October 2024 by IoTconsultancy.nl for testing cBRSKI Thread devices
+in a GitHub branch of the [OTNS2 simulator](https://github.com/EskoDijk/ot-ns).
 
 ## Platform
 
