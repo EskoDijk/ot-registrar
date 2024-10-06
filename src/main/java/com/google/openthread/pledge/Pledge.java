@@ -68,10 +68,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import javax.security.auth.x500.X500Principal;
+import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.ASN1TaggedObject;
 import org.bouncycastle.asn1.DERIA5String;
+import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.DERSequence;
 import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.x500.X500Name;
@@ -165,8 +168,8 @@ public class Pledge extends CoapClient {
   /**
    * Get the Thread Domain Name as encoded in the operational certificate of the Pledge.
    *
-   * @return the Thread Domain Name, encoded in the SubjectAltName/Othername field as per Thread spec. Or "DefaultDomain" if not encoded in there. Null if no operational cert present or if it couldn't
-   * be parsed.
+   * @return the Thread Domain Name, encoded per Thread spec in an X509v3 extension. Or, "DefaultDomain" if name is not encoded in cert.
+   *         Null if no operational cert is present or if the extension couldn't be parsed.
    */
   public String getDomainName() {
     if (operationalCertificate == null) {
@@ -174,34 +177,27 @@ public class Pledge extends CoapClient {
     }
 
     try {
-      Collection<List<?>> cSubjAltNames = operationalCertificate.getSubjectAlternativeNames();
-      if (cSubjAltNames == null) {
+      byte[] derThreadDomainNameExt = operationalCertificate.getExtensionValue(ConstantsThread.THREAD_DOMAIN_NAME_OID);
+      if (derThreadDomainNameExt == null) {
+        // if cert correct but not encoded in there, infer it's the domain name - as defined by Thread spec.
         return ConstantsThread.THREAD_DOMAIN_NAME_DEFAULT;
       }
-      // loop all subject-alt-names to find a matching 'otherName' item.
-      for (List<?> l : cSubjAltNames) {
-        if (l.size() == 2 && l.get(0).equals(ConstantsBrski.ASN1_TAG_GENERALNAME_OTHERNAME)) {
-          ASN1Sequence ds = DERSequence.getInstance(DLSequence.fromByteArray((byte[]) l.get(1)));
-          // check that the otherName item has the Thread domain OID
-          if (ds.size() == 2 && ds.getObjectAt(0).equals(THREAD_DOMAIN_NAME_OID_ASN1)) {
-            ASN1TaggedObject ato = ASN1TaggedObject.getInstance(ds.getObjectAt(1));
-            if (ato.getTagNo() == 0) {
-              // get to the deepest embedded tagged object.
-              while (ato.getObject() instanceof ASN1TaggedObject) {
-                ato = (ASN1TaggedObject) ato.getObject();
-              }
-              // must be stored as IA5String
-              return DERIA5String.getInstance(ato.getObject()).toString();
-            }
-          }
+      // MUST be stored as IA5String wrapped inside an OctetString
+      ASN1InputStream asn1Input = new ASN1InputStream(new ByteArrayInputStream(derThreadDomainNameExt));
+      Object obj = asn1Input.readObject();
+      if (obj instanceof DEROctetString) {
+        byte[] derIa5String = ((DEROctetString) obj).getOctets();
+        asn1Input = new ASN1InputStream(new ByteArrayInputStream(derIa5String));
+        obj = asn1Input.readObject();
+        if (obj instanceof DERIA5String) {
+          return ((DERIA5String)obj).toString();
         }
       }
     } catch (Exception ex) {
-      logger.error("getDomainName(): couldn't parse operational certificate", ex);
-      return null;
+      logger.error("getDomainName(): couldn't parse Thread Domain Name extension in LDevID", ex);
     }
-    // if cert correct but not encoded in there, use default name.
-    return ConstantsThread.THREAD_DOMAIN_NAME_DEFAULT;
+
+    return null;
   }
 
   // BRSKI protocol

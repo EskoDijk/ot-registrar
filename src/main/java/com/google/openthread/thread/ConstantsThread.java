@@ -34,9 +34,9 @@ package com.google.openthread.thread;
 public class ConstantsThread {
 
   // --- OID items
-  public static final String THREAD_DOMAIN_NAME_OID = "1.3.6.1.4.1.44970.1"; // per Thread 1.2 spec
+  public static final String THREAD_DOMAIN_NAME_OID = "1.3.6.1.4.1.44970.1"; // per Thread 1.4 spec
 
   // -- Other items
-  // Default Thread Domain Name per Thread 1.2 spec. Must not be changed, unless spec changes.
+  // Default Thread Domain Name per Thread 1.4 spec. Must not be changed, unless spec changes.
   public static final String THREAD_DOMAIN_NAME_DEFAULT = "DefaultDomain";
 }

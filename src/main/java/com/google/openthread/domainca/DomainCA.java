@@ -99,7 +99,7 @@ public class DomainCA {
    * Get the Thread Domain Name currently used by this Domain CA. Note that a Domain CA may use any number of Thread Domains within its own Enterprise Domain, with arbitrary string identifiers. In the
    * present implementation only one Thread Domain is used.
    *
-   * @return the currently used Thread Domain Name for signing LDevID certificates.
+   * @return the currently used Thread Domain Name used when creating new LDevID certificates.
    */
   public String getDomainName() {
     return domainName;
@@ -148,17 +148,9 @@ public class DomainCA {
             SubjectPublicKeyInfo.getInstance(getPublicKey().getEncoded()));
     builder.addExtension(Extension.authorityKeyIdentifier, false, authorityKeyId);
 
-    // Includes Thread Domain name in SubjectAltName extension field, otherName subfield,
-    // otherName type-id 1.3.6.1.4.1.44970.1 with value IA5String. This is tweaked
-    // to look the same as OpenSSL commandline output.
-    DERSequence otherName =
-        new DERSequence(
-            new ASN1Encodable[]{
-                THREAD_DOMAIN_NAME_OID_ASN1, new DERTaggedObject(0, new DERIA5String(domainName))
-            });
-    GeneralNames subjectAltNames =
-        new GeneralNames(new GeneralName(GeneralName.otherName, otherName));
-    builder.addExtension(Extension.subjectAlternativeName, false, subjectAltNames);
+    // Includes Thread Domain name in X.509v3 extensions section, with value IA5String.
+    DERIA5String domainNameStr = new DERIA5String(domainName);
+    builder.addExtension(THREAD_DOMAIN_NAME_OID_ASN1, false, domainNameStr);
 
     // 2. Sign and verify certificate
     ContentSigner signer =

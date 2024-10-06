@@ -47,7 +47,7 @@ import org.slf4j.LoggerFactory;
 public class IETFConstrainedBrskiTest {
 
   public static final String REGISTRAR_URI = "coaps://[::1]:" + ConstantsBrski.DEFAULT_REGISTRAR_COAPS_PORT;
-  public static final String DEFAULT_DOMAIN_NAME = "Thread-Test";
+  public static final String THREAD_DOMAIN_NAME = "Thread-Test";
   public static final String CREDENTIALS_KEYSTORE_FILE = "credentials/ietf-draft-constrained-brski/credentials.p12";
 
   // the acting entities
@@ -90,7 +90,7 @@ public class IETFConstrainedBrskiTest {
     pledge = new Pledge(credGen.getCredentials(CredentialGenerator.PLEDGE_ALIAS), REGISTRAR_URI);
     pledge.setLightweightClientCertificates(true);
 
-    domainCA = new DomainCA(DEFAULT_DOMAIN_NAME, credGen.getCredentials(CredentialGenerator.DOMAINCA_ALIAS));
+    domainCA = new DomainCA(THREAD_DOMAIN_NAME, credGen.getCredentials(CredentialGenerator.DOMAINCA_ALIAS));
 
     RegistrarBuilder registrarBuilder = new RegistrarBuilder();
     registrar =
