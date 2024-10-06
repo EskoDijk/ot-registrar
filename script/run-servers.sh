@@ -27,7 +27,7 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-# This script starts an entire set of Registrar and MASA in the background.
+# This script starts Registrar and MASA in the background.
 
 set -e
 
@@ -35,25 +35,27 @@ set -e
 readonly DOMAIN_NAME=TestDomainTCE
 
 # Select credentials
-#readonly CREDENTIAL=credentials/threadgroup-5f9d307c.p12
-#readonly CREDENTIAL=credentials/local-masa/test_credentials.p12
-readonly CREDENTIAL=credentials/iotconsultancy-masa/credentials.p12
+readonly CREDENTIAL_MASA=credentials/default_masa.p12
+readonly CREDENTIAL_REGISTRAR=credentials/default_registrar.p12
 
-readonly TIMESTAMP=$(date "+%Y-%m-%d_%H.%M.%S")
+TIMESTAMP=$(date "+%Y-%m-%d_%H.%M.%S")
+readonly TIMESTAMP
 readonly LOGS=logs/${TIMESTAMP}
 readonly REGISTRAR_LOG=${LOGS}/registrar.log
 readonly MASA_LOG=${LOGS}/masa.log
 
-echo "Credentials file set to: ${CREDENTIAL}"
-rm -rf $LOGS
-mkdir -p $LOGS
+echo "Credentials file MASA set to     : ${CREDENTIAL_MASA}"
+echo "Credentials file Registrar set to: ${CREDENTIAL_REGISTRAR}"
+rm -rf "$LOGS"
+mkdir -p "$LOGS"
+echo "Log directory created            : ${LOGS}"
 
-echo "starting Registrar server (CoAPS), log=${REGISTRAR_LOG}..."
-./script/run -registrar -v -d $DOMAIN_NAME -f $CREDENTIAL -m localhost:9994 \
-    >> $REGISTRAR_LOG 2>&1 &
+echo "starting Registrar server (CoAPS)..."
+./script/run -registrar -v -d $DOMAIN_NAME -f ${CREDENTIAL_REGISTRAR} -p 5684 -m localhost:5685 \
+    >> "${REGISTRAR_LOG}" 2>&1 &
 
-echo "starting MASA server (HTTPS), log=${MASA_LOG}..."
-./script/run -masa -v -f $CREDENTIAL \
-    >> $MASA_LOG 2>&1 &
+echo "starting MASA server (HTTPS)..."
+./script/run -masa -v -f ${CREDENTIAL_MASA} -p 5685 \
+    >> "${MASA_LOG}" 2>&1 &
 
 echo "Done"
