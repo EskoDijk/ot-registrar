@@ -29,12 +29,12 @@
 package com.google.openthread;
 
 import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
-import java.util.List;
 import org.slf4j.LoggerFactory;
 
-public class LoggerInitializer {
+public final class LoggerInitializer {
+
+  public static final int MAX_VERBOSITY = 4;
 
   private static final String OPENTHREAD = "com.google.openthread";
   private static final String CALIFORNIUM = "org.eclipse.californium";
@@ -42,7 +42,9 @@ public class LoggerInitializer {
   private static final String JBOSS = "org.jboss";
   private static final String UNDERTOW = "io.undertow";
 
-  public static void Init(int verbosity) {
+  private LoggerInitializer() {}
+
+  public static void init(int verbosity) {
     Level level, levelLibrary;
 
     switch (verbosity) {
@@ -66,35 +68,17 @@ public class LoggerInitializer {
         level = Level.TRACE;
         levelLibrary = Level.DEBUG;
         break;
-      case 5:
-        level = Level.TRACE;
-        levelLibrary = Level.TRACE;
-        break;
       default:
-        throw new IllegalArgumentException("verbosity parameter must be <= 5");
+        throw new IllegalArgumentException(
+            "verbosity must be in 0.." + MAX_VERBOSITY);
     }
 
-    LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
-    List<Logger> loggerList = loggerContext.getLoggerList();
-    for (Logger logger : loggerList) {
-      switch (logger.getName()) {
-        case OPENTHREAD:
-          logger.setLevel(level);
-          break;
-        case CALIFORNIUM:
-        case XNIO:
-        case JBOSS:
-        case UNDERTOW:
-          logger.setLevel(levelLibrary);
-          break;
-      }
-    }
-
-    ((Logger)LoggerFactory.getLogger(OPENTHREAD)).setLevel(level);
-
-    ((Logger)LoggerFactory.getLogger(CALIFORNIUM)).setLevel(levelLibrary);
-    ((Logger)LoggerFactory.getLogger(XNIO)).setLevel(levelLibrary);
-    ((Logger)LoggerFactory.getLogger(JBOSS)).setLevel(levelLibrary);
-    ((Logger)LoggerFactory.getLogger(UNDERTOW)).setLevel(levelLibrary);
+    // Logback level inheritance propagates each parent-package level to its descendants.
+    LoggerContext ctx = (LoggerContext) LoggerFactory.getILoggerFactory();
+    ctx.getLogger(OPENTHREAD).setLevel(level);
+    ctx.getLogger(CALIFORNIUM).setLevel(levelLibrary);
+    ctx.getLogger(XNIO).setLevel(levelLibrary);
+    ctx.getLogger(JBOSS).setLevel(levelLibrary);
+    ctx.getLogger(UNDERTOW).setLevel(levelLibrary);
   }
 }

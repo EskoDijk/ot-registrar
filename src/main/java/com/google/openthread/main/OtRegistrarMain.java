@@ -187,7 +187,7 @@ public final class OtRegistrarMain {
       if (cmd.hasOption("vvvv")) {
         config.logVerbosity = 4;
       }
-      LoggerInitializer.Init(config.logVerbosity);
+      LoggerInitializer.init(config.logVerbosity);
 
       if (cmd.hasOption('f')) {
         config.keyStoreFile = cmd.getOptionValue('f');
