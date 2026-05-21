@@ -389,11 +389,22 @@ public class SecurityUtils {
     return generator.generate(data, true);
   }
 
+  /**
+   * Internal-consistency check on a CMS signed message: verifies that every
+   * SignerInformation's signature is valid against its own embedded signing
+   * certificate. This is NOT a trust-anchor / chain validation — callers that
+   * require trust establishment must do that separately.
+   *
+   * @return true if at least one signer was checked and all checked signers
+   *     verified successfully; false if no signers could be checked or any
+   *     signer's signature failed verification.
+   */
   @SuppressWarnings("unchecked")
   public static boolean validateCMSSignedMessage(CMSSignedData signedData) throws Exception {
     Store<X509CertificateHolder> certs = signedData.getCertificates();
     SignerInformationStore signers = signedData.getSignerInfos();
 
+    int verifiedCount = 0;
     for (SignerInformation signerInfo : signers.getSigners()) {
       Selector<X509CertificateHolder> signerId;
       try {
@@ -405,9 +416,12 @@ public class SecurityUtils {
       X509CertificateHolder holder = certs.getMatches(signerId).iterator().next();
 
       SignerInformationVerifier verifier = new JcaSimpleSignerInfoVerifierBuilder().build(holder);
-      return signerInfo.verify(verifier);
+      if (!signerInfo.verify(verifier)) {
+        return false;
+      }
+      verifiedCount++;
     }
-    return false;
+    return verifiedCount > 0;
   }
 
   public static byte[] decodeCMSSignedMessage(byte[] msg, List<X509Certificate> certs)
