@@ -31,14 +31,16 @@ package com.google.openthread;
 import org.bouncycastle.util.encoders.Hex;
 import org.slf4j.Logger;
 
-public class RequestDumper {
+public final class RequestDumper {
+
+  private RequestDumper() {}
 
   public static void dump(Logger logger, String uri, byte[] payload) {
-    if (payload == null) {
-      payload = new byte[0];
-    }
-    logger.info(
-        String.format(
-            "received request [%s]: [len=%d, %s]", uri, payload.length, Hex.toHexString(payload)));
+    final byte[] body = (payload == null) ? new byte[0] : payload;
+    logger.atInfo()
+        .addArgument(uri)
+        .addArgument(body.length)
+        .addArgument(() -> Hex.toHexString(body))
+        .log("received request [{}]: [len={}, {}]");
   }
 }
