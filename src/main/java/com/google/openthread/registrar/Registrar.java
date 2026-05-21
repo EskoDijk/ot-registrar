@@ -36,8 +36,8 @@ import com.google.openthread.BouncyCastleInitializer;
 import com.google.openthread.brski.ConstantsBrski;
 import com.google.openthread.Credentials;
 import com.google.openthread.Constants;
-import com.google.openthread.DummyHostnameVerifier;
-import com.google.openthread.DummyTrustManager;
+import com.google.openthread.InsecureHostnameVerifier;
+import com.google.openthread.InsecureTrustManager;
 import com.google.openthread.brski.ExtendedMediaTypeRegistry;
 import com.google.openthread.RequestDumper;
 import com.google.openthread.SecurityUtils;
@@ -656,7 +656,7 @@ public class Registrar extends CoapServer {
       // send request as CMS signed JSON, accept only COSE-signed CBOR back.
       HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
       con.setUseCaches(false);
-      con.setHostnameVerifier(new DummyHostnameVerifier());
+      con.setHostnameVerifier(new InsecureHostnameVerifier());
       con.setSSLSocketFactory(sc.getSocketFactory());
       con.setRequestMethod("POST");
       con.setDoOutput(true);
@@ -685,7 +685,7 @@ public class Registrar extends CoapServer {
       KeyManagerFactory kmf =
           KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
       kmf.init(masaClientCredentials.getKeyStore(), CredentialGenerator.PASSWORD.toCharArray());
-      sc.init(kmf.getKeyManagers(), new TrustManager[]{new DummyTrustManager()}, null);
+      sc.init(kmf.getKeyManagers(), new TrustManager[]{new InsecureTrustManager()}, null);
     }
   }
 

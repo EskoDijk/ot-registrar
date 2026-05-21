@@ -36,7 +36,7 @@ import COSE.Sign1Message;
 import com.google.openthread.BouncyCastleInitializer;
 import com.google.openthread.brski.ConstantsBrski;
 import com.google.openthread.Credentials;
-import com.google.openthread.DummyTrustManager;
+import com.google.openthread.InsecureTrustManager;
 import com.google.openthread.RequestDumper;
 import com.google.openthread.SecurityUtils;
 import com.google.openthread.brski.CBORSerializer;
@@ -399,7 +399,7 @@ public class MASA {
     keyManagers = keyManagerFactory.getKeyManagers();
 
     TrustManager[] trustManagers;
-    trustManagers = new X509TrustManager[]{new DummyTrustManager()};
+    trustManagers = new X509TrustManager[]{new InsecureTrustManager()};
 
     SSLContext httpSsl = SSLContext.getInstance("TLS");
     httpSsl.init(keyManagers, trustManagers, null);
