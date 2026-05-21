@@ -258,31 +258,32 @@ public class SecurityUtils {
 
   public static String toPEMFormat(Object csr) throws IOException {
     StringWriter str = new StringWriter();
-    JcaPEMWriter pemWriter = new JcaPEMWriter(str);
-    pemWriter.writeObject(csr);
-    pemWriter.close();
-    str.close();
+    try (JcaPEMWriter pemWriter = new JcaPEMWriter(str)) {
+      pemWriter.writeObject(csr);
+    }
     return str.toString();
   }
 
   public static X509Certificate parseCertFromPem(Reader reader)
       throws CertificateException, IOException {
-    PEMParser parser = new PEMParser(reader);
-    return new JcaX509CertificateConverter().getCertificate((X509CertificateHolder) parser.readObject());
+    try (PEMParser parser = new PEMParser(reader)) {
+      return new JcaX509CertificateConverter().getCertificate((X509CertificateHolder) parser.readObject());
+    }
   }
 
   public static PrivateKey parsePrivateKeyFromPem(Reader reader) throws IOException {
-    PEMParser parser = new PEMParser(reader);
-    Object obj = parser.readObject();
-    PrivateKeyInfo pkInfo;
-    if (obj instanceof PEMKeyPair) {
-      pkInfo = ((PEMKeyPair) obj).getPrivateKeyInfo();
-    } else if (obj instanceof PrivateKeyInfo) {
-      pkInfo = (PrivateKeyInfo) obj;
-    } else {
-      throw new IOException("the key file is corrupted, or not a private key");
+    try (PEMParser parser = new PEMParser(reader)) {
+      Object obj = parser.readObject();
+      PrivateKeyInfo pkInfo;
+      if (obj instanceof PEMKeyPair) {
+        pkInfo = ((PEMKeyPair) obj).getPrivateKeyInfo();
+      } else if (obj instanceof PrivateKeyInfo) {
+        pkInfo = (PrivateKeyInfo) obj;
+      } else {
+        throw new IOException("the key file is corrupted, or not a private key");
+      }
+      return new JcaPEMKeyConverter().getPrivateKey(pkInfo);
     }
-    return new JcaPEMKeyConverter().getPrivateKey(pkInfo);
   }
 
   /**
@@ -537,11 +538,9 @@ public class SecurityUtils {
 
   public static X509Certificate loadX509Certificate(String certFile)
       throws CertificateException, IOException {
-    CertificateFactory cf = CertificateFactory.getInstance("X.509");
-    FileInputStream is = new FileInputStream(certFile);
-    X509Certificate cert = (X509Certificate) cf.generateCertificate(is);
-    is.close();
-    return cert;
+    try (FileInputStream is = new FileInputStream(certFile)) {
+      return (X509Certificate) certFactory.generateCertificate(is);
+    }
   }
 
   public static final class DoNothingVerifier implements CertificateVerifier {
