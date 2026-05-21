@@ -117,7 +117,8 @@ public class DomainCA {
 
     // 1. Build certificate
     X500Name issuer = getSubjectName();
-    BigInteger serial = allocateSerialNumber();
+    BigInteger serial = SecurityUtils.allocateSerialNumber();
+    logger.info("allocate serial number: " + serial);
     Date notBefore = new Date();
     Date notAfter = new Date(System.currentTimeMillis() + Constants.CERT_VALIDITY_MILLISECONDS);
     X509v3CertificateBuilder builder = new X509v3CertificateBuilder(issuer, serial, notBefore, notAfter, csr.getSubject(), csr.getSubjectPublicKeyInfo());
@@ -184,13 +185,6 @@ public class DomainCA {
     return new X500Name(getCertificate().getIssuerX500Principal().getName());
   }
 
-  private static BigInteger serialNumber = new BigInteger("1");
-
-  private static synchronized BigInteger allocateSerialNumber() {
-    serialNumber = serialNumber.add(BigInteger.ONE);
-    logger.info("allocate serial number: " + serialNumber);
-    return serialNumber;
-  }
 
   private String domainName;
 

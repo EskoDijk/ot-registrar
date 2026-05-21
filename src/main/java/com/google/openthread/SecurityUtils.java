@@ -612,11 +612,17 @@ public class SecurityUtils {
         SubjectPublicKeyInfo.getInstance(pubKey.getEncoded()));
   }
 
-  private static BigInteger serialNumber = BigInteger.ZERO;
+  private static final SecureRandom SERIAL_NUMBER_RANDOM = new SecureRandom();
 
+  /**
+   * Allocate a fresh certificate serial number. Returns a cryptographically
+   * random positive 159-bit integer, which DER-encodes to 20 bytes and provides
+   * well above the 64 bits of entropy recommended by RFC 5280 §4.1.2.2 and the
+   * CA/Browser Forum Baseline Requirements (mitigation for SHA-1 / hash-collision
+   * prefix attacks).
+   */
   public static BigInteger allocateSerialNumber() {
-    serialNumber = serialNumber.add(BigInteger.ONE);
-    return serialNumber;
+    return new BigInteger(159, SERIAL_NUMBER_RANDOM);
   }
 
   /**
