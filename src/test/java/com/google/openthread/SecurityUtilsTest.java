@@ -109,7 +109,7 @@ public class SecurityUtilsTest {
     Assert.assertNotNull(bagSingle);
 
     KeyPair kp2 = SecurityUtils.genKeyPair();
-    X509Certificate cert2 = SecurityUtils.genCertificate(kp, "CN=AnotherRoot/L=InSpace", kp2, "CN=AnotherRoot/L=InSpace", true, null);
+    X509Certificate cert2 = SecurityUtils.genCertificate(kp, "CN=AnotherRoot,L=InSpace", kp2, "CN=AnotherRoot,L=InSpace", true, null);
     CBORObject bagMultiple = SecurityUtils.createX5BagCertificates(new X509Certificate[]{cert, cert2});
     Assert.assertNotNull(bagMultiple);
 
