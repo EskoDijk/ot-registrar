@@ -47,7 +47,6 @@ import java.io.StringWriter;
 import java.math.BigInteger;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
-import java.security.InvalidAlgorithmParameterException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -59,7 +58,6 @@ import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.security.spec.ECGenParameterSpec;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -437,15 +435,28 @@ public class SecurityUtils {
     return (byte[]) signedData.getSignedContent().getContent();
   }
 
+  /**
+   * Generate a fresh keypair using the project defaults
+   * ({@link #KEY_ALGORITHM} / {@link #KEY_SIZE} — currently EC P-256, as required
+   * by the BRSKI / Thread protocol).
+   */
   public static KeyPair genKeyPair()
-      throws NoSuchAlgorithmException, InvalidAlgorithmParameterException, NoSuchProviderException {
+      throws NoSuchAlgorithmException, NoSuchProviderException {
     return genKeyPair(SecurityUtils.KEY_ALGORITHM, SecurityUtils.KEY_SIZE);
   }
 
+  /**
+   * Generate a fresh keypair with the given algorithm and key size.
+   *
+   * <p>For {@code "EC"} the {@code keySize} selects a NIST named curve via
+   * BouncyCastle's standard size→curve mapping: 256 → {@code secp256r1}
+   * (a.k.a. {@code prime256v1}), 384 → {@code secp384r1}, 521 → {@code secp521r1}.
+   * For {@code "RSA"} it sets the modulus length in bits.
+   */
   public static KeyPair genKeyPair(String algorithm, int keySize)
-      throws NoSuchAlgorithmException, InvalidAlgorithmParameterException, NoSuchProviderException {
+      throws NoSuchAlgorithmException, NoSuchProviderException {
     KeyPairGenerator gen = KeyPairGenerator.getInstance(algorithm, "BC");
-    gen.initialize(new ECGenParameterSpec("prime256v1"), new SecureRandom());
+    gen.initialize(keySize, new SecureRandom());
     return gen.generateKeyPair();
   }
 
