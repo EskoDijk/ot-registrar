@@ -37,7 +37,6 @@ import com.google.openthread.BouncyCastleInitializer;
 import com.google.openthread.brski.ConstantsBrski;
 import com.google.openthread.Credentials;
 import com.google.openthread.DummyTrustManager;
-import com.google.openthread.NetworkUtils;
 import com.google.openthread.RequestDumper;
 import com.google.openthread.SecurityUtils;
 import com.google.openthread.brski.CBORSerializer;
@@ -410,13 +409,9 @@ public class MASA {
             .addExactPath("/.well-known/brski/requestvoucher",
                 new BlockingHandler(new VoucherRequestHttpHandler()));
     // the :: binds to (hopefully) all available IPv4 and IPv6 addresses.
-    // the specific listeners using NetworkUtils.getIPvXHost() are meant to pick specific addresses only.
     httpServer =
         Undertow.builder()
             .addHttpsListener(listenPort, "::", httpSsl)
-            //.addHttpsListener(listenPort, "localhost", httpSsl)
-            //.addHttpsListener(listenPort, NetworkUtils.getIPv4Host(), httpSsl)
-            //.addHttpsListener(listenPort, NetworkUtils.getIPv6Host(), httpSsl)
             .setHandler(masaPathHandler)
             .build();
   }
