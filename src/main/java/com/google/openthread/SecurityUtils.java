@@ -133,14 +133,16 @@ public class SecurityUtils {
 
   public static final CBORObject COSE_SIGNATURE_ALGORITHM = AlgorithmID.ECDSA_256.AsCBOR();
 
-  private static CertificateFactory certFactory;
+  private static final CertificateFactory certFactory;
 
   static {
     BouncyCastleInitializer.init();
     try {
       certFactory = CertificateFactory.getInstance("X.509");
     } catch (CertificateException ex) {
-      ex.printStackTrace();
+      // X.509 is a mandatory built-in cert type; absence indicates a broken JRE.
+      // Fail fast so callers don't NPE on a null certFactory later.
+      throw new ExceptionInInitializerError(ex);
     }
   }
 
