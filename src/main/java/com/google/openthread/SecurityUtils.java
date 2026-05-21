@@ -183,8 +183,14 @@ public class SecurityUtils {
   public static HardwareModuleName getHWModuleName(X509Certificate cert)
       throws CertificateEncodingException {
     Extensions exts = new JcaX509CertificateHolder(cert).getExtensions();
-    for (Object obj :
-        GeneralNames.fromExtensions(exts, Extension.subjectAlternativeName).getNames()) {
+    if (exts == null) {
+      return null;
+    }
+    GeneralNames sans = GeneralNames.fromExtensions(exts, Extension.subjectAlternativeName);
+    if (sans == null) {
+      return null;
+    }
+    for (Object obj : sans.getNames()) {
       GeneralName name = GeneralName.getInstance(obj);
       if (name.getTagNo() == GeneralName.otherName) {
         OtherName otherName = OtherName.getInstance(name.getName());
@@ -204,11 +210,17 @@ public class SecurityUtils {
    */
   public static String getDNSName(X509Certificate cert) throws CertificateEncodingException {
     Extensions exts = new JcaX509CertificateHolder(cert).getExtensions();
-    for (Object obj :
-        GeneralNames.fromExtensions(exts, Extension.subjectAlternativeName).getNames()) {
+    if (exts == null) {
+      return null;
+    }
+    GeneralNames sans = GeneralNames.fromExtensions(exts, Extension.subjectAlternativeName);
+    if (sans == null) {
+      return null;
+    }
+    for (Object obj : sans.getNames()) {
       GeneralName name = GeneralName.getInstance(obj);
       if (name.getTagNo() == GeneralName.dNSName) {
-        return name.getName().toString();
+        return DERIA5String.getInstance(name.getName()).getString();
       }
     }
     return null;
@@ -218,6 +230,9 @@ public class SecurityUtils {
     try {
       X509CertificateHolder holder = new JcaX509CertificateHolder(cert);
       Extension masaUri = holder.getExtension(new ASN1ObjectIdentifier(ConstantsBrski.MASA_URI_OID));
+      if (masaUri == null) {
+        return null;
+      }
       // TODO check if the below can also handle UTF-8 String types. (Not all use IA5String)
       String sUri = DERIA5String.fromByteArray(masaUri.getExtnValue().getOctets()).toString();
       // remove trailing slashes, if any, from MASA URI.
