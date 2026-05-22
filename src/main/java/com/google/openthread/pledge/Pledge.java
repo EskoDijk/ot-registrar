@@ -43,6 +43,7 @@ import com.google.openthread.brski.CBORSerializer;
 import com.google.openthread.brski.StatusTelemetry;
 import com.google.openthread.brski.Voucher;
 import com.google.openthread.brski.VoucherRequest;
+import com.google.openthread.brski.VoucherSerializationException;
 import com.google.openthread.thread.ConstantsThread;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -246,7 +247,8 @@ public class Pledge extends CoapClient {
    * @throws PledgeException
    */
   public Voucher requestVoucher(VoucherRequest req)
-      throws PledgeException, ConnectorException, IOException, CoseException {
+      throws PledgeException, ConnectorException, IOException, CoseException,
+      VoucherSerializationException {
     // 0. Send to registrar
     CoapResponse response = sendRequestVoucher(req);
 
@@ -578,7 +580,7 @@ public class Pledge extends CoapClient {
   }
 
   private CoapResponse sendRequestVoucher(VoucherRequest voucherRequest)
-      throws IOException, ConnectorException, CoseException {
+      throws IOException, ConnectorException, CoseException, VoucherSerializationException {
     setURI(getBRSKIPath() + "/" + ConstantsBrski.REQUEST_VOUCHER);
     byte[] vrEncoded = new CBORSerializer().serialize(voucherRequest);
 

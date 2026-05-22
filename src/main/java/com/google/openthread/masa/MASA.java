@@ -41,6 +41,7 @@ import com.google.openthread.RequestDumper;
 import com.google.openthread.SecurityUtils;
 import com.google.openthread.brski.CBORSerializer;
 import com.google.openthread.brski.JSONSerializer;
+import com.google.openthread.brski.VoucherSerializationException;
 import com.google.openthread.brski.RestfulVoucherResponse;
 import com.google.openthread.brski.Voucher;
 import com.google.openthread.brski.VoucherRequest;
@@ -326,9 +327,11 @@ public class MASA {
       logger.error(msg, ex);
       return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, msg);
     }
-    VoucherRequest pledgeReq = (VoucherRequest) new CBORSerializer().fromCBOR(CBORObject.DecodeFromBytes(sign1Msg.GetContent()));
-    if (pledgeReq == null) {
-      final String msg = "invalid priorSignedVoucherRequest contents";
+    VoucherRequest pledgeReq;
+    try {
+      pledgeReq = (VoucherRequest) new CBORSerializer().fromCBOR(CBORObject.DecodeFromBytes(sign1Msg.GetContent()));
+    } catch (VoucherSerializationException ex) {
+      final String msg = "invalid priorSignedVoucherRequest contents: " + ex.getMessage();
       logger.error(msg);
       return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, msg);
     }

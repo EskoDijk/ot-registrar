@@ -28,9 +28,21 @@
 
 package com.google.openthread.brski;
 
-public interface VoucherSerializer {
+/**
+ * Thrown by {@link VoucherSerializer#serialize} and
+ * {@link VoucherSerializer#deserialize} when a voucher cannot be encoded or
+ * decoded — e.g. the input bytes are not valid CBOR/JSON, the root key is not
+ * a voucher or voucher-request, or a leaf has the wrong CBOR type.
+ */
+public class VoucherSerializationException extends Exception {
 
-  byte[] serialize(Voucher voucher) throws VoucherSerializationException;
+  private static final long serialVersionUID = 1L;
 
-  Voucher deserialize(byte[] data) throws VoucherSerializationException;
+  public VoucherSerializationException(String message) {
+    super(message);
+  }
+
+  public VoucherSerializationException(String message, Throwable cause) {
+    super(message, cause);
+  }
 }

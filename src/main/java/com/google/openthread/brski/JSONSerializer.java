@@ -31,8 +31,6 @@ package com.google.openthread.brski;
 import com.google.gson.Gson;
 import java.util.HashMap;
 import org.bouncycastle.util.encoders.Base64;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * * Utility class defineing the structure of the Voucher / Voucher-request. This is needed for Gson
@@ -46,17 +44,19 @@ class GsonVoucher extends HashMap<String, HashMap<String, Object>> {
 public class JSONSerializer implements VoucherSerializer {
 
   protected Gson gson = new Gson();
-  private static Logger logger = LoggerFactory.getLogger(JSONSerializer.class);
 
   @Override
-  public byte[] serialize(Voucher voucher) {
-    return toJSON(voucher).toString().getBytes();
+  public byte[] serialize(Voucher voucher) throws VoucherSerializationException {
+    try {
+      return toJSON(voucher).toString().getBytes();
+    } catch (RuntimeException e) {
+      throw new VoucherSerializationException("JSON voucher serialize failed: " + e.getMessage(), e);
+    }
   }
 
   @Override
-  public Voucher deserialize(byte[] data) {
-    String s = new String(data);
-    return fromJSON(s);
+  public Voucher deserialize(byte[] data) throws VoucherSerializationException {
+    return fromJSON(new String(data));
   }
 
   public String toJSON(Voucher voucher) {
@@ -107,9 +107,14 @@ public class JSONSerializer implements VoucherSerializer {
     return gson.toJson(jsonRoot);
   }
 
-  public Voucher fromJSON(String json) {
+  public Voucher fromJSON(String json) throws VoucherSerializationException {
     Voucher voucher = null;
-    GsonVoucher gv = gson.fromJson(json, GsonVoucher.class);
+    GsonVoucher gv;
+    try {
+      gv = gson.fromJson(json, GsonVoucher.class);
+    } catch (RuntimeException e) {
+      throw new VoucherSerializationException("JSON voucher parse failed: " + e.getMessage(), e);
+    }
     try {
       for (String key : gv.keySet()) {
         if (key.equals(Voucher.VOUCHER)) {
@@ -183,9 +188,7 @@ public class JSONSerializer implements VoucherSerializer {
         break;
       }
     } catch (Exception e) {
-      logger.error("bad voucher: " + e.getMessage());
-      e.printStackTrace();
-      return null;
+      throw new VoucherSerializationException("bad voucher: " + e.getMessage(), e);
     }
 
     return voucher;

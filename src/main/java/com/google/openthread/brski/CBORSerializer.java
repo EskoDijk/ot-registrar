@@ -29,8 +29,6 @@
 package com.google.openthread.brski;
 
 import com.upokecenter.cbor.CBORObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Utility class to serialize/deserialize Vouchers to or from CBOR, either as byte array or
@@ -40,17 +38,24 @@ public class CBORSerializer implements VoucherSerializer {
 
   protected CBORObject container;
   protected int parentSid = 0;
-  private static final Logger logger = LoggerFactory.getLogger(CBORSerializer.class);
   Voucher voucher;
 
   @Override
-  public byte[] serialize(Voucher v) {
-    return toCBOR(v).EncodeToBytes();
+  public byte[] serialize(Voucher v) throws VoucherSerializationException {
+    try {
+      return toCBOR(v).EncodeToBytes();
+    } catch (RuntimeException e) {
+      throw new VoucherSerializationException("CBOR voucher serialize failed: " + e.getMessage(), e);
+    }
   }
 
   @Override
-  public Voucher deserialize(byte[] data) {
-    return fromCBOR(CBORObject.DecodeFromBytes(data));
+  public Voucher deserialize(byte[] data) throws VoucherSerializationException {
+    try {
+      return fromCBOR(CBORObject.DecodeFromBytes(data));
+    } catch (RuntimeException e) {
+      throw new VoucherSerializationException("CBOR voucher decode failed: " + e.getMessage(), e);
+    }
   }
 
   public CBORObject toCBOR(Voucher voucher) {
@@ -64,41 +69,41 @@ public class CBORSerializer implements VoucherSerializer {
     CBORObject cbor = CBORObject.NewMap();
     container = CBORObject.NewMap();
 
-    if (voucher.assertion != null) add((Voucher.ASSERTION), voucher.assertion.getValue());
+    if (voucher.assertion != null) add(Voucher.ASSERTION, voucher.assertion.getValue());
 
     if (voucher.createdOn != null)
-      add((Voucher.CREATED_ON), Voucher.dateToYoungFormat(voucher.createdOn));
+      add(Voucher.CREATED_ON, Voucher.dateToYoungFormat(voucher.createdOn));
 
-    add((Voucher.DOMAIN_CERT_REVOCATION_CHECKS), voucher.domainCertRevocationChecks);
+    add(Voucher.DOMAIN_CERT_REVOCATION_CHECKS, voucher.domainCertRevocationChecks);
 
     if (voucher.expiresOn != null)
-      add((Voucher.EXPIRES_ON), Voucher.dateToYoungFormat(voucher.expiresOn));
+      add(Voucher.EXPIRES_ON, Voucher.dateToYoungFormat(voucher.expiresOn));
 
-    add((Voucher.IDEVID_ISSUER), voucher.idevidIssuer);
+    add(Voucher.IDEVID_ISSUER, voucher.idevidIssuer);
 
     if (voucher.lastRenewalDate != null)
-      add((Voucher.LAST_RENEWAL_DATE), Voucher.dateToYoungFormat(voucher.lastRenewalDate));
+      add(Voucher.LAST_RENEWAL_DATE, Voucher.dateToYoungFormat(voucher.lastRenewalDate));
 
-    add((Voucher.NONCE), voucher.nonce);
+    add(Voucher.NONCE, voucher.nonce);
 
-    add((Voucher.PINNED_DOMAIN_CERT), voucher.pinnedDomainCert);
+    add(Voucher.PINNED_DOMAIN_CERT, voucher.pinnedDomainCert);
 
-    add((Voucher.PINNED_DOMAIN_SPKI), voucher.pinnedDomainSPKI);
+    add(Voucher.PINNED_DOMAIN_SPKI, voucher.pinnedDomainSPKI);
 
-    add((Voucher.PRIOR_SIGNED_VOUCHER_REQUEST), voucher.priorSignedVoucherRequest);
+    add(Voucher.PRIOR_SIGNED_VOUCHER_REQUEST, voucher.priorSignedVoucherRequest);
 
-    add((Voucher.PROXIMITY_REGISTRAR_CERT), voucher.proximityRegistrarCert);
+    add(Voucher.PROXIMITY_REGISTRAR_CERT, voucher.proximityRegistrarCert);
 
-    add((Voucher.PROXIMITY_REGISTRAR_SPKI), voucher.proximityRegistrarSPKI);
+    add(Voucher.PROXIMITY_REGISTRAR_SPKI, voucher.proximityRegistrarSPKI);
 
-    add((Voucher.SERIAL_NUMBER), voucher.serialNumber);
+    add(Voucher.SERIAL_NUMBER, voucher.serialNumber);
 
     cbor.Add(keyObj, container);
 
     return cbor;
   }
 
-  public Voucher fromCBOR(CBORObject cbor) {
+  public Voucher fromCBOR(CBORObject cbor) throws VoucherSerializationException {
     try {
       for (CBORObject key : cbor.getKeys()) {
         CBORObject ku = key.Untag();
@@ -135,55 +140,55 @@ public class CBORSerializer implements VoucherSerializer {
         container = cbor.get(key);
         CBORObject leaf;
 
-        if ((leaf = get((Voucher.ASSERTION))) != null) {
+        if ((leaf = get(Voucher.ASSERTION)) != null) {
           voucher.assertion = Voucher.Assertion.newAssertion(leaf.AsInt32());
         }
 
-        if ((leaf = get((Voucher.CREATED_ON))) != null) {
+        if ((leaf = get(Voucher.CREATED_ON)) != null) {
           voucher.createdOn = Voucher.dateFromYoungFormat(leaf.AsString());
         }
 
-        if ((leaf = get((Voucher.DOMAIN_CERT_REVOCATION_CHECKS))) != null) {
+        if ((leaf = get(Voucher.DOMAIN_CERT_REVOCATION_CHECKS)) != null) {
           voucher.domainCertRevocationChecks = leaf.AsBoolean();
         }
 
-        if ((leaf = get((Voucher.EXPIRES_ON))) != null) {
+        if ((leaf = get(Voucher.EXPIRES_ON)) != null) {
           voucher.expiresOn = Voucher.dateFromYoungFormat(leaf.AsString());
         }
 
-        if ((leaf = get((Voucher.IDEVID_ISSUER))) != null) {
+        if ((leaf = get(Voucher.IDEVID_ISSUER)) != null) {
           voucher.idevidIssuer = leaf.GetByteString();
         }
 
-        if ((leaf = get((Voucher.LAST_RENEWAL_DATE))) != null) {
+        if ((leaf = get(Voucher.LAST_RENEWAL_DATE)) != null) {
           voucher.lastRenewalDate = Voucher.dateFromYoungFormat(leaf.AsString());
         }
 
-        if ((leaf = get((Voucher.NONCE))) != null) {
+        if ((leaf = get(Voucher.NONCE)) != null) {
           voucher.nonce = leaf.GetByteString();
         }
 
-        if ((leaf = get((Voucher.PINNED_DOMAIN_CERT))) != null) {
+        if ((leaf = get(Voucher.PINNED_DOMAIN_CERT)) != null) {
           voucher.pinnedDomainCert = leaf.GetByteString();
         }
 
-        if ((leaf = get((Voucher.PINNED_DOMAIN_SPKI))) != null) {
+        if ((leaf = get(Voucher.PINNED_DOMAIN_SPKI)) != null) {
           voucher.pinnedDomainSPKI = leaf.GetByteString();
         }
 
-        if ((leaf = get((Voucher.PRIOR_SIGNED_VOUCHER_REQUEST))) != null) {
+        if ((leaf = get(Voucher.PRIOR_SIGNED_VOUCHER_REQUEST)) != null) {
           voucher.priorSignedVoucherRequest = leaf.GetByteString();
         }
 
-        if ((leaf = get((Voucher.PROXIMITY_REGISTRAR_CERT))) != null) {
+        if ((leaf = get(Voucher.PROXIMITY_REGISTRAR_CERT)) != null) {
           voucher.proximityRegistrarCert = leaf.GetByteString();
         }
 
-        if ((leaf = get((Voucher.PROXIMITY_REGISTRAR_SPKI))) != null) {
+        if ((leaf = get(Voucher.PROXIMITY_REGISTRAR_SPKI)) != null) {
           voucher.proximityRegistrarSPKI = leaf.GetByteString();
         }
 
-        if ((leaf = get((Voucher.SERIAL_NUMBER))) != null) {
+        if ((leaf = get(Voucher.SERIAL_NUMBER)) != null) {
           voucher.serialNumber = leaf.AsString();
         }
 
@@ -191,8 +196,7 @@ public class CBORSerializer implements VoucherSerializer {
         break;
       }
     } catch (Exception e) {
-      logger.error("bad voucher: {}", e.getMessage(), e);
-      return null;
+      throw new VoucherSerializationException("bad voucher: " + e.getMessage(), e);
     }
 
     return voucher;
@@ -210,7 +214,6 @@ public class CBORSerializer implements VoucherSerializer {
 
   protected CBORObject get(String keyName) {
     Object key = voucher.getKey(keyName);
-    CBORObject keyObj = CBORObject.FromObject(key);
     if (key instanceof Integer) {
       // it's a SID
       int keyInt = (Integer) key;
@@ -231,14 +234,12 @@ public class CBORSerializer implements VoucherSerializer {
     }
 
     // if SID numbers not found for this item, try if full name is there. SIDs
-    // allowed to be
-    // mixed with full names.
+    // allowed to be mixed with full names.
     CBORObject keyNameObj = CBORObject.FromObject(keyName);
     if (container.ContainsKey(keyNameObj)) {
       return container.get(keyNameObj);
     }
 
-    // fallback case
-    return container.get(keyObj);
+    return null;
   }
 }
