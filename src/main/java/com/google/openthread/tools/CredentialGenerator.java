@@ -214,7 +214,7 @@ public class CredentialGenerator extends CredentialsSet {
                 new KeyPurposeId[]{
                     KeyPurposeId.id_kp_serverAuth,
                     KeyPurposeId.id_kp_clientAuth,
-                    isIncludeExtKeyUsage ? ConstantsBrski.id_kp_cmcRA : KeyPurposeId.id_kp_codeSigning
+                    isIncludeExtKeyUsage ? ConstantsBrski.ID_KP_CMC_RA : KeyPurposeId.id_kp_codeSigning
                 })
                 .getEncoded(ASN1Encoding.DER));
 

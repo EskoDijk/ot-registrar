@@ -73,8 +73,9 @@ public final class ConstantsBrski {
   public static final String PRIVATE_HARDWARE_TYPE_OID = "1.3.6.1.4.1.21335"; // IANA Private Enterprise Number (PEN) 21335 OSRAM Gmbh
   public static final String CMC_RA_PKIX_KEY_PURPOSE_OID = "1.3.6.1.5.5.7.3.28"; // id-kp-cmcRA, RFC 6402 §2.10
   public static final String EXTENDED_KEY_USAGE_OID = "2.5.29.37"; // X.509 EKU extension, RFC 5280 §4.2.1.12
-  public static final KeyPurposeId id_kp_cmcRA = KeyPurposeId.getInstance(new ASN1ObjectIdentifier(CMC_RA_PKIX_KEY_PURPOSE_OID));
-  public static final ASN1ObjectIdentifier eku = new ASN1ObjectIdentifier(EXTENDED_KEY_USAGE_OID);
+  public static final KeyPurposeId ID_KP_CMC_RA =
+      KeyPurposeId.getInstance(new ASN1ObjectIdentifier(CMC_RA_PKIX_KEY_PURPOSE_OID));
+  public static final ASN1ObjectIdentifier EKU_OID = new ASN1ObjectIdentifier(EXTENDED_KEY_USAGE_OID);
 
   // --- URIs, ports and hostnames
   public static final int DEFAULT_REGISTRAR_COAPS_PORT = 5684;
