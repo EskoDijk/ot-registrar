@@ -32,7 +32,9 @@ import com.upokecenter.cbor.CBORObject;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.x509.KeyPurposeId;
 
-public class ConstantsBrski {
+public final class ConstantsBrski {
+
+  private ConstantsBrski() {}
 
   // --- BRSKI - EST resources and paths
   public static final String WELL_KNOWN = ".well-known";
@@ -46,6 +48,7 @@ public class ConstantsBrski {
   public static final String REQUEST_VOUCHER_HTTP = "requestvoucher";
   public static final String VOUCHER_STATUS = "vs";
   public static final String ENROLL_STATUS = "es";
+  /** Not yet consumed by this implementation; defined for protocol completeness. */
   public static final String CSR_ATTRIBUTES = "att";
   public static final String CA_CERTIFICATES = "crts";
   public static final String SIMPLE_ENROLL = "sen";
@@ -57,21 +60,21 @@ public class ConstantsBrski {
   public static final String HTTP_APPLICATION_COSE_SIGN1 = "application/cose; cose-type=\"cose-sign1\"";
   public static final String HTTP_APPLICATION_COSE = "application/cose";
   public static final String HTTP_APPLICATION_VOUCHER_COSE_CBOR = "application/voucher-cose+cbor";
+  /** Not yet consumed by this implementation; defined for protocol completeness. */
   public static final String HTTP_APPLICATION_VOUCHER_COSE_JSON = "application/voucher-cose+json";
 
   // --- COSE items
-  // see https://www.iana.org/assignments/cose/cose.xhtml#header-parameters
-  public static final CBORObject COSE_X5BAG_HEADER_KEY = CBORObject.FromObject(32);
+  /** COSE header label 32 (x5bag) per RFC 9360 */
+  public static final CBORObject COSE_X5BAG_HEADER_KEY = CBORObject.FromObject(32 /* x5bag */);
 
   // --- OID items
-  public static final String MASA_URI_OID = "1.3.6.1.5.5.7.1.32"; // RFC 8995
-  public static final String HARDWARE_MODULE_NAME_OID = "1.3.6.1.5.5.7.8.4";
-  public static final String PRIVATE_HARDWARE_TYPE_OID = "1.3.6.1.4.1.21335";
-  public static final String CMC_RA_PKIX_KEY_PURPOSE_OID = "1.3.6.1.5.5.7.3.28"; // RFC 6402 2.10
-  public static final String EXTENDED_KEY_USAGE_OID = "2.5.29.37";
+  public static final String MASA_URI_OID = "1.3.6.1.5.5.7.1.32"; // id-pe-masa-url, RFC 8995 §2.3
+  public static final String HARDWARE_MODULE_NAME_OID = "1.3.6.1.5.5.7.8.4"; // id-on-hardwareModuleName, RFC 4108 §5
+  public static final String PRIVATE_HARDWARE_TYPE_OID = "1.3.6.1.4.1.21335"; // IANA Private Enterprise Number (PEN) 21335 OSRAM Gmbh
+  public static final String CMC_RA_PKIX_KEY_PURPOSE_OID = "1.3.6.1.5.5.7.3.28"; // id-kp-cmcRA, RFC 6402 §2.10
+  public static final String EXTENDED_KEY_USAGE_OID = "2.5.29.37"; // X.509 EKU extension, RFC 5280 §4.2.1.12
   public static final KeyPurposeId id_kp_cmcRA = KeyPurposeId.getInstance(new ASN1ObjectIdentifier(CMC_RA_PKIX_KEY_PURPOSE_OID));
   public static final ASN1ObjectIdentifier eku = new ASN1ObjectIdentifier(EXTENDED_KEY_USAGE_OID);
-  public static final Integer ASN1_TAG_GENERALNAME_OTHERNAME = 0; // RFC 5280 Section 4.2.1.6
 
   // --- URIs, ports and hostnames
   public static final int DEFAULT_REGISTRAR_COAPS_PORT = 5684;
