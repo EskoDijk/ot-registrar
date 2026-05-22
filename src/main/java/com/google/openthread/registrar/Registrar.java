@@ -883,7 +883,7 @@ public class Registrar extends CoapServer {
 
     // 'hello' test resource
     this.add(
-        new CoapResource(Constants.HELLO) {
+        new CoapResource(Constants.HELLO_PATH) {
           @Override
           public void handleGET(CoapExchange exchange) {
             exchange.respond(ResponseCode.CONTENT, "hello CoAP");

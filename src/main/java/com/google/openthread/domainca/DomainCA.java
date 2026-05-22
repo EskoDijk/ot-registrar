@@ -43,6 +43,8 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
@@ -119,8 +121,10 @@ public class DomainCA {
     X500Name issuer = getSubjectName();
     BigInteger serial = SecurityUtils.allocateSerialNumber();
     logger.info("allocate serial number: " + serial);
-    Date notBefore = new Date();
-    Date notAfter = new Date(System.currentTimeMillis() + Constants.CERT_VALIDITY_MILLISECONDS);
+    Instant now = Instant.now();
+    Date notBefore = Date.from(now);
+    Date notAfter = Date.from(
+        now.atZone(ZoneId.systemDefault()).plus(Constants.CERT_VALIDITY).toInstant());
     X509v3CertificateBuilder builder = new X509v3CertificateBuilder(issuer, serial, notBefore, notAfter, csr.getSubject(), csr.getSubjectPublicKeyInfo());
 
     logger.info("operational certificate not-before: " + notBefore.toString());

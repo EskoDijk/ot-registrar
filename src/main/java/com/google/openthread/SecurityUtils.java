@@ -58,6 +58,8 @@ import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -501,12 +503,17 @@ public class SecurityUtils {
     PrivateKey issPriv = issuerKeyPair.getPrivate();
     PublicKey issPub = issuerKeyPair.getPublic();
 
+    Instant now = Instant.now();
+    Date notBefore = Date.from(now);
+    Date notAfter = Date.from(
+        now.atZone(ZoneId.systemDefault()).plus(Constants.CERT_VALIDITY).toInstant());
+
     X509v3CertificateBuilder v3CertGen =
         new JcaX509v3CertificateBuilder(
             new X500Name(issuerName),
             allocateSerialNumber(),
-            new Date(System.currentTimeMillis()),
-            new Date(System.currentTimeMillis() + Constants.CERT_VALIDITY_MILLISECONDS),
+            notBefore,
+            notAfter,
             new X500Name(subName),
             subPub);
 

@@ -464,7 +464,7 @@ public class Pledge extends CoapClient {
   }
 
   public CoapResponse sayHello() throws IOException, ConnectorException {
-    setURI(hostURI + "/" + Constants.HELLO);
+    setURI(hostURI + "/" + Constants.HELLO_PATH);
     return get();
   }
 

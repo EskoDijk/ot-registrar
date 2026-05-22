@@ -28,17 +28,24 @@
 
 package com.google.openthread;
 
+import com.google.openthread.brski.ConstantsBrski;
+import java.time.Period;
+
 /**
  * OT Registrar project-specific constants are defined here.
  */
-public class Constants {
+public final class Constants {
+
+  private Constants() {}
 
   // --- URIs, resources and paths
-  public static final String DEFAULT_MASA_URI = "localhost:9443";
-  public static final String HELLO = "hello";
+  public static final String DEFAULT_MASA_URI =
+      "localhost:" + ConstantsBrski.DEFAULT_MASA_HTTPS_PORT;
+  public static final String HELLO_PATH = "hello";
 
-  // -- Other items
+  // --- Other items
   public static final String KEY_STORE_FORMAT = "PKCS12";
-  public static final long CERT_VALIDITY_DAYS = 5 * 365; // LDevID validity in Days.
-  public static final long CERT_VALIDITY_MILLISECONDS = CERT_VALIDITY_DAYS * 24 * 3600 * 1000;
+
+  /** LDevID and operational-certificate validity period. */
+  public static final Period CERT_VALIDITY = Period.ofYears(5);
 }
