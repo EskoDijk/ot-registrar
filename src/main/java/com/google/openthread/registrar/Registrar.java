@@ -169,17 +169,17 @@ public class Registrar extends CoapServer {
   /**
    * By default the Registrar mimics the Pledge's Voucher Request format, when requesting to MASA. This method changes that to force the Registrar to use one format only.
    *
-   * @param mediaType one of Constants.HTTP_APPLICATION_VOUCHER_CMS_JSON or Constants.HTTP_APPLICATION_VOUCHER_COSE_CBOR, or "" to force nothing.
+   * @param mediaType one of {@link ConstantsBrski#MEDIA_TYPE_VOUCHER_CMS_JSON} or {@link ConstantsBrski#MEDIA_TYPE_VOUCHER_COSE_CBOR}, or "" to force nothing.
    * @return
    */
   public void setForcedRequestFormat(String mediaType) {
     switch (mediaType) {
       case "":
         this.forcedVoucherRequestFormat = -1;
-      case ConstantsBrski.HTTP_APPLICATION_VOUCHER_CMS_JSON:
+      case ConstantsBrski.MEDIA_TYPE_VOUCHER_CMS_JSON:
         this.forcedVoucherRequestFormat = ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON;
         break;
-      case ConstantsBrski.HTTP_APPLICATION_VOUCHER_COSE_CBOR:
+      case ConstantsBrski.MEDIA_TYPE_VOUCHER_COSE_CBOR:
         this.forcedVoucherRequestFormat = ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR;
         break;
       default:
@@ -474,8 +474,8 @@ public class Registrar extends CoapServer {
         if (isCms) {
           // CMS signing.
           requestMediaType = isJsonRVR
-              ? ConstantsBrski.HTTP_APPLICATION_VOUCHER_CMS_JSON
-              : ConstantsBrski.HTTP_APPLICATION_VOUCHER_CMS_CBOR;
+              ? ConstantsBrski.MEDIA_TYPE_VOUCHER_CMS_JSON
+              : ConstantsBrski.MEDIA_TYPE_VOUCHER_CMS_CBOR;
           requestContentFormat = isJsonRVR
               ? ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON
               : ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_CBOR;
@@ -494,7 +494,7 @@ public class Registrar extends CoapServer {
           }
         } else {
           // COSE signing.
-          requestMediaType = ConstantsBrski.HTTP_APPLICATION_VOUCHER_COSE_CBOR;
+          requestMediaType = ConstantsBrski.MEDIA_TYPE_VOUCHER_COSE_CBOR;
           requestContentFormat = ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR;
           try {
             payload =
@@ -661,7 +661,7 @@ public class Registrar extends CoapServer {
       con.setRequestMethod("POST");
       con.setDoOutput(true);
       con.setRequestProperty("Content-Type", requestMediaType);
-      con.setRequestProperty("Accept", ConstantsBrski.HTTP_APPLICATION_VOUCHER_COSE_CBOR);
+      con.setRequestProperty("Accept", ConstantsBrski.MEDIA_TYPE_VOUCHER_COSE_CBOR);
       con.setInstanceFollowRedirects(true);
       con.connect();
       DataOutputStream out = new DataOutputStream(con.getOutputStream());
@@ -677,7 +677,7 @@ public class Registrar extends CoapServer {
       // TODO below assumes the Content-Type of the response, because Accept header was used. May
       // need to be checked though.
       return new RestfulVoucherResponse(
-          con.getResponseCode(), respPayload, ConstantsBrski.HTTP_APPLICATION_VOUCHER_COSE_CBOR);
+          con.getResponseCode(), respPayload, ConstantsBrski.MEDIA_TYPE_VOUCHER_COSE_CBOR);
     }
 
     private void initEndPoint(X509Certificate[] trustAnchors) throws Exception {

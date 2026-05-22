@@ -66,7 +66,7 @@ public class RestfulVoucherResponse {
     this.code = codeFromHttpStatus(httpStatus);
     this.payload = payload;
     if (contentType != null
-        && !contentType.toLowerCase().equals(ConstantsBrski.HTTP_APPLICATION_VOUCHER_COSE_CBOR))
+        && !contentType.toLowerCase().equals(ConstantsBrski.MEDIA_TYPE_VOUCHER_COSE_CBOR))
       throw new IllegalArgumentException("Unsupported Content-Type " + contentType);
     this.contentFormat = ExtendedMediaTypeRegistry.parse(contentType);
   }

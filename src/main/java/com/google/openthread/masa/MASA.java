@@ -159,7 +159,7 @@ public class MASA {
       Sign1Message sign1Msg = null;
 
       switch (contentType) {
-        case ConstantsBrski.HTTP_APPLICATION_VOUCHER_CMS_JSON:
+        case ConstantsBrski.MEDIA_TYPE_VOUCHER_CMS_JSON:
           try {
             reqContent = SecurityUtils.decodeCMSSignedMessage(body, reqCerts); // decode CMS, get embedded reqCerts back.
           } catch (Exception e) {
@@ -171,9 +171,9 @@ public class MASA {
           }
           break;
 
-        case ConstantsBrski.HTTP_APPLICATION_VOUCHER_COSE_CBOR:
-        case ConstantsBrski.HTTP_APPLICATION_COSE_SIGN1:
-        case ConstantsBrski.HTTP_APPLICATION_COSE:
+        case ConstantsBrski.MEDIA_TYPE_VOUCHER_COSE_CBOR:
+        case ConstantsBrski.MEDIA_TYPE_COSE_SIGN1:
+        case ConstantsBrski.MEDIA_TYPE_COSE:
           try {
             // Verify signature
             sign1Msg = (Sign1Message) Message.DecodeFromBytes(body, MessageTag.Sign1);
@@ -203,7 +203,7 @@ public class MASA {
       }
 
       switch (contentType) {
-        case ConstantsBrski.HTTP_APPLICATION_VOUCHER_CMS_JSON:
+        case ConstantsBrski.MEDIA_TYPE_VOUCHER_CMS_JSON:
           try {
             req = (VoucherRequest) new JSONSerializer().deserialize(reqContent);
           } catch (Exception e) {
@@ -214,9 +214,9 @@ public class MASA {
           }
           break;
 
-        case ConstantsBrski.HTTP_APPLICATION_VOUCHER_COSE_CBOR:
-        case ConstantsBrski.HTTP_APPLICATION_COSE_SIGN1:
-        case ConstantsBrski.HTTP_APPLICATION_COSE:
+        case ConstantsBrski.MEDIA_TYPE_VOUCHER_COSE_CBOR:
+        case ConstantsBrski.MEDIA_TYPE_COSE_SIGN1:
+        case ConstantsBrski.MEDIA_TYPE_COSE:
           try {
             req = (VoucherRequest) new CBORSerializer().deserialize(sign1Msg.GetContent());
           } catch (Exception e) {
@@ -241,7 +241,7 @@ public class MASA {
         exchange
             .getResponseHeaders()
             .put(HttpString.tryFromString("Content-Type"),
-                ConstantsBrski.HTTP_APPLICATION_VOUCHER_COSE_CBOR);
+                ConstantsBrski.MEDIA_TYPE_VOUCHER_COSE_CBOR);
         byte[] content = new CBORSerializer().serialize(resp.getVoucher());
         byte[] payload =
             SecurityUtils.genCoseSign1Message(credentialsCa.getPrivateKey(), SecurityUtils.COSE_SIGNATURE_ALGORITHM, content);

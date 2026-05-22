@@ -36,7 +36,10 @@ public final class ConstantsBrski {
 
   private ConstantsBrski() {}
 
-  // --- BRSKI - EST resources and paths
+  // --- BRSKI - EST resources and paths.
+  // Short names (e.g. "rv", "vs", "es") are CoAP-style segments per
+  // draft-ietf-anima-constrained-voucher. The HTTP long form
+  // (e.g. "requestvoucher") is the path defined by RFC 8995 §5.
   public static final String WELL_KNOWN = ".well-known";
   public static final String EST = "est";
   public static final String BRSKI = "brski";
@@ -54,14 +57,14 @@ public final class ConstantsBrski {
   public static final String SIMPLE_ENROLL = "sen";
   public static final String SIMPLE_REENROLL = "sren";
 
-  // --- HTTP Media Types
-  public static final String HTTP_APPLICATION_VOUCHER_CMS_JSON = "application/voucher-cms+json";
-  public static final String HTTP_APPLICATION_VOUCHER_CMS_CBOR = "application/voucher-cms+cbor";
-  public static final String HTTP_APPLICATION_COSE_SIGN1 = "application/cose; cose-type=\"cose-sign1\"";
-  public static final String HTTP_APPLICATION_COSE = "application/cose";
-  public static final String HTTP_APPLICATION_VOUCHER_COSE_CBOR = "application/voucher-cose+cbor";
+  // --- Media Types (used over both HTTP and CoAP)
+  public static final String MEDIA_TYPE_VOUCHER_CMS_JSON = "application/voucher-cms+json";
+  public static final String MEDIA_TYPE_VOUCHER_CMS_CBOR = "application/voucher-cms+cbor";
+  public static final String MEDIA_TYPE_COSE_SIGN1 = "application/cose; cose-type=\"cose-sign1\"";
+  public static final String MEDIA_TYPE_COSE = "application/cose";
+  public static final String MEDIA_TYPE_VOUCHER_COSE_CBOR = "application/voucher-cose+cbor";
   /** Not yet consumed by this implementation; defined for protocol completeness. */
-  public static final String HTTP_APPLICATION_VOUCHER_COSE_JSON = "application/voucher-cose+json";
+  public static final String MEDIA_TYPE_VOUCHER_COSE_JSON = "application/voucher-cose+json";
 
   // --- COSE items
   /** COSE header label 32 (x5bag) per RFC 9360 */

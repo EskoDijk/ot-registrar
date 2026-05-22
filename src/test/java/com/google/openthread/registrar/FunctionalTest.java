@@ -412,7 +412,7 @@ public class FunctionalTest {
         .setTrustAllMasas(true)
         .build();
     registrar.setDomainCA(domainCA);
-    registrar.setForcedRequestFormat(ConstantsBrski.HTTP_APPLICATION_VOUCHER_CMS_JSON);
+    registrar.setForcedRequestFormat(ConstantsBrski.MEDIA_TYPE_VOUCHER_CMS_JSON);
     registrar.start();
 
     Voucher voucher = pledge.requestVoucher();
