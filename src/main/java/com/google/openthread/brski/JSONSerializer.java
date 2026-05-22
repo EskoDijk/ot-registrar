@@ -29,26 +29,31 @@
 package com.google.openthread.brski;
 
 import com.google.gson.Gson;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import org.bouncycastle.util.encoders.Base64;
 
 /**
- * * Utility class defineing the structure of the Voucher / Voucher-request. This is needed for Gson
- * JSON serialization.
+ * Utility class to serialize/deserialize Vouchers to or from JSON. Create a new
+ * instance for each serialization/deserialization job.
  */
-@SuppressWarnings("serial")
-class GsonVoucher extends HashMap<String, HashMap<String, Object>> {
-  //
-}
-
 public class JSONSerializer implements VoucherSerializer {
 
-  protected Gson gson = new Gson();
+  /**
+   * Tag class giving Gson a concrete generic type to deserialize a voucher into:
+   * a one-entry map from the voucher name (e.g. {@code "ietf-voucher:voucher"})
+   * to its leaf-field map.
+   */
+  @SuppressWarnings("serial")
+  private static final class GsonVoucher extends HashMap<String, HashMap<String, Object>> {
+  }
+
+  private final Gson gson = new Gson();
 
   @Override
   public byte[] serialize(Voucher voucher) throws VoucherSerializationException {
     try {
-      return toJSON(voucher).toString().getBytes();
+      return toJSON(voucher).getBytes(StandardCharsets.UTF_8);
     } catch (RuntimeException e) {
       throw new VoucherSerializationException("JSON voucher serialize failed: " + e.getMessage(), e);
     }
@@ -56,13 +61,13 @@ public class JSONSerializer implements VoucherSerializer {
 
   @Override
   public Voucher deserialize(byte[] data) throws VoucherSerializationException {
-    return fromJSON(new String(data));
+    return fromJSON(new String(data, StandardCharsets.UTF_8));
   }
 
   public String toJSON(Voucher voucher) {
 
     GsonVoucher jsonRoot = new GsonVoucher();
-    HashMap<String, Object> container = new HashMap<String, Object>();
+    HashMap<String, Object> container = new HashMap<>();
 
     if (voucher.assertion != null)
       add(
@@ -114,6 +119,9 @@ public class JSONSerializer implements VoucherSerializer {
       gv = gson.fromJson(json, GsonVoucher.class);
     } catch (RuntimeException e) {
       throw new VoucherSerializationException("JSON voucher parse failed: " + e.getMessage(), e);
+    }
+    if (gv == null) {
+      throw new VoucherSerializationException("empty or null JSON voucher");
     }
     try {
       for (String key : gv.keySet()) {
@@ -194,28 +202,22 @@ public class JSONSerializer implements VoucherSerializer {
     return voucher;
   }
 
-  protected void add(HashMap<String, Object> c, Object key, Object val) {
+  private static void add(HashMap<String, Object> c, String key, Object val) {
     if (val != null) {
       if (val instanceof byte[]) {
         // apply Base64 encoding
         val = Base64.toBase64String((byte[]) val);
       }
-      c.put(key.toString(), val);
+      c.put(key, val);
     }
   }
 
-  protected Object get(HashMap<String, Object> c, Object key) {
+  private static Object get(HashMap<String, Object> c, String key) {
     return c.get(key);
   }
 
-  /**
-   * Get a Base64 encoded value from the HashMap, decoded into byte[].
-   *
-   * @param c
-   * @param key
-   * @return
-   */
-  protected byte[] getBytes(HashMap<String, Object> c, Object key) {
+  /** Get a Base64-encoded value from the HashMap, decoded into a byte[]. */
+  private static byte[] getBytes(HashMap<String, Object> c, String key) {
     Object val = c.get(key);
     if (val == null) return null;
     return Base64.decode(val.toString());
