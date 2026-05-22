@@ -1,3 +1,31 @@
+/*
+ *    Copyright (c) 2019, The OpenThread Registrar Authors.
+ *    All rights reserved.
+ *
+ *    Redistribution and use in source and binary forms, with or without
+ *    modification, are permitted provided that the following conditions are met:
+ *    1. Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *    2. Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *    3. Neither the name of the copyright holder nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ *
+ *    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *    AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ *    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ *    ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ *    LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ *    CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ *    SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ *    INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ *    CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ *    ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *    POSSIBILITY OF SUCH DAMAGE.
+ */
+
 package com.google.openthread.brski;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -8,15 +36,15 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
  * Voucher object (if response created locally) or a byte[] payload (if response received over a
  * network). It abstracts from HTTP or CoAP specific semantics.
  */
-public class RestfulVoucherResponse {
+public final class RestfulVoucherResponse {
 
   public static final int MAX_DIAGNOSTIC_MESSAGE_LENGTH = 80;
 
-  protected ResponseCode code;
-  protected String msg;
-  protected Voucher voucher;
-  protected byte[] payload;
-  protected int contentFormat = -1;
+  private ResponseCode code;
+  private String msg = "";
+  private Voucher voucher;
+  private byte[] payload;
+  private int contentFormat = -1;
 
   /**
    * Constructor for generic RESTful error response without status message.
@@ -25,7 +53,6 @@ public class RestfulVoucherResponse {
    */
   public RestfulVoucherResponse(ResponseCode errorStatus) {
     this.code = errorStatus;
-    this.msg = "";
   }
 
   /**
@@ -57,17 +84,20 @@ public class RestfulVoucherResponse {
 
   /**
    * Constructor to create response object, from given HTTP voucher response information.
+   * The MASA/Registrar HTTP path only emits {@code application/voucher-cose+cbor} responses
+   * today, so any other content type is rejected up front.
    *
    * @param httpStatus
    * @param payload
-   * @param contentType
+   * @param contentType  must be non-null and equal to {@link ConstantsBrski#MEDIA_TYPE_VOUCHER_COSE_CBOR}
    */
   public RestfulVoucherResponse(int httpStatus, byte[] payload, String contentType) {
+    if (contentType == null
+        || !contentType.equalsIgnoreCase(ConstantsBrski.MEDIA_TYPE_VOUCHER_COSE_CBOR)) {
+      throw new IllegalArgumentException("Unsupported Content-Type: " + contentType);
+    }
     this.code = codeFromHttpStatus(httpStatus);
     this.payload = payload;
-    if (contentType != null
-        && !contentType.toLowerCase().equals(ConstantsBrski.MEDIA_TYPE_VOUCHER_COSE_CBOR))
-      throw new IllegalArgumentException("Unsupported Content-Type " + contentType);
     this.contentFormat = ExtendedMediaTypeRegistry.parse(contentType);
   }
 
@@ -127,14 +157,11 @@ public class RestfulVoucherResponse {
     return msg;
   }
 
-  /*
+  @Override
   public String toString() {
     return code
-        + " "
-        + msg
-        + " CF="
-        + contentFormat
-        + ((payload != null) ? (" " + payload.length + "B") : "");
-  }*/
-
+        + " " + msg
+        + " CF=" + contentFormat
+        + (payload != null ? (" " + payload.length + "B") : "");
+  }
 }
