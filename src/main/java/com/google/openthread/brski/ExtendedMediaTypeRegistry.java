@@ -29,24 +29,33 @@
 package com.google.openthread.brski;
 
 import java.util.HashMap;
-import java.util.Set;
+import java.util.Map;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 
+/**
+ * Extends Californium's {@link MediaTypeRegistry} with BRSKI-specific content
+ * formats. Only {@link #parse(String)} and {@link #toString(int)} are overridden
+ * here; they consult the local table first and fall back to the parent.
+ *
+ * <p>Other parent-class static methods (e.g. {@code getAllMediaTypes},
+ * {@code isPrintable}, {@code toFileExtension}, {@code parseWildcard}) are
+ * accessible directly via {@code ExtendedMediaTypeRegistry.X(...)} through
+ * Java's static-member inheritance; we deliberately do not shadow them.
+ */
 public final class ExtendedMediaTypeRegistry extends MediaTypeRegistry {
+
+  private ExtendedMediaTypeRegistry() {}
 
   // application/cose;cose-type="cose-sign1"
   public static final int APPLICATION_COSE_SIGN1 = 18;
 
-  // application/voucher-cose+cbor (IANA allocated on 2022-04-12)
+  // application/voucher-cose+cbor (IANA allocated 2022-04-12)
   public static final int APPLICATION_VOUCHER_COSE_CBOR = 836;
 
-  // application/voucher-cose+cbor (not yet allocated TODO)
+  // The three below use CoAP content-format numbers in the 65000+ experimental
+  // range; replace with IANA-allocated values once available. TODO.
   public static final int APPLICATION_VOUCHER_COSE_JSON = 65503;
-
-  // application/voucher-cms+cbor (not yet allocated TODO)
   public static final int APPLICATION_VOUCHER_CMS_CBOR = 65331;
-
-  // application/voucher-cms+cbor (not yet allocated TODO)
   public static final int APPLICATION_VOUCHER_CMS_JSON = 65332;
 
   // application/cwt
@@ -64,61 +73,40 @@ public final class ExtendedMediaTypeRegistry extends MediaTypeRegistry {
   // application/pkix-cert
   public static final int APPLICATION_PKIX_CERT = 287;
 
-  // initializer
-  private static final HashMap<Integer, String[]> extRegistry = new HashMap<Integer, String[]>();
+  private static final Map<Integer, String> extRegistry = new HashMap<>();
 
   static {
-    add(APPLICATION_COSE_SIGN1, "application/cose; cose-type=\"cose-sign1\"", "cose");
-    add(APPLICATION_VOUCHER_COSE_CBOR, "application/voucher-cose+cbor", "cose");
-    add(APPLICATION_VOUCHER_CMS_CBOR, "application/voucher-cms+cbor", "cms");
-    add(APPLICATION_VOUCHER_CMS_JSON, "application/voucher-cms+json", "cms");
-    add(APPLICATION_CWT, "application/cwt", "cwt");
-    add(
-        APPLICATION_PKCS7_MIME_CERTS_ONLY,
-        "application/pkcs7-mime; smime-type=certs-only",
-        "pkcs7");
-    add(APPLICATION_CSRATTRS, "application/csrattrs", "csrattrs");
-    add(APPLICATION_PKCS10, "application/pkcs10", "pkcs10");
-    add(APPLICATION_PKIX_CERT, "application/pkix-cert", "crt");
-  }
-
-  public static Set<Integer> getAllMediaTypes() {
-    throw new RuntimeException("not implemented");
-  }
-
-  public static boolean isPrintable(int mediaType) {
-    throw new RuntimeException("not implemented");
+    add(APPLICATION_COSE_SIGN1, ConstantsBrski.MEDIA_TYPE_COSE_SIGN1);
+    add(APPLICATION_VOUCHER_COSE_CBOR, ConstantsBrski.MEDIA_TYPE_VOUCHER_COSE_CBOR);
+    add(APPLICATION_VOUCHER_COSE_JSON, ConstantsBrski.MEDIA_TYPE_VOUCHER_COSE_JSON);
+    add(APPLICATION_VOUCHER_CMS_CBOR, ConstantsBrski.MEDIA_TYPE_VOUCHER_CMS_CBOR);
+    add(APPLICATION_VOUCHER_CMS_JSON, ConstantsBrski.MEDIA_TYPE_VOUCHER_CMS_JSON);
+    add(APPLICATION_CWT, "application/cwt");
+    add(APPLICATION_PKCS7_MIME_CERTS_ONLY, "application/pkcs7-mime;smime-type=certs-only");
+    add(APPLICATION_CSRATTRS, "application/csrattrs");
+    add(APPLICATION_PKCS10, "application/pkcs10");
+    add(APPLICATION_PKIX_CERT, "application/pkix-cert");
   }
 
   public static int parse(String type) {
-    for (Integer key : extRegistry.keySet()) {
-      if (extRegistry.get(key)[0].equalsIgnoreCase(type)) {
-        return key;
+    for (Map.Entry<Integer, String> e : extRegistry.entrySet()) {
+      if (e.getValue().equalsIgnoreCase(type)) {
+        return e.getKey();
       }
     }
-
     // if not found locally here, defer to parent class registry.
     return MediaTypeRegistry.parse(type);
   }
 
-  public static Integer[] parseWildcard(String regex) {
-    throw new RuntimeException("not implemented");
-  }
-
-  public static String toFileExtension(int mediaType) {
-    throw new RuntimeException("not implemented");
-  }
-
   public static String toString(int mediaType) {
-    String texts[] = extRegistry.get(mediaType);
-    if (texts != null) {
-      return texts[0];
-    } else {
-      return MediaTypeRegistry.toString(mediaType);
+    String text = extRegistry.get(mediaType);
+    if (text != null) {
+      return text;
     }
+    return MediaTypeRegistry.toString(mediaType);
   }
 
-  private static void add(int mediaType, String string, String extension) {
-    extRegistry.put(mediaType, new String[] {string, extension});
+  private static void add(int mediaType, String text) {
+    extRegistry.put(mediaType, text);
   }
 }
