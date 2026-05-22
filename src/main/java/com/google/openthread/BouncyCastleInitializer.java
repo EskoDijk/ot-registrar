@@ -33,10 +33,17 @@ import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.style.RFC4519Style;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
-public class BouncyCastleInitializer {
+public final class BouncyCastleInitializer {
 
-  public static void init() {
-    Security.addProvider(new BouncyCastleProvider());
+  static {
+    if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+      Security.addProvider(new BouncyCastleProvider());
+    }
     X500Name.setDefaultStyle(RFC4519Style.INSTANCE);
   }
+
+  private BouncyCastleInitializer() {}
+
+  /** Force class loading, which triggers the one-time static initializer above. */
+  public static void init() {}
 }
