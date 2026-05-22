@@ -151,7 +151,7 @@ public class Credentials {
     return alias;
   }
 
-  private String alias;
-  private String password;
-  private KeyStore keyStore;
+  private final String alias;
+  private final String password;
+  private final KeyStore keyStore;
 }

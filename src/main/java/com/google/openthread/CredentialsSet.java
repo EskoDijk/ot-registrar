@@ -31,8 +31,11 @@ package com.google.openthread;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * A set of multiple credentials (each having certificate and private key) for named entities
@@ -96,6 +99,16 @@ public class CredentialsSet {
   }
 
   /**
+   * returns the list of aliases present in the underlying KeyStore.
+   *
+   * @return aliases known to this CredentialsSet, in no particular order
+   * @throws KeyStoreException
+   */
+  public List<String> aliases() throws KeyStoreException {
+    return Collections.list(keyStore.aliases());
+  }
+
+  /**
    * returns the KeyStore that is used to fetch the credentials.
    *
    * @return
@@ -123,6 +136,6 @@ public class CredentialsSet {
     return password;
   }
 
-  private String password;
+  private final String password;
   private KeyStore keyStore;
 }
