@@ -60,7 +60,7 @@ public final class ConstantsBrski {
   // --- Media Types (used over both HTTP and CoAP)
   public static final String MEDIA_TYPE_VOUCHER_CMS_JSON = "application/voucher-cms+json";
   public static final String MEDIA_TYPE_VOUCHER_CMS_CBOR = "application/voucher-cms+cbor";
-  public static final String MEDIA_TYPE_COSE_SIGN1 = "application/cose; cose-type=\"cose-sign1\"";
+  public static final String MEDIA_TYPE_COSE_SIGN1 = "application/cose;cose-type=\"cose-sign1\"";
   public static final String MEDIA_TYPE_COSE = "application/cose";
   public static final String MEDIA_TYPE_VOUCHER_COSE_CBOR = "application/voucher-cose+cbor";
   /** Not yet consumed by this implementation; defined for protocol completeness. */
