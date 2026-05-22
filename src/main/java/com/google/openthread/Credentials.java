@@ -28,8 +28,6 @@
 
 package com.google.openthread;
 
-import com.google.openthread.brski.ConstantsBrski;
-import com.google.openthread.thread.ConstantsThread;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -47,30 +45,23 @@ import org.eclipse.californium.elements.util.SslContextUtil;
 /** Credentials (certificate and private key) for a single named entity ("alias"). */
 public class Credentials {
 
-  public Credentials(String file, String alias, String password) throws Exception {
-    this.alias = alias;
-    this.password = password;
-    KeyStore ksAll = KeyStore.getInstance(Constants.KEY_STORE_FORMAT);
-
-    try (InputStream in = new FileInputStream(file)) {
-      ksAll.load(in, password.toCharArray());
-    }
-    if (!ksAll.containsAlias(alias))
-      throw new KeyStoreException("Alias " + alias + " not found in keystore: " + file);
-
-    // set the single right entry in a new keystore
-    keyStore = KeyStore.getInstance(Constants.KEY_STORE_FORMAT);
-    keyStore.load(null, password.toCharArray());
-    Key privKey = ksAll.getKey(alias, password.toCharArray());
-    Certificate[] certChain = ksAll.getCertificateChain(alias);
-    keyStore.setKeyEntry(alias, privKey, password.toCharArray(), certChain);
+  public Credentials(String file, String alias, String password)
+      throws GeneralSecurityException, IOException {
+    this(loadKeyStore(file, password), alias, password);
   }
 
-  public Credentials(KeyStore ksAll, String alias, String password) throws Exception {
+  public Credentials(KeyStore ksAll, String alias, String password)
+      throws GeneralSecurityException, IOException {
     this.alias = alias;
     this.password = password;
+    if (!ksAll.containsAlias(alias)) {
+      throw new KeyStoreException("alias not found in keystore: " + alias);
+    }
 
-    // set the single right entry in a new keystore
+    // Re-pack the single chosen alias into a fresh KeyStore. Consumers pass
+    // getKeyStore() to a KeyManagerFactory, which picks the first key entry
+    // it finds — packaging only this alias forces selection of the intended
+    // one.
     keyStore = KeyStore.getInstance(Constants.KEY_STORE_FORMAT);
     keyStore.load(null, password.toCharArray());
     Key privKey = ksAll.getKey(alias, password.toCharArray());
@@ -87,11 +78,23 @@ public class Credentials {
     keyStore.setKeyEntry(alias, privKey, password.toCharArray(), certChain);
   }
 
+  private static KeyStore loadKeyStore(String file, String password)
+      throws GeneralSecurityException, IOException {
+    KeyStore ks = KeyStore.getInstance(Constants.KEY_STORE_FORMAT);
+    try (InputStream in = new FileInputStream(file)) {
+      ks.load(in, password.toCharArray());
+    }
+    return ks;
+  }
+
   public KeyPair getKeyPair() throws GeneralSecurityException {
-    PublicKey pubk = keyStore.getCertificate(alias).getPublicKey();
+    Certificate cert = keyStore.getCertificate(alias);
+    if (cert == null) {
+      throw new KeyStoreException("alias not found in keystore: " + alias);
+    }
+    PublicKey pubk = cert.getPublicKey();
     PrivateKey privk = (PrivateKey) keyStore.getKey(alias, password.toCharArray());
-    KeyPair kp = new KeyPair(pubk, privk);
-    return kp;
+    return new KeyPair(pubk, privk);
   }
 
   // Returns null if alias not included i.e. key for alias was not found.
