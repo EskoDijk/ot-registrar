@@ -29,8 +29,6 @@
 package com.google.openthread;
 
 import java.security.Security;
-import org.bouncycastle.asn1.x500.X500Name;
-import org.bouncycastle.asn1.x500.style.RFC4519Style;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 public final class BouncyCastleInitializer {
@@ -39,7 +37,6 @@ public final class BouncyCastleInitializer {
     if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
       Security.addProvider(new BouncyCastleProvider());
     }
-    X500Name.setDefaultStyle(RFC4519Style.INSTANCE);
   }
 
   private BouncyCastleInitializer() {}

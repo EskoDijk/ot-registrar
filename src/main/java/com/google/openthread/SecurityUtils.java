@@ -486,7 +486,10 @@ public class SecurityUtils {
    * @param subKeyPair    subject key pair
    * @param subName       subject distinguished name
    * @param issuerKeyPair issuer key pair
-   * @param issuerName    issuer distinguished name
+   * @param issuerName    issuer distinguished name as an {@link X500Name}; pass the parent
+   *                      cert's {@code getSubject()} (e.g. from {@link
+   *                      org.bouncycastle.cert.jcajce.JcaX509CertificateHolder}) so the
+   *                      leaf's Issuer DER matches the parent's Subject DER exactly
    * @param ca            is this certificate used as a CA
    * @param extensions    additional extensions
    * @return generated certificate
@@ -495,7 +498,7 @@ public class SecurityUtils {
       KeyPair subKeyPair,
       String subName,
       KeyPair issuerKeyPair,
-      String issuerName,
+      X500Name issuerName,
       boolean ca,
       List<Extension> extensions)
       throws GeneralSecurityException, CertIOException, OperatorException {
@@ -510,7 +513,7 @@ public class SecurityUtils {
 
     X509v3CertificateBuilder v3CertGen =
         new JcaX509v3CertificateBuilder(
-            new X500Name(issuerName),
+            issuerName,
             allocateSerialNumber(),
             notBefore,
             notAfter,

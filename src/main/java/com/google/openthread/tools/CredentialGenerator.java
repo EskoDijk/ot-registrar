@@ -58,6 +58,7 @@ import org.apache.commons.cli.Options;
 import org.bouncycastle.asn1.ASN1Encoding;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.DERIA5String;
+import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.ExtendedKeyUsage;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.GeneralName;
@@ -65,6 +66,7 @@ import org.bouncycastle.asn1.x509.GeneralNames;
 import org.bouncycastle.asn1.x509.KeyPurposeId;
 import org.bouncycastle.asn1.x509.KeyUsage;
 import org.bouncycastle.asn1.x509.OtherName;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -134,14 +136,15 @@ public class CredentialGenerator extends CredentialsSet {
                 .getEncoded());
     List<Extension> extensions = new ArrayList<Extension>();
     extensions.add(keyUsage);
-    return SecurityUtils.genCertificate(keyPair, dname, keyPair, dname, true, extensions);
+    return SecurityUtils.genCertificate(
+        keyPair, dname, keyPair, new X500Name(dname), true, extensions);
   }
 
   public X509Certificate genPledgeCertificate(
       KeyPair subKeyPair,
       String subName,
       KeyPair issuerKeyPair,
-      String issuerName,
+      X500Name issuerName,
       HardwareModuleName moduleName,
       String masaUri)
       throws Exception {
@@ -189,7 +192,7 @@ public class CredentialGenerator extends CredentialsSet {
    * @throws Exception
    */
   public X509Certificate genRegistrarCertificate(
-      KeyPair subKeyPair, String subName, KeyPair issuerKeyPair, String issuerName)
+      KeyPair subKeyPair, String subName, KeyPair issuerKeyPair, X500Name issuerName)
       throws Exception {
 
     Extension keyUsage =
@@ -235,12 +238,12 @@ public class CredentialGenerator extends CredentialsSet {
             regCreds.getKeyPair(),
             REGISTRAR_DNAME,
             domainCa.getKeyPair(),
-            domainCa.getCertificate().getSubjectX500Principal().toString());
+            new JcaX509CertificateHolder(domainCa.getCertificate()).getSubject());
     return cert;
   }
 
   public X509Certificate genMasaServerCertificate(
-      KeyPair subKeyPair, String subName, KeyPair issuerKeyPair, String issuerName)
+      KeyPair subKeyPair, String subName, KeyPair issuerKeyPair, X500Name issuerName)
       throws Exception {
 
     Extension keyUsage =
@@ -328,7 +331,10 @@ public class CredentialGenerator extends CredentialsSet {
       keyPair = SecurityUtils.genKeyPair();
       cert =
           genMasaServerCertificate(
-              keyPair, MASA_DNAME, masaCaKeyPair, masaCaCert.getSubjectX500Principal().getName());
+              keyPair,
+              MASA_DNAME,
+              masaCaKeyPair,
+              new JcaX509CertificateHolder(masaCaCert).getSubject());
     }
     this.setCredentials(MASA_ALIAS, new X509Certificate[]{cert, masaCaCert}, keyPair.getPrivate());
 
@@ -359,7 +365,7 @@ public class CredentialGenerator extends CredentialsSet {
               keyPair,
               REGISTRAR_DNAME,
               domaincaKeyPair,
-              domaincaCert.getSubjectX500Principal().getName());
+              new JcaX509CertificateHolder(domaincaCert).getSubject());
     }
     this.setCredentials(
         REGISTRAR_ALIAS, new X509Certificate[]{cert, domaincaCert}, keyPair.getPrivate());
@@ -371,7 +377,7 @@ public class CredentialGenerator extends CredentialsSet {
             keyPair,
             COMMISSIONER_DNAME,
             domaincaKeyPair,
-            domaincaCert.getSubjectX500Principal().getName(),
+            new JcaX509CertificateHolder(domaincaCert).getSubject(),
             false,
             null);
     this.setCredentials(
@@ -401,7 +407,7 @@ public class CredentialGenerator extends CredentialsSet {
               pledgeKeyPair,
               PLEDGE_DNAME + sn,
               masaCaCreds.getKeyPair(),
-              masaCaCreds.getCertificate().getSubjectX500Principal().getName(),
+              new JcaX509CertificateHolder(masaCaCreds.getCertificate()).getSubject(),
               hwModuleName,
               masaUri);
     }

@@ -39,6 +39,7 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.CertPath;
 import java.security.cert.CertPathValidator;
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
@@ -67,6 +68,7 @@ import org.bouncycastle.cert.X509ExtensionUtils;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.cert.bc.BcX509ExtensionUtils;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.operator.jcajce.JcaContentVerifierProviderBuilder;
@@ -186,7 +188,11 @@ public class DomainCA {
   }
 
   public X500Name getSubjectName() {
-    return new X500Name(getCertificate().getIssuerX500Principal().getName());
+    try {
+      return new JcaX509CertificateHolder(getCertificate()).getSubject();
+    } catch (CertificateEncodingException e) {
+      throw new IllegalStateException("CA certificate encoding error", e);
+    }
   }
 
 
