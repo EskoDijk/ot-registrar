@@ -58,7 +58,11 @@ public class PledgeException extends Exception {
   }
 
   public PledgeException(String msg, ResponseCode coapCode, String coapDiagnosticMsg) {
-    // FIXME
+    super(msg
+        + (coapCode != null ? (" (" + coapCode + ")") : "")
+        + (coapDiagnosticMsg != null ? (" - CoAP diagnostic: '" + coapDiagnosticMsg + "'") : ""));
+    this.code = coapCode;
+    this.diagMsg = coapDiagnosticMsg;
   }
 
   private static final long serialVersionUID = -1980574489782019605L;
