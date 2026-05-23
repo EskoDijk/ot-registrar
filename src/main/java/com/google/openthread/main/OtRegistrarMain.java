@@ -48,9 +48,10 @@ public final class OtRegistrarMain {
 
   private static final Logger logger = LoggerFactory.getLogger(OtRegistrarMain.class);
 
-  public static void main(String[] args) {
+  private static final String HELP_FORMAT =
+      "[-registrar | -masa | -pledge] [-h] [-d <domain-name>] [-f <keystore-file>] [-p <udp-port>] [-v] [-vv] [-vvv] [-vvvv]";
 
-    final String HELP_FORMAT = "[-registrar | -masa | -pledge] [-h] [-d <domain-name>] [-f <keystore-file>] [-p <udp-port>] [-v] [-vv] [-vvv] [-vvvv]";
+  public static void main(String[] args) {
 
     HelpFormatter helper = new HelpFormatter();
     Options options = new Options();
@@ -174,7 +175,6 @@ public final class OtRegistrarMain {
         return;
       }
 
-      config.logVerbosity = 0;
       if (cmd.hasOption('v')) {
         config.logVerbosity = 1;
       }
@@ -212,6 +212,7 @@ public final class OtRegistrarMain {
       return;
     }
 
+    // Single-line form to the log (for grep), multi-line form to stdout (for operators).
     logger.info("Configuration: {}", config.toStringSingleLine());
     System.out.println("Configuration :\n" + config);
 
