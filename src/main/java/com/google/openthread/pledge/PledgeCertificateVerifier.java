@@ -60,15 +60,21 @@ import org.slf4j.LoggerFactory;
  * CertificateVerifier for the Pledge, to perform all actions with a Registrar such as BRSKI voucher
  * request, enrollment, re-enrollment, etc. Only valid for scope of contact with a Registrar.
  */
-public class PledgeCertificateVerifier implements CertificateVerifier {
+public final class PledgeCertificateVerifier implements CertificateVerifier {
+
+  private static final Logger logger = LoggerFactory.getLogger(PledgeCertificateVerifier.class);
+
+  private final Set<TrustAnchor> trustAnchors;
+  private CertPath peerCertPath;
+  private boolean peerAccepted = false;
+  private boolean doVerification = false;
+  private boolean isCmcRaCheck = true;
 
   public PledgeCertificateVerifier(Set<TrustAnchor> trustAnchors) {
     this.trustAnchors = new HashSet<>();
     if (trustAnchors != null) {
       this.trustAnchors.addAll(trustAnchors);
     }
-
-    logger = LoggerFactory.getLogger(PledgeCertificateVerifier.class);
   }
 
   @Override
@@ -80,7 +86,7 @@ public class PledgeCertificateVerifier implements CertificateVerifier {
     peerCertPath = message.getCertificateChain();
 
     // Check that it contains at least something to verify later.
-    if (peerCertPath.getCertificates().size() == 0) {
+    if (peerCertPath.getCertificates().isEmpty()) {
       AlertMessage alert =
           new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE, session.getPeer());
       peerAccepted = false;
@@ -95,26 +101,24 @@ public class PledgeCertificateVerifier implements CertificateVerifier {
 
       // Check that it is at least an RA cert
       Extension ext = peerCertBC.getExtension(ConstantsBrski.EKU_OID);
-      // byte[] ekuBytes = peerCert.getExtensionValue(Constants.EXTENDED_KEY_USAGE_OID);
       if (ext == null) throw new CertificateException("EKU not present in Registrar cert");
-      ASN1InputStream is = new ASN1InputStream(ext.getExtnValue().getOctets());
-      ASN1Primitive p;
-      ASN1Sequence ekus = null;
-      boolean isServerAuth = false;
-      boolean isCmcRa = false;
-      if ((p = is.readObject()) != null) {
+      ASN1Sequence ekus;
+      try (ASN1InputStream is = new ASN1InputStream(ext.getExtnValue().getOctets())) {
+        ASN1Primitive p = is.readObject();
+        if (p == null) {
+          throw new CertificateException("empty EKU extension in Registrar cert");
+        }
         ekus = ASN1Sequence.getInstance(p);
       }
+      boolean isServerAuth = false;
+      boolean isCmcRa = false;
       for (ASN1Encodable eku : ekus) {
         if (eku.equals(KeyPurposeId.id_kp_serverAuth.toOID())) isServerAuth = true;
         if (eku.equals(ConstantsBrski.ID_KP_CMC_RA.toOID())) isCmcRa = true;
       }
-      is.close();
       if (!isServerAuth) throw new CertificateException("EKU tlsServerAuth not present");
       if (!isCmcRa && isCmcRaCheck) throw new CertificateException("EKU id_kp_cmcRA not present");
 
-      // eku.hasKeyPurposeId(KeyPurposeId.id_kp_serverAuth);
-      // eku.hasKeyPurposeId(Constants.id_kp_cmcRA);
       // Check that it is valid in terms of time/date.
       peerCert.checkValidity();
 
@@ -125,11 +129,11 @@ public class PledgeCertificateVerifier implements CertificateVerifier {
 
         CertPathValidator validator = CertPathValidator.getInstance("PKIX");
         validator.validate(message.getCertificateChain(), params);
-        logger.info("handshake - certificate validation succeed!");
+        logger.info("handshake - certificate validation succeeded");
       } else {
         // We do no verification here to provisionally accept registrar certificate.
         // This is typically for the bootstrap first contact only.
-        logger.info("registrar provisionally accepted without verification!");
+        logger.info("registrar provisionally accepted without verification");
       }
 
       peerAccepted = true;
@@ -153,7 +157,7 @@ public class PledgeCertificateVerifier implements CertificateVerifier {
         res.add(ta.getTrustedCert());
       }
     }
-    return res.toArray(new X509Certificate[res.size()]);
+    return res.toArray(new X509Certificate[0]);
   }
 
   public void addTrustAnchor(TrustAnchor ta) {
@@ -176,19 +180,7 @@ public class PledgeCertificateVerifier implements CertificateVerifier {
     return this.doVerification;
   }
 
-  protected Set<TrustAnchor> trustAnchors;
-
-  protected CertPath peerCertPath;
-
-  protected boolean peerAccepted = false;
-
-  protected boolean doVerification = false;
-
-  protected boolean isCmcRaCheck = true;
-
-  protected Logger logger;
-
-  public void setCmcRaCheck(boolean b) {
-    this.isCmcRaCheck = b;
+  public void setCmcRaCheck(boolean cmcRaCheck) {
+    this.isCmcRaCheck = cmcRaCheck;
   }
 }
