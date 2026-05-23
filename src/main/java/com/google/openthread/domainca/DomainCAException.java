@@ -28,10 +28,20 @@
 
 package com.google.openthread.domainca;
 
+/**
+ * Thrown by {@link DomainCA#signCertificate(org.bouncycastle.pkcs.PKCS10CertificationRequest)}
+ * when the LDevID issuance flow fails — POP verification, certificate
+ * construction, signing, or final PKIX self-validation.
+ */
 public class DomainCAException extends Exception {
-  DomainCAException(String msg) {
+
+  private static final long serialVersionUID = -8592129769267816321L;
+
+  public DomainCAException(String msg) {
     super(msg);
   }
 
-  private static final long serialVersionUID = -8592129769267816321L;
+  public DomainCAException(String msg, Throwable cause) {
+    super(msg, cause);
+  }
 }
