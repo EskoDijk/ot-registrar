@@ -28,6 +28,7 @@
 
 package com.google.openthread.brski;
 
+import com.google.openthread.CoapUtils;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 
 /**
@@ -96,18 +97,9 @@ public final class RestfulVoucherResponse {
         || !contentType.equalsIgnoreCase(ConstantsBrski.MEDIA_TYPE_VOUCHER_COSE_CBOR)) {
       throw new IllegalArgumentException("Unsupported Content-Type: " + contentType);
     }
-    this.code = codeFromHttpStatus(httpStatus);
+    this.code = CoapUtils.httpToCoap(httpStatus);
     this.payload = payload;
     this.contentFormat = ExtendedMediaTypeRegistry.parse(contentType);
-  }
-
-  // internal utility method
-  private ResponseCode codeFromHttpStatus(int httpStatus) {
-    if (httpStatus == 200) return ResponseCode.CHANGED; // Note: POST-specific, not for GET.
-    int nClass = httpStatus / 100;
-    int nDetail = httpStatus - nClass * 100;
-    ResponseCode c = ResponseCode.valueOf((nClass << 5) + nDetail);
-    return c;
   }
 
   /**
@@ -133,8 +125,7 @@ public final class RestfulVoucherResponse {
   }
 
   public int getHttpCode() {
-    if (code == null) return 0;
-    return code.codeClass * 100 + code.codeDetail;
+    return CoapUtils.coapToHttp(code);
   }
 
   public ResponseCode getCoapCode() {
