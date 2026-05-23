@@ -180,7 +180,7 @@ public class FunctionalTest {
     Assert.assertTrue(voucher.validate());
 
     // modify the CSR's Content Format to something not supported.
-    pledge.csrContentFormat = ExtendedMediaTypeRegistry.APPLICATION_PKIX_CERT;
+    pledge.setCsrContentFormat(ExtendedMediaTypeRegistry.APPLICATION_PKIX_CERT);
     try {
       pledge.enroll();
       Assert.fail("CSR with unsupported Content Format should fail.");

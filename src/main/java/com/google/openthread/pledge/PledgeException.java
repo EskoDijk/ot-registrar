@@ -65,5 +65,9 @@ public class PledgeException extends Exception {
     this.diagMsg = coapDiagnosticMsg;
   }
 
+  public PledgeException(String msg, Throwable cause) {
+    super(msg, cause);
+  }
+
   private static final long serialVersionUID = -1980574489782019605L;
 }

@@ -81,9 +81,6 @@ import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
-import org.bouncycastle.cert.X509CertificateHolder;
-import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
-import org.bouncycastle.cms.CMSSignedData;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.ContentVerifierProvider;
 import org.bouncycastle.operator.OperatorCreationException;
@@ -92,7 +89,6 @@ import org.bouncycastle.operator.jcajce.JcaContentVerifierProviderBuilder;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.pkcs.PKCSException;
 import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder;
-import org.bouncycastle.util.Store;
 import org.bouncycastle.util.encoders.Base64;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
@@ -184,14 +180,17 @@ public class Pledge extends CoapClient {
         return ConstantsThread.THREAD_DOMAIN_NAME_DEFAULT;
       }
       // MUST be stored as IA5String wrapped inside an OctetString
-      ASN1InputStream asn1Input = new ASN1InputStream(new ByteArrayInputStream(derThreadDomainNameExt));
-      Object obj = asn1Input.readObject();
+      Object obj;
+      try (ASN1InputStream outer = new ASN1InputStream(new ByteArrayInputStream(derThreadDomainNameExt))) {
+        obj = outer.readObject();
+      }
       if (obj instanceof DEROctetString) {
         byte[] derIa5String = ((DEROctetString) obj).getOctets();
-        asn1Input = new ASN1InputStream(new ByteArrayInputStream(derIa5String));
-        obj = asn1Input.readObject();
+        try (ASN1InputStream inner = new ASN1InputStream(new ByteArrayInputStream(derIa5String))) {
+          obj = inner.readObject();
+        }
         if (obj instanceof DERIA5String) {
-          return ((DERIA5String)obj).toString();
+          return ((DERIA5String) obj).getString();
         }
       }
     } catch (Exception ex) {
@@ -229,7 +228,8 @@ public class Pledge extends CoapClient {
     voucherRequest.setSerialNumber(getSerialNumber(getIdevidCertificate()));
     voucherRequest.setNonce(generateNonce());
 
-    // FIXME(wgtdkp): should use 'subjectPublicKeyInfo' -> note, seems to already use this properly.
+    // X509Certificate.getPublicKey().getEncoded() returns the SubjectPublicKeyInfo DER bytes,
+    // which is exactly what proximityRegistrarSPKI expects.
     voucherRequest.setProximityRegistrarSPKI(getRegistrarCertificate().getPublicKey().getEncoded());
     if (!voucherRequest.validate()) {
       throw new PledgeException("validate voucher request failed");
@@ -327,7 +327,7 @@ public class Pledge extends CoapClient {
       return voucher;
     } catch (Exception e) {
       logger.error("voucher processing error: " + e.getMessage(), e);
-      throw new PledgeException("voucher processing error: " + e.getMessage());
+      throw new PledgeException("voucher processing error: " + e.getMessage(), e);
     }
   }
 
@@ -516,14 +516,10 @@ public class Pledge extends CoapClient {
     }
   }
 
-  // Generate 64-bit cryptographically strong random/pseudo-random number
+  /** Generate a fresh 64-bit cryptographically strong nonce. */
   public static byte[] generateNonce() {
-    SecureRandom random = new SecureRandom();
-
-    // FIXME(wgtdkp): generateSeed() will hang on GCE VM.
-    random = new SecureRandom(random.generateSeed(20));
     byte[] nonce = new byte[8];
-    random.nextBytes(nonce);
+    NONCE_RNG.nextBytes(nonce);
     return nonce;
   }
 
@@ -553,8 +549,7 @@ public class Pledge extends CoapClient {
       this.privateKey = creds.getPrivateKey();
       this.certificateChain = creds.getCertificateChain();
     } catch (GeneralSecurityException ex) {
-      logger.error("Exception accessing credentials", ex);
-      throw new PledgeException("Exception accessing credentials: " + ex.getMessage());
+      throw new PledgeException("Exception accessing credentials: " + ex.getMessage(), ex);
     }
     if (certificateChain.length < 2) {
       throw new PledgeException(
@@ -646,15 +641,6 @@ public class Pledge extends CoapClient {
     return csr;
   }
 
-  private X509Certificate extractCertFromCMSSignedData(CMSSignedData signedData)
-      throws CertificateException {
-    Store<X509CertificateHolder> certStore = signedData.getCertificates();
-    for (X509CertificateHolder holder : certStore.getMatches(null)) {
-      return new JcaX509CertificateConverter().getCertificate(holder);
-    }
-    return null;
-  }
-
   private void initEndpoint(
       PrivateKey privateKey, X509Certificate[] certificateChain, CertificateVerifier verifier) {
     CoapEndpoint endpoint =
@@ -714,14 +700,12 @@ public class Pledge extends CoapClient {
   private boolean isLightweightClientCerts = false;
 
   private Set<TrustAnchor> trustAnchors;
-  PledgeCertificateVerifier certVerifier;
+  private PledgeCertificateVerifier certVerifier;
 
   private CertPath registrarCertPath;
 
-  /**
-   * the Content Format to use for a CSR request
-   */
-  public int csrContentFormat = ExtendedMediaTypeRegistry.APPLICATION_PKCS10;
+  /** the Content Format to use for a CSR request */
+  private int csrContentFormat = ExtendedMediaTypeRegistry.APPLICATION_PKCS10;
 
   private PublicKey domainPublicKey;
 
@@ -734,5 +718,14 @@ public class Pledge extends CoapClient {
   private byte[] lastPvrCoseSigned = null;
   private byte[] lastVoucherCoseSigned = null;
 
-  private static Logger logger = LoggerFactory.getLogger(Pledge.class);
+  private static final SecureRandom NONCE_RNG = new SecureRandom();
+  private static final Logger logger = LoggerFactory.getLogger(Pledge.class);
+
+  public int getCsrContentFormat() {
+    return csrContentFormat;
+  }
+
+  public void setCsrContentFormat(int csrContentFormat) {
+    this.csrContentFormat = csrContentFormat;
+  }
 }
