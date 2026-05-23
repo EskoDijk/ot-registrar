@@ -201,10 +201,14 @@ public final class OtRegistrarMain {
       if (cmd.hasOption('m')) {
         config.masaUri = cmd.getOptionValue('m');
       }
+      if (cmd.hasOption('r')) {
+        config.registrarUri = cmd.getOptionValue('r');
+      }
 
     } catch (Exception e) {
       logger.error(e.getMessage(), e);
       helper.printHelp(HELP_FORMAT, options);
+      System.exit(1);
       return;
     }
 
@@ -222,6 +226,9 @@ public final class OtRegistrarMain {
         PledgeMain.startPledge(config);
         break;
       default:
+        // No role was assumed; the configuration has been printed above and we
+        // exit cleanly. Useful for sanity-checking flags without launching.
+        logger.warn("no role configured ({}); nothing to start", config.role);
         break;
     }
   }
