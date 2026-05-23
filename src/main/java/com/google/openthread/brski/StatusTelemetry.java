@@ -32,52 +32,119 @@ import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
 
 /**
- * Represents a status telemetry message as received from a Pledge; either enrollment status
- * telemetry or voucher status telemetry.
+ * Represents a status telemetry message as received from a Pledge — either
+ * voucher-status (RFC 8995 §5.7) or enrollment-status (RFC 8995 §5.9). The
+ * payload is a CBOR map with {@code version} (=1), {@code status} (Boolean),
+ * and {@code reason} (string, required when {@code status==false}).
  */
-public class StatusTelemetry {
+public final class StatusTelemetry {
 
-  /** single instance representing an 'undefined' status telemetry, e.g. a not-yet-parsed one. */
-  public static final StatusTelemetry UNDEFINED = new StatusTelemetry();
+  // --- CBOR map keys / version literal ---------------------------------
+  private static final String K_VERSION = "version";
+  private static final String K_STATUS = "status";
+  private static final String K_REASON = "reason";
+  private static final int VERSION = 1;
 
-  /** status field of telemetry report by Pledge, success (true) or failure (false) */
-  public boolean status;
+  /** Sentinel for "no telemetry received yet" / "not yet parsed". */
+  public static final StatusTelemetry UNDEFINED =
+      new StatusTelemetry(false, null, false, "UNDEFINED", null);
 
-  /**
-   * in case of failure (status==false), should contain the reason for failure given by Pledge, if
-   * any given. For success (status==true) normally should be null, but may be provided
-   * nevertheless.
-   */
-  public String reason = null;
+  private final boolean status;
+  private final String reason;
+  private final boolean validFormat;
+  private final String parseResultStatus;
+  private final CBORObject cbor;
 
-  /** keep track of whether the telemetry report was in 100% valid format, or not. */
-  public boolean isValidFormat = false;
-
-  /** store message on result of parsing of telemetry message by this class */
-  public String parseResultStatus = "";
-
-  /**
-   * stores the CBOR object as sent by the Pledge, for reference. Null if it couldn't be parsed as CBOR.
-   */
-  public CBORObject cbor = null;
-
-  protected StatusTelemetry() {
-    ;
+  private StatusTelemetry(
+      boolean status, String reason, boolean validFormat, String parseResultStatus, CBORObject cbor) {
+    this.status = status;
+    this.reason = reason;
+    this.validFormat = validFormat;
+    this.parseResultStatus = parseResultStatus;
+    this.cbor = cbor;
   }
 
   /**
    * Create a new StatusTelemetry object with given state info.
    *
    * @param isSuccess true if status should indicate success, false otherwise.
-   * @param reason    required human-readable failure reason if isSuccess==false, should be null otherwise (but not necessarily).
+   * @param reason    required human-readable failure reason if {@code isSuccess==false},
+   *                  should be null otherwise (but not necessarily).
    * @return New StatusTelemetry object.
    */
   public static StatusTelemetry create(boolean isSuccess, String reason) {
-    StatusTelemetry st = new StatusTelemetry();
-    st.status = isSuccess;
-    st.reason = reason;
-    st.isValidFormat = isSuccess || (reason != null && reason.length() > 0);
-    return st;
+    boolean valid = isSuccess || (reason != null && !reason.isEmpty());
+    return new StatusTelemetry(isSuccess, reason, valid, "", null);
+  }
+
+  /**
+   * Deserialize a status telemetry report from CBOR bytes. In case of invalid
+   * {@code data} (invalid CBOR or wrong report shape), the returned object's
+   * {@link #isValidFormat()} is false and {@link #getParseResultStatus()}
+   * carries a human-readable explanation.
+   *
+   * @param data CBOR bytes of an encoded status telemetry object
+   * @return New StatusTelemetry object
+   */
+  public static StatusTelemetry deserialize(byte[] data) {
+    boolean status = false;
+    String reason = null;
+    boolean validFormat = true;
+    String parseResultStatus = "";
+    CBORObject cbor = null;
+
+    try {
+      CBORObject stCbor = CBORObject.DecodeFromBytes(data);
+      if (stCbor == null
+          || stCbor.size() == 0
+          || !stCbor.ContainsKey(K_VERSION)
+          || !stCbor.get(K_VERSION).equals(CBORObject.FromObject(VERSION))) {
+        return new StatusTelemetry(
+            false, null, false, "CBOR object not in correct status telemetry report format", null);
+      }
+      cbor = stCbor;
+
+      // status field — required Boolean. Be lenient about integer 0/1 from
+      // non-conforming Pledges, but flag the message as invalid format.
+      CBORObject statusVal = stCbor.get(K_STATUS);
+      if (statusVal == null) {
+        return new StatusTelemetry(
+            false, null, false, "'status' field missing in status telemetry report", cbor);
+      }
+      if (statusVal.isTrue() || statusVal.isFalse()) {
+        status = statusVal.isTrue();
+      } else if (statusVal.equals(CBORObject.FromObject(1))
+          || statusVal.equals(CBORObject.FromObject(0))) {
+        status = statusVal.equals(CBORObject.FromObject(1));
+        validFormat = false;
+        parseResultStatus = "'status' field must use Boolean value instead of Int";
+      } else {
+        return new StatusTelemetry(
+            false, null, false, "'status' field not boolean in status telemetry report", cbor);
+      }
+
+      // reason field — optional, string-typed.
+      if (stCbor.ContainsKey(K_REASON)) {
+        CBORObject reasonVal = stCbor.get(K_REASON);
+        try {
+          reason = reasonVal.AsString();
+        } catch (IllegalStateException ex) {
+          reason = reasonVal.toString();
+          validFormat = false;
+          parseResultStatus = "'reason' field has wrong value format, must be String";
+        }
+      }
+    } catch (CBORException ex) {
+      return new StatusTelemetry(false, null, false, "Not a valid CBOR object", null);
+    }
+
+    // post-conditions
+    if (validFormat && !status && (reason == null || reason.isEmpty())) {
+      validFormat = false;
+      parseResultStatus = "'reason' field must be provided if status==false";
+    }
+
+    return new StatusTelemetry(status, reason, validFormat, parseResultStatus, cbor);
   }
 
   /**
@@ -87,10 +154,10 @@ public class StatusTelemetry {
    */
   public CBORObject serialize() {
     CBORObject o = CBORObject.NewMap();
-    o.Add("version", CBORObject.FromObject(1));
-    o.Add("status", CBORObject.FromObject(status));
+    o.Add(K_VERSION, CBORObject.FromObject(VERSION));
+    o.Add(K_STATUS, CBORObject.FromObject(status));
     if (reason != null) {
-      o.Add("reason", CBORObject.FromObject(reason));
+      o.Add(K_REASON, CBORObject.FromObject(reason));
     }
     return o;
   }
@@ -101,85 +168,41 @@ public class StatusTelemetry {
    * @return status telemetry report as bytes.
    */
   public byte[] serializeToBytes() {
-    return this.serialize().EncodeToBytes();
+    return serialize().EncodeToBytes();
   }
 
-  /**
-   * Deserialize a status telemetry report from CBOR bytes. In case of invalid 'data', i.e. invalid CBOR
-   * format or invalid report format, flags in the StatusTelemetry object are set to indicate this.
-   *
-   * @param data CBOR bytes of an encoded status telemetry object
-   * @return New StatusTelemetry object
-   */
-  public static StatusTelemetry deserialize(byte[] data) {
-    StatusTelemetry st = new StatusTelemetry();
-    st.isValidFormat = true;
-
-    try {
-      CBORObject stCbor = CBORObject.DecodeFromBytes(data);
-      if (stCbor == null
-          || stCbor.size() == 0
-          || !stCbor.ContainsKey("version")
-          || !stCbor.get("version").equals(CBORObject.FromObject(1))) {
-        st.isValidFormat = false;
-        st.parseResultStatus = "CBOR object not in correct status telemetry report format";
-        return st;
-      }
-
-      // getting status report from the data
-      if (!stCbor.ContainsKey("status")
-          || (!stCbor.get("status").isTrue() && !stCbor.get("status").isFalse())) {
-        st.isValidFormat = false;
-        st.parseResultStatus = "'status' field missing or not boolean in status telemetry report";
-      }
-      st.status = stCbor.get("status").isTrue();
-      // Note: should be boolean, but for testing/leniency purposes the Registrar will accept int
-      // '1' as well.
-      // this will be logged though as invalid format usage by Pledge.
-      if (stCbor.get("status").equals(CBORObject.FromObject(1))) {
-        st.isValidFormat = false;
-        st.parseResultStatus = "'status' field must use Boolean value instead of Int";
-        st.status = true;
-      }
-
-      // store the cbor object
-      st.cbor = stCbor;
-
-      // get reason from data
-      if (stCbor.ContainsKey("reason")) {
-        String r;
-        try {
-          r = stCbor.get("reason").AsString();
-        } catch (IllegalStateException ex) {
-          r = stCbor.get("reason").toString();
-          st.isValidFormat = false;
-          st.parseResultStatus = "'reason' field has wrong value format, must be String";
-        }
-        st.reason = r;
-      }
-    } catch (CBORException ex) {
-      st.parseResultStatus = "Not a valid CBOR object";
-      st.isValidFormat = false;
-    }
-
-    // evaluate more cases of invalid format.
-    if (st.isValidFormat && !st.status && (st.reason == null || st.reason.length() == 0)) {
-      st.isValidFormat = false;
-      st.parseResultStatus = "'reason' field must be provided if status==false";
-    }
-
-    return st;
+  public boolean isStatus() {
+    return status;
   }
 
+  public String getReason() {
+    return reason;
+  }
+
+  public boolean isValidFormat() {
+    return validFormat;
+  }
+
+  public String getParseResultStatus() {
+    return parseResultStatus;
+  }
+
+  public CBORObject getCbor() {
+    return cbor;
+  }
+
+  @Override
   public String toString() {
-    String s = "{status=" + this.status;
+    if (this == UNDEFINED) {
+      return "UNDEFINED";
+    }
+    StringBuilder s = new StringBuilder("{status=").append(status);
     if (reason != null) {
-      s += ", reason=" + reason;
+      s.append(", reason=").append(reason);
     }
-    if (!this.isValidFormat){
-      s += " (INVALID: " +this.parseResultStatus+ ")";
+    if (!validFormat) {
+      s.append(" (INVALID: ").append(parseResultStatus).append(")");
     }
-    s += "}";
-    return s;
+    return s.append("}").toString();
   }
 }

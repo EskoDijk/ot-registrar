@@ -238,10 +238,10 @@ public class Registrar extends CoapServer {
         }
 
         voucherStatus = StatusTelemetry.deserialize(exchange.getRequestPayload());
-        if (voucherStatus.cbor == null) {
-          logger.warn("decoding CBOR payload failed for voucher status report: " + voucherStatus.parseResultStatus);
+        if (voucherStatus.getCbor() == null) {
+          logger.warn("decoding CBOR payload failed for voucher status report: " + voucherStatus.getParseResultStatus());
           exchange.respond(ResponseCode.BAD_REQUEST,
-              "decoding CBOR payload failed for voucher status report: " + voucherStatus.parseResultStatus);
+              "decoding CBOR payload failed for voucher status report: " + voucherStatus.getParseResultStatus());
           return;
         }
 
@@ -256,10 +256,10 @@ public class Registrar extends CoapServer {
         return;
       }
 
-      if (voucherStatus.isValidFormat) { // success response
+      if (voucherStatus.isValidFormat()) { // success response
         exchange.respond(ResponseCode.CHANGED);
       } else {
-        exchange.respond(ResponseCode.BAD_REQUEST, "error: " + voucherStatus.parseResultStatus); // client submitted wrong format.
+        exchange.respond(ResponseCode.BAD_REQUEST, "error: " + voucherStatus.getParseResultStatus()); // client submitted wrong format.
       }
     }
   }
@@ -290,15 +290,15 @@ public class Registrar extends CoapServer {
         }
 
         enrollStatus = StatusTelemetry.deserialize(exchange.getRequestPayload());
-        if (enrollStatus.cbor == null) {
-          logger.warn("status telemetry report message decoding error: {}", enrollStatus.parseResultStatus);
-          exchange.respond(ResponseCode.BAD_REQUEST, "payload error: " + enrollStatus.parseResultStatus);
+        if (enrollStatus.getCbor() == null) {
+          logger.warn("status telemetry report message decoding error: {}", enrollStatus.getParseResultStatus());
+          exchange.respond(ResponseCode.BAD_REQUEST, "payload error: " + enrollStatus.getParseResultStatus());
           return;
         }
 
         logger.info(
             "received enroll status report; status="
-                + enrollStatus.status
+                + enrollStatus.isStatus()
                 + ": "
                 + enrollStatus.toString());
 
@@ -311,12 +311,12 @@ public class Registrar extends CoapServer {
         return;
       }
 
-      if (enrollStatus.isValidFormat) { // success response
+      if (enrollStatus.isValidFormat()) { // success response
         exchange.respond(ResponseCode.CHANGED);
       } else {
         exchange.respond(
             ResponseCode.BAD_REQUEST,
-            "payload error: " + enrollStatus.parseResultStatus); // client submitted wrong format.
+            "payload error: " + enrollStatus.getParseResultStatus()); // client submitted wrong format.
       }
     }
   }
