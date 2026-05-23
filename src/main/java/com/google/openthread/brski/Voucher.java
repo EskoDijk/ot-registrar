@@ -71,6 +71,7 @@ public class Voucher {
       Map.entry(NONCE, VOUCHER_SID + 7),
       Map.entry(PINNED_DOMAIN_CERT, VOUCHER_SID + 8),
       Map.entry(PINNED_DOMAIN_SPKI, VOUCHER_SID + 9),
+      // SID+10: spec-reserved for pinned-domain-pubk-sha256, not used by this implementation.
       Map.entry(PINNED_SHA256_DOMAIN_SPKI, VOUCHER_SID + 10),
       Map.entry(SERIAL_NUMBER, VOUCHER_SID + 11));
 

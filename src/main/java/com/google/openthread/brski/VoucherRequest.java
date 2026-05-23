@@ -30,11 +30,11 @@ package com.google.openthread.brski;
 
 import java.util.Map;
 
-public class VoucherRequest extends Voucher {
+public final class VoucherRequest extends Voucher {
 
   public static final int VOUCHER_REQUEST_SID = 2501;
 
-  protected static final Map<String, Integer> voucherRequestSIDMap = Map.ofEntries(
+  private static final Map<String, Integer> voucherRequestSIDMap = Map.ofEntries(
       Map.entry(VOUCHER_REQUEST_CONSTRAINED, VOUCHER_REQUEST_SID),
       Map.entry(ASSERTION, VOUCHER_REQUEST_SID + 1),
       Map.entry(CREATED_ON, VOUCHER_REQUEST_SID + 2),
@@ -46,6 +46,7 @@ public class VoucherRequest extends Voucher {
       Map.entry(PINNED_DOMAIN_CERT, VOUCHER_REQUEST_SID + 8),
       Map.entry(PRIOR_SIGNED_VOUCHER_REQUEST, VOUCHER_REQUEST_SID + 9),
       Map.entry(PROXIMITY_REGISTRAR_CERT, VOUCHER_REQUEST_SID + 10),
+      // SID+11: spec-reserved for proximity-registrar-pubk-sha256, not used by this implementation.
       Map.entry(SHA256_REGISTRAR_SPKI, VOUCHER_REQUEST_SID + 11),
       Map.entry(PROXIMITY_REGISTRAR_SPKI, VOUCHER_REQUEST_SID + 12),
       Map.entry(SERIAL_NUMBER, VOUCHER_REQUEST_SID + 13));
@@ -54,6 +55,15 @@ public class VoucherRequest extends Voucher {
     sidMap = voucherRequestSIDMap;
   }
 
+  /**
+   * Validates this VoucherRequest. The required fields for a voucher request differ
+   * from those of a voucher (no {@code assertion} or pinned-domain certificate is
+   * required from a pledge), so this override deliberately replaces — rather than
+   * extends — the parent's {@link Voucher#validate()} logic; do not call
+   * {@code super.validate()}.
+   *
+   * @return true if successfully validated.
+   */
   @Override
   public boolean validate() {
     if (getSerialNumber() == null) {
@@ -67,7 +77,7 @@ public class VoucherRequest extends Voucher {
     }
     // only constrained voucher req may have SPKI
     if (!isConstrained() && getProximityRegistrarSPKI() != null) return false;
-    // no proximity fields allowed while there's no proximity assertion.
+    // proximity fields require assertion == PROXIMITY (a null assertion is also rejected here).
     if (getAssertion() != Assertion.PROXIMITY
         && (getProximityRegistrarCert() != null || getProximityRegistrarSPKI() != null)) return false;
 
