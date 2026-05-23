@@ -164,11 +164,11 @@ public final class OtRegistrarMain {
       }
 
       if (cmd.hasOption("registrar")) {
-        config = OtRegistrarConfig.DefaultRegistrar();
+        config = OtRegistrarConfig.defaultRegistrar();
       } else if (cmd.hasOption("masa")) {
-        config = OtRegistrarConfig.DefaultMasa();
+        config = OtRegistrarConfig.defaultMasa();
       } else if (cmd.hasOption("pledge")) {
-        config = OtRegistrarConfig.DefaultPledge();
+        config = OtRegistrarConfig.defaultPledge();
       } else {
         helper.printHelp(HELP_FORMAT, options);
         return;
@@ -208,8 +208,8 @@ public final class OtRegistrarMain {
       return;
     }
 
-    logger.info("Configuration: {}", config.ToStringSingleLine());
-    System.out.println("Configuration :\n" + config.ToString());
+    logger.info("Configuration: {}", config.toStringSingleLine());
+    System.out.println("Configuration :\n" + config);
 
     switch (config.role) {
       case Registrar:

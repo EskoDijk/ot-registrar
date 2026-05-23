@@ -30,7 +30,7 @@ package com.google.openthread.main;
 
 import com.google.openthread.brski.ConstantsBrski;
 
-public class OtRegistrarConfig {
+public final class OtRegistrarConfig {
 
   public Role role;
   public int serverPort;
@@ -40,45 +40,35 @@ public class OtRegistrarConfig {
   public String registrarUri;
   public int logVerbosity;
 
-  static OtRegistrarConfig DefaultPledge() {
+  static OtRegistrarConfig defaultPledge() {
     OtRegistrarConfig config = new OtRegistrarConfig();
     config.role = Role.Pledge;
-    config.serverPort = 0;
-    config.domainName = null;
     config.keyStoreFile = "./credentials/default_pledge.p12";
-    config.masaUri = null;
     config.registrarUri = "coaps://localhost:5684";
-    config.logVerbosity = 0;
     return config;
   }
 
-  static OtRegistrarConfig DefaultRegistrar() {
+  static OtRegistrarConfig defaultRegistrar() {
     OtRegistrarConfig config = new OtRegistrarConfig();
     config.role = Role.Registrar;
     config.serverPort = 5684;
     config.domainName = "DefaultDomain";
     config.keyStoreFile = "./credentials/default_registrar.p12";
-    config.masaUri = null;
-    config.registrarUri = null;
-    config.logVerbosity = 0;
     return config;
   }
 
-  static OtRegistrarConfig DefaultMasa() {
+  static OtRegistrarConfig defaultMasa() {
     OtRegistrarConfig config = new OtRegistrarConfig();
     config.role = Role.Masa;
-    config.serverPort = ConstantsBrski.DEFAULT_MASA_HTTPS_PORT; // re-using corporate TLS/HTTPS port
-    config.domainName = null;
+    config.serverPort = ConstantsBrski.DEFAULT_MASA_HTTPS_PORT;
     config.keyStoreFile = "./credentials/default_masa.p12";
-    config.masaUri = null;
-    config.registrarUri = null;
-    config.logVerbosity = 0;
     return config;
   }
 
-  public String ToString() {
+  @Override
+  public String toString() {
     String s;
-    s = "Role          : " + role.toString() + "\n";
+    s = "Role          : " + role + "\n";
     if (this.serverPort > 0) {
       s += "Server port   : " + this.serverPort + "\n";
     }
@@ -98,9 +88,9 @@ public class OtRegistrarConfig {
     return s;
   }
 
-  public String ToStringSingleLine() {
+  public String toStringSingleLine() {
     String s;
-    s = "role=" + role.toString();
+    s = "role=" + role;
     if (this.serverPort > 0) {
       s += " port=" + this.serverPort;
     }
