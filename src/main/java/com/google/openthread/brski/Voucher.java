@@ -32,92 +32,85 @@ import com.strategicgains.util.date.DateAdapter;
 import com.strategicgains.util.date.TimestampAdapter;
 import java.text.ParseException;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.Map;
 
 public class Voucher {
 
+  // --- Field name constants used by both the JSON and CBOR serializers.
+  public static final String VOUCHER = "ietf-voucher:voucher";
+  public static final String VOUCHER_CONSTRAINED = "ietf-voucher-constrained:voucher";
+  public static final String VOUCHER_REQUEST = "ietf-voucher-request:voucher";
+  public static final String VOUCHER_REQUEST_CONSTRAINED =
+      "ietf-voucher-request-constrained:voucher";
+  public static final String ASSERTION = "assertion";
+  public static final String CREATED_ON = "created-on";
+  public static final String DOMAIN_CERT_REVOCATION_CHECKS = "domain-cert-revocation-checks";
+  public static final String EXPIRES_ON = "expires-on";
+  public static final String IDEVID_ISSUER = "idevid-issuer";
+  public static final String LAST_RENEWAL_DATE = "last-renewal-date";
+  public static final String NONCE = "nonce";
+  public static final String PINNED_DOMAIN_CERT = "pinned-domain-cert";
+  public static final String PINNED_SHA256_DOMAIN_SPKI = "pinned-domain-pubk-sha256";
+  public static final String PINNED_DOMAIN_SPKI = "pinned-domain-pubk";
+  public static final String PRIOR_SIGNED_VOUCHER_REQUEST = "prior-signed-voucher-request";
+  public static final String PROXIMITY_REGISTRAR_CERT = "proximity-registrar-cert";
+  public static final String SHA256_REGISTRAR_SPKI = "proximity-registrar-pubk-sha256";
+  public static final String PROXIMITY_REGISTRAR_SPKI = "proximity-registrar-pubk";
+  public static final String SERIAL_NUMBER = "serial-number";
+
   public static final int VOUCHER_SID = 2451;
 
-  @SuppressWarnings("serial")
-  protected static final Map<String, Integer> voucherSIDMap =
-      new HashMap<String, Integer>() {
-        {
-          put(VOUCHER_CONSTRAINED, VOUCHER_SID);
-          put(ASSERTION, VOUCHER_SID + 1);
-          put(CREATED_ON, VOUCHER_SID + 2);
-          put(DOMAIN_CERT_REVOCATION_CHECKS, VOUCHER_SID + 3);
-          put(EXPIRES_ON, VOUCHER_SID + 4);
-          put(IDEVID_ISSUER, VOUCHER_SID + 5);
-          put(LAST_RENEWAL_DATE, VOUCHER_SID + 6);
-          put(NONCE, VOUCHER_SID + 7);
-          put(PINNED_DOMAIN_CERT, VOUCHER_SID + 8);
-          put(PINNED_DOMAIN_SPKI, VOUCHER_SID + 9);
-          put(PINNED_SHA256_DOMAIN_SPKI, VOUCHER_SID + 10);
-          put(SERIAL_NUMBER, VOUCHER_SID + 11);
-        }
-      };
+  protected static final Map<String, Integer> voucherSIDMap = Map.ofEntries(
+      Map.entry(VOUCHER_CONSTRAINED, VOUCHER_SID),
+      Map.entry(ASSERTION, VOUCHER_SID + 1),
+      Map.entry(CREATED_ON, VOUCHER_SID + 2),
+      Map.entry(DOMAIN_CERT_REVOCATION_CHECKS, VOUCHER_SID + 3),
+      Map.entry(EXPIRES_ON, VOUCHER_SID + 4),
+      Map.entry(IDEVID_ISSUER, VOUCHER_SID + 5),
+      Map.entry(LAST_RENEWAL_DATE, VOUCHER_SID + 6),
+      Map.entry(NONCE, VOUCHER_SID + 7),
+      Map.entry(PINNED_DOMAIN_CERT, VOUCHER_SID + 8),
+      Map.entry(PINNED_DOMAIN_SPKI, VOUCHER_SID + 9),
+      Map.entry(PINNED_SHA256_DOMAIN_SPKI, VOUCHER_SID + 10),
+      Map.entry(SERIAL_NUMBER, VOUCHER_SID + 11));
 
   /** single Voucher object representing an 'undefined' Voucher */
   public static final Voucher UNDEFINED = new Voucher();
 
-  public static final class Assertion {
-
-    public static Assertion VERIFIED = new Assertion(0);
-    public static Assertion LOGGED = new Assertion(1);
-    public static Assertion PROXIMITY = new Assertion(2);
+  public enum Assertion {
+    VERIFIED(0, "verified"),
+    LOGGED(1, "logged"),
+    PROXIMITY(2, "proximity");
 
     private final int value;
+    private final String name;
 
-    private Assertion(final int val) {
-      value = val;
-    }
-
-    public static Assertion newAssertion(int val) {
-      switch (val) {
-        case 0:
-          return VERIFIED;
-        case 1:
-          return LOGGED;
-        case 2:
-          return PROXIMITY;
-        default:
-          throw new IllegalArgumentException("unexpect assertion value: " + val);
-      }
-    }
-
-    public static Assertion newAssertion(String val) {
-      switch (val) {
-        case "verified":
-          return VERIFIED;
-        case "logged":
-          return LOGGED;
-        case "proximity":
-          return PROXIMITY;
-        default:
-          throw new IllegalArgumentException("unexpect assertion value: " + val);
-      }
-    }
-
-    public boolean equals(Assertion other) {
-      return value == other.value;
+    Assertion(int value, String name) {
+      this.value = value;
+      this.name = name;
     }
 
     public int getValue() {
       return value;
     }
 
+    @Override
     public String toString() {
-      switch (value) {
-        case 0:
-          return "verified";
-        case 1:
-          return "logged";
-        case 2:
-          return "proximity";
-        default:
-          return null;
+      return name;
+    }
+
+    public static Assertion newAssertion(int val) {
+      for (Assertion a : values()) {
+        if (a.value == val) return a;
       }
+      throw new IllegalArgumentException("unexpected assertion value: " + val);
+    }
+
+    public static Assertion newAssertion(String val) {
+      for (Assertion a : values()) {
+        if (a.name.equals(val)) return a;
+      }
+      throw new IllegalArgumentException("unexpected assertion value: " + val);
     }
   }
 
@@ -214,53 +207,11 @@ public class Voucher {
 
   public String serialNumber;
 
-  public static final String VOUCHER = "ietf-voucher:voucher";
-
-  public static final String VOUCHER_CONSTRAINED = "ietf-voucher-constrained:voucher";
-
-  public static final String VOUCHER_REQUEST = "ietf-voucher-request:voucher";
-
-  public static final String VOUCHER_REQUEST_CONSTRAINED =
-      "ietf-voucher-request-constrained:voucher";
-
-  public static final String ASSERTION = "assertion";
-
-  public static final String CREATED_ON = "created-on";
-
-  public static final String DOMAIN_CERT_REVOCATION_CHECKS = "domain-cert-revocation-checks";
-
-  public static final String EXPIRES_ON = "expires-on";
-
-  public static final String IDEVID_ISSUER = "idevid-issuer";
-
-  public static final String LAST_RENEWAL_DATE = "last-renewal-date";
-
-  public static final String NONCE = "nonce";
-
-  public static final String PINNED_DOMAIN_CERT = "pinned-domain-cert";
-
-  public static final String PINNED_SHA256_DOMAIN_SPKI = "pinned-domain-pubk-sha256";
-
-  public static final String PINNED_DOMAIN_SPKI = "pinned-domain-pubk";
-
-  public static final String PRIOR_SIGNED_VOUCHER_REQUEST = "prior-signed-voucher-request";
-
-  public static final String PROXIMITY_REGISTRAR_CERT = "proximity-registrar-cert";
-
-  public static final String SHA256_REGISTRAR_SPKI = "proximity-registrar-pubk-sha256";
-
-  public static final String PROXIMITY_REGISTRAR_SPKI = "proximity-registrar-pubk";
-
-  public static final String SERIAL_NUMBER = "serial-number";
-
   protected Map<String, Integer> sidMap;
-
-  protected int baseSid;
 
   protected boolean isConstr = false;
 
   public Voucher() {
-    baseSid = VOUCHER_SID;
     sidMap = voucherSIDMap;
   }
 
@@ -327,8 +278,11 @@ public class Voucher {
     else return VOUCHER;
   }
 
+  @Override
   public String toString() {
-    JSONSerializer jsonSerializer = new JSONSerializer();
-    return jsonSerializer.toJSON(this);
+    if (this == UNDEFINED) {
+      return "UNDEFINED";
+    }
+    return new JSONSerializer().toJSON(this);
   }
 }

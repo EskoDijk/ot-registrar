@@ -28,36 +28,29 @@
 
 package com.google.openthread.brski;
 
-import java.util.HashMap;
 import java.util.Map;
 
 public class VoucherRequest extends Voucher {
 
   public static final int VOUCHER_REQUEST_SID = 2501;
 
-  @SuppressWarnings("serial")
-  protected static final Map<String, Integer> voucherRequestSIDMap =
-      new HashMap<String, Integer>() {
-        {
-          put(VOUCHER_REQUEST_CONSTRAINED, VOUCHER_REQUEST_SID);
-          put(ASSERTION, VOUCHER_REQUEST_SID + 1);
-          put(CREATED_ON, VOUCHER_REQUEST_SID + 2);
-          put(DOMAIN_CERT_REVOCATION_CHECKS, VOUCHER_REQUEST_SID + 3);
-          put(EXPIRES_ON, VOUCHER_REQUEST_SID + 4);
-          put(IDEVID_ISSUER, VOUCHER_REQUEST_SID + 5);
-          put(LAST_RENEWAL_DATE, VOUCHER_REQUEST_SID + 6);
-          put(NONCE, VOUCHER_REQUEST_SID + 7);
-          put(PINNED_DOMAIN_CERT, VOUCHER_REQUEST_SID + 8);
-          put(PRIOR_SIGNED_VOUCHER_REQUEST, VOUCHER_REQUEST_SID + 9);
-          put(PROXIMITY_REGISTRAR_CERT, VOUCHER_REQUEST_SID + 10);
-          put(SHA256_REGISTRAR_SPKI, VOUCHER_REQUEST_SID + 11);
-          put(PROXIMITY_REGISTRAR_SPKI, VOUCHER_REQUEST_SID + 12);
-          put(SERIAL_NUMBER, VOUCHER_REQUEST_SID + 13);
-        }
-      };
+  protected static final Map<String, Integer> voucherRequestSIDMap = Map.ofEntries(
+      Map.entry(VOUCHER_REQUEST_CONSTRAINED, VOUCHER_REQUEST_SID),
+      Map.entry(ASSERTION, VOUCHER_REQUEST_SID + 1),
+      Map.entry(CREATED_ON, VOUCHER_REQUEST_SID + 2),
+      Map.entry(DOMAIN_CERT_REVOCATION_CHECKS, VOUCHER_REQUEST_SID + 3),
+      Map.entry(EXPIRES_ON, VOUCHER_REQUEST_SID + 4),
+      Map.entry(IDEVID_ISSUER, VOUCHER_REQUEST_SID + 5),
+      Map.entry(LAST_RENEWAL_DATE, VOUCHER_REQUEST_SID + 6),
+      Map.entry(NONCE, VOUCHER_REQUEST_SID + 7),
+      Map.entry(PINNED_DOMAIN_CERT, VOUCHER_REQUEST_SID + 8),
+      Map.entry(PRIOR_SIGNED_VOUCHER_REQUEST, VOUCHER_REQUEST_SID + 9),
+      Map.entry(PROXIMITY_REGISTRAR_CERT, VOUCHER_REQUEST_SID + 10),
+      Map.entry(SHA256_REGISTRAR_SPKI, VOUCHER_REQUEST_SID + 11),
+      Map.entry(PROXIMITY_REGISTRAR_SPKI, VOUCHER_REQUEST_SID + 12),
+      Map.entry(SERIAL_NUMBER, VOUCHER_REQUEST_SID + 13));
 
   public VoucherRequest() {
-    baseSid = VOUCHER_REQUEST_SID;
     sidMap = voucherRequestSIDMap;
   }
 
@@ -73,7 +66,7 @@ public class VoucherRequest extends Voucher {
       return false;
     }
     // only constrained voucher req may have SPKI
-    if (!isConstr && proximityRegistrarSPKI != null) return false;
+    if (!isConstrained() && proximityRegistrarSPKI != null) return false;
     // no proximity fields allowed while there's no proximity assertion.
     if (assertion != Assertion.PROXIMITY
         && (proximityRegistrarCert != null || proximityRegistrarSPKI != null)) return false;
