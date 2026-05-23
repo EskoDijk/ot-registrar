@@ -58,7 +58,6 @@ import java.security.cert.CertPathValidator;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
 import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
@@ -102,10 +101,14 @@ import org.slf4j.LoggerFactory;
 /**
  * The Pledge (i.e., CCM Joiner) is the new device which is to securely bootstrap into the network domain using the Constrained BRSKI protocol.
  */
-public class Pledge extends CoapClient {
+public final class Pledge extends CoapClient {
+
+  private static final Logger logger = LoggerFactory.getLogger(Pledge.class);
 
   protected static final ASN1ObjectIdentifier THREAD_DOMAIN_NAME_OID_ASN1 =
       new ASN1ObjectIdentifier(ConstantsThread.THREAD_DOMAIN_NAME_OID); // per Thread 1.2 spec
+
+  private static final SecureRandom NONCE_RNG = new SecureRandom();
 
   static {
     BouncyCastleInitializer.init();
@@ -116,6 +119,31 @@ public class Pledge extends CoapClient {
     PROVISIONALLY_ACCEPT,
     ACCEPT
   }
+
+  private String hostURI;
+  private Credentials credentials;
+  private PrivateKey privateKey;
+  private X509Certificate[] certificateChain;
+  private boolean isLightweightClientCerts = false;
+
+  private Set<TrustAnchor> trustAnchors;
+  private PledgeCertificateVerifier certVerifier;
+
+  private CertPath registrarCertPath;
+
+  /** the Content Format to use for a CSR request */
+  private int csrContentFormat = ExtendedMediaTypeRegistry.APPLICATION_PKCS10;
+
+  private PublicKey domainPublicKey;
+
+  private KeyPair operationalKeyPair;
+  private X509Certificate operationalCertificate;
+
+  private CertState certState = CertState.NO_CONTACT;
+
+  private VoucherRequest lastPvr = null;
+  private byte[] lastPvrCoseSigned = null;
+  private byte[] lastVoucherCoseSigned = null;
 
   /**
    * Constructing pledge with credentials and uri of the registrar
@@ -209,7 +237,9 @@ public class Pledge extends CoapClient {
    * @throws IllegalStateException
    * @throws PledgeException
    */
-  public Voucher requestVoucher() throws Exception {
+  public Voucher requestVoucher()
+      throws PledgeException, ConnectorException, IOException, CoseException,
+      VoucherSerializationException {
     if (certState == CertState.ACCEPT) {
       throw new IllegalStateException("registrar certificate already accepted");
     }
@@ -308,9 +338,9 @@ public class Pledge extends CoapClient {
         domainPublicKey =
             KeyFactory.getInstance(keyAlg.getAlgorithm().getId()).generatePublic(xspec);
       } else {
-        CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
         Certificate domainCert =
-            certFactory.generateCertificate(new ByteArrayInputStream(voucher.getPinnedDomainCert()));
+            SecurityUtils.getCertFactory().generateCertificate(
+                new ByteArrayInputStream(voucher.getPinnedDomainCert()));
         domainPublicKey = domainCert.getPublicKey();
       }
       if (!validateRegistrar(domainPublicKey)) {
@@ -620,11 +650,8 @@ public class Pledge extends CoapClient {
     }
 
     // 1. Decode PKCS7 message in CBOR byte string
-    // CBORObject cbor = CBORObject.DecodeFromBytes(payload);
-    // CMSSignedData data = new CMSSignedData(cbor.GetByteString());
-    // return extractCertFromCMSSignedData(data);
-    CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
-    return (X509Certificate) certFactory.generateCertificate(new ByteArrayInputStream(payload));
+    return (X509Certificate) SecurityUtils.getCertFactory()
+        .generateCertificate(new ByteArrayInputStream(payload));
   }
 
   private PKCS10CertificationRequest genCertificateRequest(
@@ -692,34 +719,6 @@ public class Pledge extends CoapClient {
   private String getBRSKIPath() {
     return hostURI + ConstantsBrski.BRSKI_PATH;
   }
-
-  private String hostURI;
-  private Credentials credentials;
-  private PrivateKey privateKey;
-  private X509Certificate[] certificateChain;
-  private boolean isLightweightClientCerts = false;
-
-  private Set<TrustAnchor> trustAnchors;
-  private PledgeCertificateVerifier certVerifier;
-
-  private CertPath registrarCertPath;
-
-  /** the Content Format to use for a CSR request */
-  private int csrContentFormat = ExtendedMediaTypeRegistry.APPLICATION_PKCS10;
-
-  private PublicKey domainPublicKey;
-
-  private KeyPair operationalKeyPair;
-  private X509Certificate operationalCertificate;
-
-  private CertState certState = CertState.NO_CONTACT;
-
-  private VoucherRequest lastPvr = null;
-  private byte[] lastPvrCoseSigned = null;
-  private byte[] lastVoucherCoseSigned = null;
-
-  private static final SecureRandom NONCE_RNG = new SecureRandom();
-  private static final Logger logger = LoggerFactory.getLogger(Pledge.class);
 
   public int getCsrContentFormat() {
     return csrContentFormat;

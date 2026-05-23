@@ -148,6 +148,16 @@ public class SecurityUtils {
     }
   }
 
+  /**
+   * Returns the shared X.509 {@link CertificateFactory} instance. The JDK's X.509
+   * CertificateFactory implementation is documented as thread-safe for
+   * {@code generateCertificate(InputStream)}; reuse it instead of allocating a
+   * new one per call.
+   */
+  public static CertificateFactory getCertFactory() {
+    return certFactory;
+  }
+
   public static boolean isCaCertificate(X509Certificate cert) {
     return cert.getBasicConstraints() >= 0;
   }
