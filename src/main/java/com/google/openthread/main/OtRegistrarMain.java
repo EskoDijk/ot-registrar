@@ -49,7 +49,7 @@ public final class OtRegistrarMain {
   private static final Logger logger = LoggerFactory.getLogger(OtRegistrarMain.class);
 
   private static final String HELP_FORMAT =
-      "[-registrar | -masa | -pledge] [-h] [-d <domain-name>] [-f <keystore-file>] [-p <udp-port>] [-v] [-vv] [-vvv] [-vvvv]";
+      "[-registrar | -masa | -pledge] [-h] [-d <domain-name>] [-f <keystore-file>] [-p <udp-port>] [-v [-v ...]]";
 
   public static void main(String[] args) {
 
@@ -98,22 +98,7 @@ public final class OtRegistrarMain {
     Option verboseOpt =
         Option.builder("v")
             .longOpt("verbose")
-            .desc("verbose mode for logs")
-            .build();
-
-    Option verboseVvOpt =
-        Option.builder("vv")
-            .desc("more verbose mode for logs")
-            .build();
-
-    Option verboseVvvOpt =
-        Option.builder("vvv")
-            .desc("even more verbose mode for logs")
-            .build();
-
-    Option verboseVvvvOpt =
-        Option.builder("vvvv")
-            .desc("most verbose mode for logs")
+            .desc("verbose mode for logs; repeat (-v -v ... up to 4 times) to raise the level")
             .build();
 
     Option masaUriOpt =
@@ -146,9 +131,6 @@ public final class OtRegistrarMain {
         .addOption(fileOpt)
         .addOption(portOpt)
         .addOption(verboseOpt)
-        .addOption(verboseVvOpt)
-        .addOption(verboseVvvOpt)
-        .addOption(verboseVvvvOpt)
         .addOption(masaUriOpt)
         .addOption(registrarUriOpt)
         .addOption(helpOpt);
@@ -175,17 +157,12 @@ public final class OtRegistrarMain {
         return;
       }
 
-      if (cmd.hasOption('v')) {
-        config.logVerbosity = 1;
-      }
-      if (cmd.hasOption("vv")) {
-        config.logVerbosity = 2;
-      }
-      if (cmd.hasOption("vvv")) {
-        config.logVerbosity = 3;
-      }
-      if (cmd.hasOption("vvvv")) {
-        config.logVerbosity = 4;
+      // Verbosity level is the count of -v occurrences (e.g. -v -v -v == level 3).
+      // Out-of-range values are rejected by LoggerInitializer.init().
+      for (Option opt : cmd.getOptions()) {
+        if ("v".equals(opt.getOpt())) {
+          config.logVerbosity++;
+        }
       }
       LoggerInitializer.init(config.logVerbosity);
 
