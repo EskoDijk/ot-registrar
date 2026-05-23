@@ -42,7 +42,7 @@ public class MASAMain {
 
   private static final Logger logger = LoggerFactory.getLogger(MASAMain.class);
 
-  public static void startMasa(OtRegistrarConfig config) {
+  public static int startMasa(OtRegistrarConfig config) {
     MASA masa;
 
     try {
@@ -58,12 +58,12 @@ public class MASAMain {
 
       masa = new MASA(cred, credCa, config.serverPort);
     } catch (Exception e) {
-      logger.error(e.getMessage());
-      logger.debug("details:", e);
-      return;
+      logger.error(e.getMessage(), e);
+      return 1;
     }
 
     masa.start();
     logger.info("MASA server listening (HTTPS) at port {}", masa.getListenPort());
+    return 0;
   }
 }

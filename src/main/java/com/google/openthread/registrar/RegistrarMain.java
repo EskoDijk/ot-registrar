@@ -40,7 +40,7 @@ public final class RegistrarMain {
 
   private static final Logger logger = LoggerFactory.getLogger(RegistrarMain.class);
 
-  public static void startRegistrar(OtRegistrarConfig config) {
+  public static int startRegistrar(OtRegistrarConfig config) {
     Registrar registrar;
 
     try {
@@ -78,12 +78,12 @@ public final class RegistrarMain {
       DomainCA ca = new DomainCA(config.domainName, domainCred);
       registrar.setDomainCA(ca);
     } catch (Exception e) {
-      logger.error(e.getMessage());
-      logger.debug("details:", e);
-      return;
+      logger.error(e.getMessage(), e);
+      return 1;
     }
 
     registrar.start();
     logger.info("Registrar listening (CoAPS) at port: {}", registrar.getListenPort());
+    return 0;
   }
 }

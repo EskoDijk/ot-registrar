@@ -43,7 +43,7 @@ public class PledgeMain {
 
   private static final Logger logger = LoggerFactory.getLogger(PledgeMain.class);
 
-  public static void startPledge(OtRegistrarConfig config) {
+  public static int startPledge(OtRegistrarConfig config) {
     try {
       String password = CredentialGenerator.PASSWORD;
       Credentials cred = new Credentials(config.keyStoreFile, CredentialGenerator.PLEDGE_ALIAS, password);
@@ -55,10 +55,10 @@ public class PledgeMain {
       runCli(pledge);
       pledge.shutdown();
     } catch (Exception e) {
-      logger.error(e.getMessage());
-      logger.debug("details:", e);
-      return;
+      logger.error(e.getMessage(), e);
+      return 1;
     }
+    return 0;
   }
 
   private static void runCli(Pledge pledge) {

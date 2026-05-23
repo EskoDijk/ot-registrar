@@ -193,21 +193,30 @@ public final class OtRegistrarMain {
     logger.info("Configuration: {}", config.toStringSingleLine());
     System.out.println("Configuration :\n" + config);
 
+    int exitCode = 0;
     switch (config.role) {
       case Registrar:
-        RegistrarMain.startRegistrar(config);
+        exitCode = RegistrarMain.startRegistrar(config);
         break;
       case Masa:
-        MASAMain.startMasa(config);
+        exitCode = MASAMain.startMasa(config);
         break;
       case Pledge:
-        PledgeMain.startPledge(config);
+        exitCode = PledgeMain.startPledge(config);
         break;
       default:
         // No role was assumed; the configuration has been printed above and we
         // exit cleanly. Useful for sanity-checking flags without launching.
         logger.warn("no role configured ({}); nothing to start", config.role);
         break;
+    }
+
+    // Servers (Registrar/MASA) return 0 immediately after starting their non-daemon
+    // threads; not calling System.exit lets the JVM keep running on those threads.
+    // A non-zero return means startup (or, for Pledge, the run) failed and we
+    // want the wrapper to see a real failure code.
+    if (exitCode != 0) {
+      System.exit(exitCode);
     }
   }
 }
