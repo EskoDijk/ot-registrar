@@ -28,46 +28,53 @@
 
 package com.google.openthread.pledge;
 
+import java.nio.charset.StandardCharsets;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 
-public class PledgeException extends Exception {
+public final class PledgeException extends Exception {
+
+  private static final long serialVersionUID = -1980574489782019605L;
 
   /**
-   * An optional CoAP response code, from a CoAP response, that was unexpected or related to the exception.
+   * An optional CoAP response code, from a CoAP response, that was unexpected
+   * or related to the exception. {@code null} when no CoAP context applies.
    */
-  public ResponseCode code = null;
-
-  /**
-   * An optional CoAP diagnostic message, from a CoAP response, to clarify what went wrong.
-   */
-  public String diagMsg = null;
+  private final ResponseCode code;
 
   public PledgeException(String msg) {
-    this(msg, null, null);
-  }
-
-  public PledgeException(String msg, CoapResponse resp) {
-    super(msg + ((resp.getCode() != null) ? (" (" + resp.getCode().toString() + ")") : "")
-        + ((resp.getCode() != null && resp.getPayload() != null)
-        ? (" - CoAP diagnostic: '" + new String(resp.getPayload()) + "'") : ""));
-    this.code = resp.getCode();
-    if (!ResponseCode.isSuccess(this.code) && resp.getPayload() != null) {
-      this.diagMsg = new String(resp.getPayload());
-    }
-  }
-
-  public PledgeException(String msg, ResponseCode coapCode, String coapDiagnosticMsg) {
-    super(msg
-        + (coapCode != null ? (" (" + coapCode + ")") : "")
-        + (coapDiagnosticMsg != null ? (" - CoAP diagnostic: '" + coapDiagnosticMsg + "'") : ""));
-    this.code = coapCode;
-    this.diagMsg = coapDiagnosticMsg;
+    this(msg, (ResponseCode) null, null);
   }
 
   public PledgeException(String msg, Throwable cause) {
     super(msg, cause);
+    this.code = null;
   }
 
-  private static final long serialVersionUID = -1980574489782019605L;
+  public PledgeException(String msg, CoapResponse resp) {
+    this(msg, resp.getCode(),
+        (resp.getCode() != null && resp.getPayload() != null)
+            ? new String(resp.getPayload(), StandardCharsets.UTF_8)
+            : null);
+  }
+
+  public PledgeException(String msg, ResponseCode coapCode, String coapDiagnosticMsg) {
+    super(formatMessage(msg, coapCode, coapDiagnosticMsg));
+    this.code = coapCode;
+  }
+
+  public ResponseCode getCode() {
+    return code;
+  }
+
+  private static String formatMessage(String msg, ResponseCode coapCode, String coapDiagnosticMsg) {
+    StringBuilder sb = new StringBuilder(msg);
+    if (coapCode != null) {
+      sb.append(" (").append(coapCode).append(")");
+    }
+    if (coapDiagnosticMsg != null) {
+      sb.append(" - CoAP diagnostic: '").append(coapDiagnosticMsg).append("'");
+    }
+    return sb.toString();
+  }
 }

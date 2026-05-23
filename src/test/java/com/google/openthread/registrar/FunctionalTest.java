@@ -397,7 +397,7 @@ public class FunctionalTest {
           ResponseCode.CHANGED,
           pledge.sendVoucherStatusTelemetry(
               false, "MASA didn't accept voucher request: " + ex.getMessage()));
-      Assert.assertEquals(ResponseCode.FORBIDDEN, ex.code);
+      Assert.assertEquals(ResponseCode.FORBIDDEN, ex.getCode());
     }
   }
 
