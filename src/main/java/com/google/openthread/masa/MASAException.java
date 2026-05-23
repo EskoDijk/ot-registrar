@@ -29,9 +29,14 @@
 package com.google.openthread.masa;
 
 public class MASAException extends Exception {
+
+  private static final long serialVersionUID = -3314144490165799402L;
+
   public MASAException(String msg) {
     super(msg);
   }
 
-  private static final long serialVersionUID = -3314144490165799402L;
+  public MASAException(String msg, Throwable cause) {
+    super(msg, cause);
+  }
 }

@@ -56,6 +56,8 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.security.GeneralSecurityException;
 import java.security.cert.X509Certificate;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -69,22 +71,24 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MASA {
+public final class MASA {
+
+  private static final Logger logger = LoggerFactory.getLogger(MASA.class);
 
   static {
     BouncyCastleInitializer.init();
   }
 
-  protected String HTTP_WELCOME_PAGE =
+  /** Expiry for vouchers that do not carry a Pledge nonce (BRSKI §5.3 — see MASA policy). */
+  private static final Duration NONCELESS_VOUCHER_LIFETIME = Duration.ofMinutes(10);
+
+  private static final String HTTP_WELCOME_PAGE =
       "<html><head><title>Test MASA server</title></head><body><h1>Test MASA server</h1><p>Use /.well-known/brski/requestvoucher for Voucher Requests. Formats application/voucher-cms+json and application/voucher-cose+cbor are supported for the request.</p></body></html>";
 
-  protected Undertow httpServer;
-
-  protected Credentials credentials; // MASA server credentials
-  protected Credentials credentialsCa; // MASA CA credentials (for signing)
-
   private final int listenPort;
-  private static final Logger logger = LoggerFactory.getLogger(MASA.class);
+  private final Credentials credentials; // MASA server credentials
+  private final Credentials credentialsCa; // MASA CA credentials (for signing)
+  private Undertow httpServer;
 
   public MASA(Credentials credentials, Credentials credentialsCa, int port) throws MASAException {
     this.credentials = credentials;
@@ -93,8 +97,7 @@ public class MASA {
     try {
       initHttpServer();
     } catch (Exception ex) {
-      logger.debug("initHttpServer() failed:", ex);
-      throw new MASAException("MASAException: HTTP server init failed - " + ex.getMessage());
+      throw new MASAException("HTTP server init failed: " + ex.getMessage(), ex);
     }
   }
 
@@ -115,10 +118,6 @@ public class MASA {
   }
 
   final class RootResourceHttpHandler implements HttpHandler {
-
-    public RootResourceHttpHandler() {
-    }
-
     @Override
     public void handleRequest(HttpServerExchange exchange) throws Exception {
       if (!exchange.getRequestMethod().equals(HttpString.tryFromString("GET"))) {
@@ -132,10 +131,6 @@ public class MASA {
   }
 
   final class VoucherRequestHttpHandler implements HttpHandler {
-
-    public VoucherRequestHttpHandler() {
-    }
-
     @Override
     public void handleRequest(HttpServerExchange exchange) throws Exception {
       final byte[] body = exchange.getInputStream().readAllBytes();
@@ -266,11 +261,11 @@ public class MASA {
    * @param reqCerts accompanying certificates of the Registrar to verify against
    * @return a RESTful response that is either error (with diagnostic message) or success (with Voucher)
    */
-  protected RestfulVoucherResponse processVoucherRequest(
+  private RestfulVoucherResponse processVoucherRequest(
       Voucher req, Voucher voucher, List<X509Certificate> reqCerts) {
 
     if (!req.validate() || reqCerts.isEmpty()) {
-      logger.error("invalid fields in the voucher request");
+      logger.warn("invalid fields in the voucher request");
       return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, "invalid fields in the voucher request");
     }
 
@@ -286,6 +281,11 @@ public class MASA {
     // do a first check on RA flag of Registrar cert. BHC-651
     boolean isRA = false;
     try {
+      // FIXME: COSE x5bag (RFC 9360) does not guarantee any particular cert order.
+      //   We currently treat reqCerts[0] as the Registrar (leaf) cert and reqCerts[last]
+      //   as the Domain CA below — that holds only if the sender happens to use
+      //   leaf→...→root ordering. A correct implementation would identify the leaf by
+      //   matching the COSE-sign1 signing key and walk the chain by issuer/subject DN.
       X509Certificate registrarCert = reqCerts.get(0);
       if (registrarCert.getExtendedKeyUsage() != null) {
         for (String eku : registrarCert.getExtendedKeyUsage()) {
@@ -297,12 +297,12 @@ public class MASA {
       }
     } catch (Exception ex) {
       final String msg = "Couldn't parse extended key usage in Registrar certificate.";
-      logger.error(msg, ex);
+      logger.warn(msg, ex);
       return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, msg);
     }
     if (!isRA) {
       final String msg = "Registrar certificate did not have RA set in Extended Key Usage.";
-      logger.error(msg);
+      logger.warn(msg);
       return new RestfulVoucherResponse(ResponseCode.FORBIDDEN, msg); // per RFC 8995 5.6
     }
 
@@ -313,7 +313,7 @@ public class MASA {
     // Section 5.5.5 BRSKI: MASA verification of pledge prior-signed-voucher-request
     if (req.getPriorSignedVoucherRequest() == null) {
       final String msg = "missing priorSignedVoucherRequest";
-      logger.error(msg);
+      logger.warn(msg);
       return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, msg);
     }
 
@@ -324,7 +324,7 @@ public class MASA {
       // validate it TODO
     } catch (Exception ex) {
       final String msg = "Couldn't parse priorSignedVoucherRequest COSE.";
-      logger.error(msg, ex);
+      logger.warn(msg, ex);
       return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, msg);
     }
     VoucherRequest pledgeReq;
@@ -332,21 +332,21 @@ public class MASA {
       pledgeReq = (VoucherRequest) new CBORSerializer().fromCBOR(CBORObject.DecodeFromBytes(sign1Msg.GetContent()));
     } catch (VoucherSerializationException ex) {
       final String msg = "invalid priorSignedVoucherRequest contents: " + ex.getMessage();
-      logger.error(msg);
+      logger.warn(msg);
       return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, msg);
     }
 
     // check prox assertion
     if (pledgeReq.getAssertion() != Voucher.Assertion.PROXIMITY) {
       final String msg = "priorSignedVoucherRequest: Assertion != PROXIMITY";
-      logger.error(msg);
+      logger.warn(msg);
       return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, msg);
     }
 
     // check serial is equal
     if (!req.getSerialNumber().equals(pledgeReq.getSerialNumber())) {
       final String msg = "priorSignedVoucherRequest.getSerialNumber() != RegistrarRequest.getSerialNumber()";
-      logger.error(msg);
+      logger.warn(msg);
       return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, msg);
     }
 
@@ -368,6 +368,9 @@ public class MASA {
     voucher.setDomainCertRevocationChecks(false);
 
     try {
+      // FIXME: as above, x5bag (RFC 9360) does not guarantee leaf→root ordering; the
+      //   last entry being the Domain CA holds only when the Registrar's COSE sender
+      //   ordered the bag that way. Resolve once the cert-chain walking is rewritten.
       X509Certificate domainCert = reqCerts.get(reqCerts.size() - 1);
       // SubjectPublicKeyInfo spki =
       // SubjectPublicKeyInfo.getInstance(domainCert.getPublicKey().getEncoded());
@@ -383,8 +386,7 @@ public class MASA {
     }
 
     if (voucher.getNonce() == null) {
-      // The voucher is going to expire in 10 minutes
-      voucher.setExpiresOn(new Date(System.currentTimeMillis() + 1000 * 60 * 10));
+      voucher.setExpiresOn(Date.from(Instant.now().plus(NONCELESS_VOUCHER_LIFETIME)));
     }
 
     // TODO: update audit log
@@ -409,9 +411,9 @@ public class MASA {
     PathHandler masaPathHandler =
         new PathHandler()
             .addExactPath("/", new BlockingHandler(new RootResourceHttpHandler()))
-            .addExactPath("/.well-known/brski/requestvoucher",
+            .addExactPath(ConstantsBrski.BRSKI_PATH + "/" + ConstantsBrski.REQUEST_VOUCHER_HTTP,
                 new BlockingHandler(new VoucherRequestHttpHandler()));
-    // the :: binds to (hopefully) all available IPv4 and IPv6 addresses.
+    // "::" binds to all available IPv4 and IPv6 addresses on a dual-stack JVM.
     httpServer =
         Undertow.builder()
             .addHttpsListener(listenPort, "::", httpSsl)
