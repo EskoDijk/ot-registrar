@@ -225,12 +225,12 @@ public class Pledge extends CoapClient {
     // 0. Build constrained voucher request
     VoucherRequest voucherRequest = new VoucherRequest();
     voucherRequest.setConstrained(true);
-    voucherRequest.assertion = Voucher.Assertion.PROXIMITY;
-    voucherRequest.serialNumber = getSerialNumber(getIdevidCertificate());
-    voucherRequest.nonce = generateNonce();
+    voucherRequest.setAssertion(Voucher.Assertion.PROXIMITY);
+    voucherRequest.setSerialNumber(getSerialNumber(getIdevidCertificate()));
+    voucherRequest.setNonce(generateNonce());
 
     // FIXME(wgtdkp): should use 'subjectPublicKeyInfo' -> note, seems to already use this properly.
-    voucherRequest.proximityRegistrarSPKI = getRegistrarCertificate().getPublicKey().getEncoded();
+    voucherRequest.setProximityRegistrarSPKI(getRegistrarCertificate().getPublicKey().getEncoded());
     if (!voucherRequest.validate()) {
       throw new PledgeException("validate voucher request failed");
     }
@@ -288,21 +288,21 @@ public class Pledge extends CoapClient {
         throw new PledgeException("unexpected combination of fields in the Voucher");
       }
 
-      if (!voucher.serialNumber.equals(req.serialNumber)
-          || (voucher.idevidIssuer != null
+      if (!voucher.getSerialNumber().equals(req.getSerialNumber())
+          || (voucher.getIdevidIssuer() != null
           && !Arrays.equals(
-          voucher.idevidIssuer,
+          voucher.getIdevidIssuer(),
           SecurityUtils.getAuthorityKeyIdentifier(getIdevidCertificate())))) {
         throw new PledgeException("serial number or idevid-issuer not matched");
       }
-      if (req.nonce != null
-          && (voucher.nonce == null || !Arrays.equals(req.nonce, voucher.nonce))) {
+      if (req.getNonce() != null
+          && (voucher.getNonce() == null || !Arrays.equals(req.getNonce(), voucher.getNonce()))) {
         throw new PledgeException("nonce not matched");
       }
       // TODO(wgtdkp): if nonce is not presented, make sure that the voucher is not expired
 
-      if (voucher.pinnedDomainSPKI != null) {
-        SubjectPublicKeyInfo spki = SubjectPublicKeyInfo.getInstance(voucher.pinnedDomainSPKI);
+      if (voucher.getPinnedDomainSPKI() != null) {
+        SubjectPublicKeyInfo spki = SubjectPublicKeyInfo.getInstance(voucher.getPinnedDomainSPKI());
         X509EncodedKeySpec xspec = new X509EncodedKeySpec(spki.getEncoded());
         AlgorithmIdentifier keyAlg = spki.getAlgorithm();
         domainPublicKey =
@@ -310,7 +310,7 @@ public class Pledge extends CoapClient {
       } else {
         CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
         Certificate domainCert =
-            certFactory.generateCertificate(new ByteArrayInputStream(voucher.pinnedDomainCert));
+            certFactory.generateCertificate(new ByteArrayInputStream(voucher.getPinnedDomainCert()));
         domainPublicKey = domainCert.getPublicKey();
       }
       if (!validateRegistrar(domainPublicKey)) {

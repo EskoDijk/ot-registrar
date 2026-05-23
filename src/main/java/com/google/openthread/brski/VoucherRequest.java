@@ -56,20 +56,20 @@ public class VoucherRequest extends Voucher {
 
   @Override
   public boolean validate() {
-    if (serialNumber == null) {
+    if (getSerialNumber() == null) {
       return false;
     }
-    if (expiresOn != null && nonce != null) {
+    if (getExpiresOn() != null && getNonce() != null) {
       return false;
     }
-    if (lastRenewalDate != null && expiresOn == null) {
+    if (getLastRenewalDate() != null && getExpiresOn() == null) {
       return false;
     }
     // only constrained voucher req may have SPKI
-    if (!isConstrained() && proximityRegistrarSPKI != null) return false;
+    if (!isConstrained() && getProximityRegistrarSPKI() != null) return false;
     // no proximity fields allowed while there's no proximity assertion.
-    if (assertion != Assertion.PROXIMITY
-        && (proximityRegistrarCert != null || proximityRegistrarSPKI != null)) return false;
+    if (getAssertion() != Assertion.PROXIMITY
+        && (getProximityRegistrarCert() != null || getProximityRegistrarSPKI() != null)) return false;
 
     return true;
   }

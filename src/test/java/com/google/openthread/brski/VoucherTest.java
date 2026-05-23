@@ -49,11 +49,11 @@ public class VoucherTest {
   @Test
   public void testSimple() throws Exception {
     Voucher v1 = new Voucher();
-    v1.assertion = Voucher.Assertion.PROXIMITY;
-    v1.createdOn = new Date();
-    v1.expiresOn = new Date();
-    v1.serialNumber = "12345";
-    v1.pinnedDomainCert = new byte[]{0x01, 0x02, 0x03};
+    v1.setAssertion(Voucher.Assertion.PROXIMITY);
+    v1.setCreatedOn(new Date());
+    v1.setExpiresOn(new Date());
+    v1.setSerialNumber("12345");
+    v1.setPinnedDomainCert(new byte[]{0x01, 0x02, 0x03});
 
     Assert.assertTrue(v1.validate());
 
@@ -61,25 +61,25 @@ public class VoucherTest {
     Voucher v2 = new CBORSerializer().deserialize(data);
     Assert.assertTrue(v2.validate());
 
-    Assert.assertEquals(v1.assertion, v2.assertion);
-    Assert.assertEquals(v1.serialNumber, v2.serialNumber);
-    Assert.assertArrayEquals(v1.pinnedDomainCert, v2.pinnedDomainCert);
+    Assert.assertEquals(v1.getAssertion(), v2.getAssertion());
+    Assert.assertEquals(v1.getSerialNumber(), v2.getSerialNumber());
+    Assert.assertArrayEquals(v1.getPinnedDomainCert(), v2.getPinnedDomainCert());
 
     data = new JSONSerializer().serialize(v1);
     Voucher v3 = new JSONSerializer().deserialize(data);
     Assert.assertTrue(v3.validate());
 
-    Assert.assertEquals(v1.assertion, v3.assertion);
-    Assert.assertEquals(v1.serialNumber, v3.serialNumber);
-    Assert.assertArrayEquals(v1.pinnedDomainCert, v3.pinnedDomainCert);
+    Assert.assertEquals(v1.getAssertion(), v3.getAssertion());
+    Assert.assertEquals(v1.getSerialNumber(), v3.getSerialNumber());
+    Assert.assertArrayEquals(v1.getPinnedDomainCert(), v3.getPinnedDomainCert());
   }
 
   @Test
   public void testSimpleRequest() throws Exception {
     Voucher vr1 = new VoucherRequest();
-    vr1.assertion = Voucher.Assertion.PROXIMITY;
-    vr1.serialNumber = "12345";
-    vr1.proximityRegistrarCert = new byte[]{0x01, 0x02, 0x03};
+    vr1.setAssertion(Voucher.Assertion.PROXIMITY);
+    vr1.setSerialNumber("12345");
+    vr1.setProximityRegistrarCert(new byte[]{0x01, 0x02, 0x03});
 
     Assert.assertTrue(vr1.validate());
 
@@ -87,27 +87,27 @@ public class VoucherTest {
     Voucher vr2 = new CBORSerializer().deserialize(data);
     Assert.assertTrue(vr2.validate());
 
-    Assert.assertEquals(vr1.assertion, vr2.assertion);
-    Assert.assertEquals(vr1.serialNumber, vr2.serialNumber);
-    Assert.assertArrayEquals(vr1.proximityRegistrarCert, vr2.proximityRegistrarCert);
+    Assert.assertEquals(vr1.getAssertion(), vr2.getAssertion());
+    Assert.assertEquals(vr1.getSerialNumber(), vr2.getSerialNumber());
+    Assert.assertArrayEquals(vr1.getProximityRegistrarCert(), vr2.getProximityRegistrarCert());
 
     data = new JSONSerializer().serialize(vr1);
     Voucher vr3 = new JSONSerializer().deserialize(data);
     Assert.assertTrue(vr3.validate());
 
-    Assert.assertEquals(vr1.assertion, vr3.assertion);
-    Assert.assertEquals(vr1.serialNumber, vr3.serialNumber);
-    Assert.assertArrayEquals(vr1.proximityRegistrarCert, vr3.proximityRegistrarCert);
+    Assert.assertEquals(vr1.getAssertion(), vr3.getAssertion());
+    Assert.assertEquals(vr1.getSerialNumber(), vr3.getSerialNumber());
+    Assert.assertArrayEquals(vr1.getProximityRegistrarCert(), vr3.getProximityRegistrarCert());
   }
 
   @Test
   public void testSimpleConstrained() throws Exception {
     Voucher cv1 = new Voucher();
-    cv1.assertion = Voucher.Assertion.LOGGED;
-    cv1.serialNumber = "12345";
-    cv1.createdOn = new Date();
-    cv1.expiresOn = new Date();
-    cv1.pinnedDomainSPKI = new byte[]{0x01, 0x02, 0x03};
+    cv1.setAssertion(Voucher.Assertion.LOGGED);
+    cv1.setSerialNumber("12345");
+    cv1.setCreatedOn(new Date());
+    cv1.setExpiresOn(new Date());
+    cv1.setPinnedDomainSPKI(new byte[]{0x01, 0x02, 0x03});
 
     Assert.assertTrue(cv1.validate());
 
@@ -115,18 +115,18 @@ public class VoucherTest {
     Voucher cv2 = new CBORSerializer().deserialize(data);
     Assert.assertTrue(cv2.validate());
 
-    Assert.assertEquals(cv1.assertion, cv2.assertion);
-    Assert.assertEquals(cv1.serialNumber, cv2.serialNumber);
-    Assert.assertArrayEquals(cv1.pinnedDomainSPKI, cv2.pinnedDomainSPKI);
+    Assert.assertEquals(cv1.getAssertion(), cv2.getAssertion());
+    Assert.assertEquals(cv1.getSerialNumber(), cv2.getSerialNumber());
+    Assert.assertArrayEquals(cv1.getPinnedDomainSPKI(), cv2.getPinnedDomainSPKI());
   }
 
   @Test
   public void testSimpleConstrainedRequest() throws Exception {
     Voucher cvr1 = new VoucherRequest();
     cvr1.setConstrained(true);
-    cvr1.assertion = Voucher.Assertion.PROXIMITY;
-    cvr1.serialNumber = "123";
-    cvr1.proximityRegistrarSPKI = new byte[]{0x01, 0x02, 0x03};
+    cvr1.setAssertion(Voucher.Assertion.PROXIMITY);
+    cvr1.setSerialNumber("123");
+    cvr1.setProximityRegistrarSPKI(new byte[]{0x01, 0x02, 0x03});
 
     Assert.assertTrue(cvr1.validate());
 
@@ -135,9 +135,9 @@ public class VoucherTest {
     Assert.assertTrue(cvr2.isConstrained());
     Assert.assertTrue(cvr2.validate());
 
-    Assert.assertEquals(cvr1.assertion, cvr2.assertion);
-    Assert.assertEquals(cvr1.serialNumber, cvr2.serialNumber);
-    Assert.assertArrayEquals(cvr1.proximityRegistrarSPKI, cvr2.proximityRegistrarSPKI);
+    Assert.assertEquals(cvr1.getAssertion(), cvr2.getAssertion());
+    Assert.assertEquals(cvr1.getSerialNumber(), cvr2.getSerialNumber());
+    Assert.assertArrayEquals(cvr1.getProximityRegistrarSPKI(), cvr2.getProximityRegistrarSPKI());
   }
 
   @Test
@@ -151,10 +151,10 @@ public class VoucherTest {
     Voucher cvr = new CBORSerializer().deserialize(data);
     Assert.assertTrue(cvr.validate());
 
-    Assert.assertEquals(Voucher.Assertion.PROXIMITY, cvr.assertion);
-    Assert.assertEquals("JADA123456789", cvr.serialNumber);
-    Assert.assertEquals(633, cvr.proximityRegistrarSPKI.length);
-    Assert.assertEquals(cvr.createdOn, Voucher.dateFromYoungFormat("2016-10-07T19:31:42Z"));
+    Assert.assertEquals(Voucher.Assertion.PROXIMITY, cvr.getAssertion());
+    Assert.assertEquals("JADA123456789", cvr.getSerialNumber());
+    Assert.assertEquals(633, cvr.getProximityRegistrarSPKI().length);
+    Assert.assertEquals(cvr.getCreatedOn(), Voucher.dateFromYoungFormat("2016-10-07T19:31:42Z"));
   }
 
   @Test

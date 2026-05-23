@@ -48,13 +48,12 @@ public class ExamplePayloadsTest {
   public void voucherExamplePayload() throws Exception {
     VoucherRequest cvr = new VoucherRequest();
     cvr.setConstrained(true);
-    cvr.assertion = Voucher.Assertion.PROXIMITY;
-    cvr.serialNumber = "123";
-    cvr.nonce = Pledge.generateNonce();
+    cvr.setAssertion(Voucher.Assertion.PROXIMITY);
+    cvr.setSerialNumber("123");
+    cvr.setNonce(Pledge.generateNonce());
 
     KeyPair kp = SecurityUtils.genKeyPair();
-    cvr.proximityRegistrarSPKI =
-        SubjectPublicKeyInfo.getInstance(kp.getPublic().getEncoded()).getEncoded();
+    cvr.setProximityRegistrarSPKI(SubjectPublicKeyInfo.getInstance(kp.getPublic().getEncoded()).getEncoded());
     Assert.assertTrue(cvr.validate());
 
     logger.info("example constrained voucher request payload:");
@@ -62,14 +61,13 @@ public class ExamplePayloadsTest {
 
     Voucher cv = new Voucher();
     cv.setConstrained(true);
-    cv.assertion = Voucher.Assertion.PROXIMITY;
-    cv.createdOn = new Date();
-    cv.serialNumber = "123";
-    cv.nonce = cvr.nonce;
+    cv.setAssertion(Voucher.Assertion.PROXIMITY);
+    cv.setCreatedOn(new Date());
+    cv.setSerialNumber("123");
+    cv.setNonce(cvr.getNonce());
 
     kp = SecurityUtils.genKeyPair();
-    cv.pinnedDomainSPKI =
-        SubjectPublicKeyInfo.getInstance(kp.getPublic().getEncoded()).getEncoded();
+    cv.setPinnedDomainSPKI(SubjectPublicKeyInfo.getInstance(kp.getPublic().getEncoded()).getEncoded());
     Assert.assertTrue(cv.validate());
 
     logger.info("example constrained voucher payload:");

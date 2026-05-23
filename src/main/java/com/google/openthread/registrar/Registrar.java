@@ -391,15 +391,15 @@ public class Registrar extends CoapServer {
         if (!isJsonRVR) {
           req.setConstrained(true);
         }
-        req.assertion = pledgeReq.assertion; // assertion copied from PVR
+        req.setAssertion(pledgeReq.getAssertion()); // assertion copied from PVR
         // Note, section 5.5: assertion MAY be omitted.
 
-        req.nonce = pledgeReq.nonce;
+        req.setNonce(pledgeReq.getNonce());
 
         // Optionally present in Pledge's Voucher Request.
-        if (pledgeReq.proximityRegistrarSPKI != null) {
+        if (pledgeReq.getProximityRegistrarSPKI() != null) {
           if (!Arrays.equals(
-              pledgeReq.proximityRegistrarSPKI, getCertificate().getPublicKey().getEncoded())) {
+              pledgeReq.getProximityRegistrarSPKI(), getCertificate().getPublicKey().getEncoded())) {
             logger.error("unmatched proximity registrar SPKI in Pledge's Voucher Request");
             exchange.respond(ResponseCode.BAD_REQUEST, "proximityRegistrarSPKI error");
             return;
@@ -407,20 +407,20 @@ public class Registrar extends CoapServer {
         }
 
         // MUST NOT include (RFC 8995)
-        req.proximityRegistrarSPKI = null;
+        req.setProximityRegistrarSPKI(null);
 
         // SHOULD include (RFC 8995)
-        req.createdOn = new Date();
+        req.setCreatedOn(new Date());
 
         // serialNumber provided by pledge's voucher request MUST match (RFC 8995) the
         // one
         // extracted from pledge's idevid.
-        req.serialNumber = Pledge.getSerialNumber(idevid);
-        if (req.serialNumber == null || !req.serialNumber.equals(pledgeReq.serialNumber)) {
+        req.setSerialNumber(Pledge.getSerialNumber(idevid));
+        if (req.getSerialNumber() == null || !req.getSerialNumber().equals(pledgeReq.getSerialNumber())) {
           logger.error(
               String.format(
                   "bad serial number in voucher request: [%s] != [%s]",
-                  pledgeReq.serialNumber, req.serialNumber));
+                  pledgeReq.getSerialNumber(), req.getSerialNumber()));
           exchange.respond(ResponseCode.BAD_REQUEST, "serial number check failure");
           return;
         }
@@ -430,12 +430,12 @@ public class Registrar extends CoapServer {
         // Settting idevid-issuer as authority key identifier of pledge certificate.
         // Mandatory for Thread 1.2. Note: this currently uses a working assumption
         // that the right format is complete AKI SEQUENCE. (Not just KeyIdentifier OCTET STRING).
-        req.idevidIssuer = SecurityUtils.getAuthorityKeyIdentifier(idevid);
-        if (req.idevidIssuer != null) {
+        req.setIdevidIssuer(SecurityUtils.getAuthorityKeyIdentifier(idevid));
+        if (req.getIdevidIssuer() != null) {
           logger.info(
               String.format(
                   "idevid-issuer inserted in Registrar voucher request [len=%d, %s]",
-                  req.idevidIssuer.length, Hex.toHexString(req.idevidIssuer)));
+                  req.getIdevidIssuer().length, Hex.toHexString(req.getIdevidIssuer())));
         } else {
           String msg = "missing AKI in Pledge IDevID certificate";
           logger.error(msg);
@@ -447,7 +447,7 @@ public class Registrar extends CoapServer {
         // COSE-signed voucher
         // request
         // Mandatory for Thread 1.2.
-        req.priorSignedVoucherRequest = exchange.getRequestPayload();
+        req.setPriorSignedVoucherRequest(exchange.getRequestPayload());
 
         // Create voucher request to MASA. Uses HTTPS or CoAPS as protocol.
         // Uses CMS or COSE signing.

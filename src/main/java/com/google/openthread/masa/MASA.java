@@ -311,7 +311,7 @@ public class MASA {
 
     // TODO:
     // Section 5.5.5 BRSKI: MASA verification of pledge prior-signed-voucher-request
-    if (req.priorSignedVoucherRequest == null) {
+    if (req.getPriorSignedVoucherRequest() == null) {
       final String msg = "missing priorSignedVoucherRequest";
       logger.error(msg);
       return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, msg);
@@ -320,7 +320,7 @@ public class MASA {
     // recreate it
     Sign1Message sign1Msg = null;
     try {
-      sign1Msg = (Sign1Message) Message.DecodeFromBytes(req.priorSignedVoucherRequest, MessageTag.Sign1);
+      sign1Msg = (Sign1Message) Message.DecodeFromBytes(req.getPriorSignedVoucherRequest(), MessageTag.Sign1);
       // validate it TODO
     } catch (Exception ex) {
       final String msg = "Couldn't parse priorSignedVoucherRequest COSE.";
@@ -337,15 +337,15 @@ public class MASA {
     }
 
     // check prox assertion
-    if (pledgeReq.assertion != Voucher.Assertion.PROXIMITY) {
+    if (pledgeReq.getAssertion() != Voucher.Assertion.PROXIMITY) {
       final String msg = "priorSignedVoucherRequest: Assertion != PROXIMITY";
       logger.error(msg);
       return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, msg);
     }
 
     // check serial is equal
-    if (!req.serialNumber.equals(pledgeReq.serialNumber)) {
-      final String msg = "priorSignedVoucherRequest.serialNumber != RegistrarRequest.serialNumber";
+    if (!req.getSerialNumber().equals(pledgeReq.getSerialNumber())) {
+      final String msg = "priorSignedVoucherRequest.getSerialNumber() != RegistrarRequest.getSerialNumber()";
       logger.error(msg);
       return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, msg);
     }
@@ -358,23 +358,23 @@ public class MASA {
 
     // Section 5.6 BRSKI: MASA and Registrar Voucher Response
 
-    voucher.createdOn = new Date();
-    voucher.nonce = req.nonce;
-    voucher.assertion = Voucher.Assertion.PROXIMITY;
+    voucher.setCreatedOn(new Date());
+    voucher.setNonce(req.getNonce());
+    voucher.setAssertion(Voucher.Assertion.PROXIMITY);
 
     // don't include idevidIssuer - optional field and only needed in case of serial number clashes.
     // TODO make idevidissuer configurable! During tests it is needed.
-    voucher.serialNumber = req.serialNumber;
-    voucher.domainCertRevocationChecks = false;
+    voucher.setSerialNumber(req.getSerialNumber());
+    voucher.setDomainCertRevocationChecks(false);
 
     try {
       X509Certificate domainCert = reqCerts.get(reqCerts.size() - 1);
       // SubjectPublicKeyInfo spki =
       // SubjectPublicKeyInfo.getInstance(domainCert.getPublicKey().getEncoded());
-      // voucher.pinnedDomainSPKI = spki.getEncoded();
+      // voucher.setPinnedDomainSPKI(spki.getEncoded());
 
       // According to BHC-405: use Domain CA Certificate in voucher response
-      voucher.pinnedDomainCert = domainCert.getEncoded();
+      voucher.setPinnedDomainCert(domainCert.getEncoded());
     } catch (Exception e) {
       // logger.error("get encoded subject-public-key-info failed: " +
       // e.getMessage());
@@ -382,9 +382,9 @@ public class MASA {
       return new RestfulVoucherResponse(ResponseCode.INTERNAL_SERVER_ERROR, "Get encoded domain-ca-cert failed.");
     }
 
-    if (voucher.nonce == null) {
+    if (voucher.getNonce() == null) {
       // The voucher is going to expire in 10 minutes
-      voucher.expiresOn = new Date(System.currentTimeMillis() + 1000 * 60 * 10);
+      voucher.setExpiresOn(new Date(System.currentTimeMillis() + 1000 * 60 * 10));
     }
 
     // TODO: update audit log

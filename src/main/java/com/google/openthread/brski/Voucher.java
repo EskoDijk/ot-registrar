@@ -114,98 +114,54 @@ public class Voucher {
     }
   }
 
-  public Assertion assertion;
-
-  public Date createdOn;
-
-  public Boolean domainCertRevocationChecks;
-
-  public Date expiresOn;
-
-  public byte[] idevidIssuer;
-
-  public Date lastRenewalDate;
-
-  public byte[] nonce;
+  private Assertion assertion;
+  private Date createdOn;
+  private Boolean domainCertRevocationChecks;
+  private Date expiresOn;
+  private byte[] idevidIssuer;
+  private Date lastRenewalDate;
+  private byte[] nonce;
 
   /*
-   * An X.509 v3 certificate structure, as specified by RFC 5280,
-   * using Distinguished Encoding Rules (DER) encoding, as defined
-   * in ITU-T X.690.
-   * This certificate is used by a pledge to trust a Public Key
-   * Infrastructure in order to verify a domain certificate
-   * supplied to the pledge separately by the bootstrapping
-   * protocol. The domain certificate MUST have this certificate
-   * somewhere in its chain of certificates. This certificate
-   * MAY be an end-entity certificate, including a self-signed
-   * entity.
+   * pinnedDomainCert: an X.509 v3 certificate (RFC 5280, DER per ITU-T X.690)
+   * used by a pledge to trust a PKI in order to verify a domain certificate
+   * supplied separately by the bootstrapping protocol. May be an end-entity
+   * certificate, including self-signed.
    */
-  public byte[] pinnedDomainCert;
+  private byte[] pinnedDomainCert;
 
   /*
-   * The pinned-domain-subject replaces the
-   * pinned-domain-certificate in constrained uses of
-   * the voucher. The pinned-domain-subject-public-key-info
-   * is the Raw Public Key of the Registrar.
-   * This field is encoded as specified in RFC7250, section 3.
-   * The ECDSA algorithm MUST be supported.
-   * The EdDSA algorithm as specified in
-   * draft-ietf-tls-rfc4492bis-17 SHOULD be supported.
-   * Support for the DSA algorithm is not recommended.
-   * Support for the RSA algorithm is a MAY.
+   * pinnedDomainSPKI: replaces pinnedDomainCert in constrained uses. The Raw
+   * Public Key of the Registrar, encoded per RFC 7250 §3. ECDSA MUST be
+   * supported; EdDSA SHOULD; DSA not recommended; RSA MAY.
    */
-  public byte[] pinnedDomainSPKI;
+  private byte[] pinnedDomainSPKI;
 
   /*
-   * If it is necessary to change a voucher, or re-sign and
-   * forward a voucher that was previously provided along a
-   * protocol path, then the previously signed voucher SHOULD be
-   * included in this field.
-   * For example, a pledge might sign a proximity voucher, which
-   * an intermediate registrar then re-signs to make its own
-   * proximity assertion. This is a simple mechanism for a
-   * chain of trusted parties to change a voucher, while
-   * maintaining the prior signature information.
-   * The pledge MUST ignore all prior voucher information when
-   * accepting a voucher for imprinting. Other parties MAY
-   * examine the prior signed voucher information for the
-   * purposes of policy decisions. For example this information
-   * could be useful to a MASA to determine that both pledge and
-   * registrar agree on proximity assertions. The MASA SHOULD
-   * remove all prior-signed-voucher-request information when
-   * signing a voucher for imprinting so as to minimize the
-   * final voucher size.
+   * priorSignedVoucherRequest: if a voucher needs to be re-signed and
+   * forwarded along a protocol path, the previously signed voucher SHOULD be
+   * included here. Pledges MUST ignore prior voucher info when imprinting;
+   * other parties MAY examine it for policy decisions. The MASA SHOULD remove
+   * prior-signed-voucher-request data when signing a voucher for imprinting.
    */
-  public byte[] priorSignedVoucherRequest;
+  private byte[] priorSignedVoucherRequest;
 
   /*
-   * An X.509 v3 certificate structure as specified by RFC 5280,
-   * Section 4 encoded using the ASN.1 distinguished encoding
-   * rules (DER), as specified in ITU-T X.690.
-   * The first certificate in the Registrar TLS server
-   * certificate_list sequence (see [RFC5246]) presented by
-   * the Registrar to the Pledge. This MUST be populated in a
-   * Pledge’s voucher request if the proximity assertion is
+   * proximityRegistrarCert: the first certificate in the Registrar TLS
+   * server certificate_list (RFC 5246) presented to the Pledge. MUST be
+   * populated in a Pledge voucher request if the proximity assertion is
    * populated.
    */
-  public byte[] proximityRegistrarCert;
+  private byte[] proximityRegistrarCert;
 
   /*
-   * The proximity-registrar-subject-public-key-info replaces
-   * the proximity-registrar-cert in constrained uses of
-   * the voucher-request.
-   * The proximity-registrar-subject-public-key-info is the
-   * Raw Public Key of the Registrar. This field is encoded
-   * as specified in RFC7250, section 3.
-   * The ECDSA algorithm MUST be supported.
-   * The EdDSA algorithm as specified in
-   * draft-ietf-tls-rfc4492bis-17 SHOULD be supported.
-   * Support for the DSA algorithm is not recommended.
-   * Support for the RSA algorithm is a MAY.
+   * proximityRegistrarSPKI: replaces proximityRegistrarCert in constrained
+   * uses. Raw Public Key of the Registrar (RFC 7250 §3). Same algorithm
+   * support requirements as pinnedDomainSPKI.
    */
-  public byte[] proximityRegistrarSPKI;
+  private byte[] proximityRegistrarSPKI;
 
-  public String serialNumber;
+  private String serialNumber;
 
   protected Map<String, Integer> sidMap;
 
@@ -285,4 +241,53 @@ public class Voucher {
     }
     return new JSONSerializer().toJSON(this);
   }
+
+  // --- field accessors ------------------------------------------------
+  // Setters block writes to the UNDEFINED sentinel, which would otherwise
+  // mutate a JVM-wide shared instance.
+
+  private void checkMutable() {
+    if (this == UNDEFINED) {
+      throw new UnsupportedOperationException("UNDEFINED Voucher is immutable");
+    }
+  }
+
+  public Assertion getAssertion() { return assertion; }
+  public void setAssertion(Assertion v) { checkMutable(); this.assertion = v; }
+
+  public Date getCreatedOn() { return createdOn; }
+  public void setCreatedOn(Date v) { checkMutable(); this.createdOn = v; }
+
+  public Boolean getDomainCertRevocationChecks() { return domainCertRevocationChecks; }
+  public void setDomainCertRevocationChecks(Boolean v) { checkMutable(); this.domainCertRevocationChecks = v; }
+
+  public Date getExpiresOn() { return expiresOn; }
+  public void setExpiresOn(Date v) { checkMutable(); this.expiresOn = v; }
+
+  public byte[] getIdevidIssuer() { return idevidIssuer; }
+  public void setIdevidIssuer(byte[] v) { checkMutable(); this.idevidIssuer = v; }
+
+  public Date getLastRenewalDate() { return lastRenewalDate; }
+  public void setLastRenewalDate(Date v) { checkMutable(); this.lastRenewalDate = v; }
+
+  public byte[] getNonce() { return nonce; }
+  public void setNonce(byte[] v) { checkMutable(); this.nonce = v; }
+
+  public byte[] getPinnedDomainCert() { return pinnedDomainCert; }
+  public void setPinnedDomainCert(byte[] v) { checkMutable(); this.pinnedDomainCert = v; }
+
+  public byte[] getPinnedDomainSPKI() { return pinnedDomainSPKI; }
+  public void setPinnedDomainSPKI(byte[] v) { checkMutable(); this.pinnedDomainSPKI = v; }
+
+  public byte[] getPriorSignedVoucherRequest() { return priorSignedVoucherRequest; }
+  public void setPriorSignedVoucherRequest(byte[] v) { checkMutable(); this.priorSignedVoucherRequest = v; }
+
+  public byte[] getProximityRegistrarCert() { return proximityRegistrarCert; }
+  public void setProximityRegistrarCert(byte[] v) { checkMutable(); this.proximityRegistrarCert = v; }
+
+  public byte[] getProximityRegistrarSPKI() { return proximityRegistrarSPKI; }
+  public void setProximityRegistrarSPKI(byte[] v) { checkMutable(); this.proximityRegistrarSPKI = v; }
+
+  public String getSerialNumber() { return serialNumber; }
+  public void setSerialNumber(String v) { checkMutable(); this.serialNumber = v; }
 }
