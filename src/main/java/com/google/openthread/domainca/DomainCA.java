@@ -50,6 +50,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
@@ -94,9 +95,15 @@ public final class DomainCA {
   private final X509Certificate certificate;
 
   public DomainCA(String domainName, Credentials creds) throws GeneralSecurityException {
-    this.domainName = domainName;
-    this.privateKey = creds.getPrivateKey();
-    this.certificate = creds.getCertificateChain()[0];
+    this.domainName = Objects.requireNonNull(domainName, "domainName");
+    Objects.requireNonNull(creds, "creds");
+    this.privateKey = Objects.requireNonNull(creds.getPrivateKey(),
+        "credentials carry no private key");
+    X509Certificate[] chain = creds.getCertificateChain();
+    if (chain == null || chain.length == 0) {
+      throw new GeneralSecurityException("credentials carry no certificate chain");
+    }
+    this.certificate = chain[0];
   }
 
   public PublicKey getPublicKey() {
