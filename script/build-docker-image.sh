@@ -35,7 +35,7 @@ readonly VERSION=latest
 # Enable ipv6
 if [ ! -f /etc/docker/daemon.json ]; then
     echo "enabling ipv6 for docker ..."
-    sudo cp script/daemon.json /etc/docker
+    sudo cp etc/docker/daemon.json /etc/docker
     sudo systemctl restart docker
 fi
 
@@ -46,7 +46,7 @@ if ! sudo docker images -q "${IMAGE_NAME}:${VERSION}" | grep -q .; then
     mvn clean -Dmaven.test.skip=true package
 
     echo "building docker image..."
-    sudo docker build --no-cache -f script/Dockerfile -t ${IMAGE_NAME}:${VERSION} .
+    sudo docker build --no-cache -f etc/docker/Dockerfile -t ${IMAGE_NAME}:${VERSION} .
 else
     echo "Docker image '${IMAGE_NAME}' is already present."
 fi
