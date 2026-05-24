@@ -32,7 +32,6 @@ import com.google.openthread.Credentials;
 import com.google.openthread.domainca.DomainCA;
 import com.google.openthread.main.OtRegistrarConfig;
 import com.google.openthread.tools.CredentialGenerator;
-import java.security.KeyStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,26 +47,14 @@ public final class RegistrarMain {
       Credentials cred = new Credentials(config.keyStoreFile, CredentialGenerator.REGISTRAR_ALIAS, CredentialGenerator.PASSWORD);
       Credentials domainCred = new Credentials(config.keyStoreFile, CredentialGenerator.DOMAINCA_ALIAS, CredentialGenerator.PASSWORD);
 
-      if (cred.getPrivateKey() == null || cred.getCertificateChain() == null) {
-        throw new KeyStoreException("can't find registrar key or certificate in keystore");
-      }
-
-      if (domainCred.getPrivateKey() == null || domainCred.getCertificateChain() == null) {
-        throw new KeyStoreException("can't find domain CA key or certificate in keystore");
-      }
-
       // re-use the same creds for Pledge-facing identity and MASA-facing identity of Registrar.
       builder.setCredentials(cred);
       builder.setPort(config.serverPort);
 
-      // if (true) {
-      // trust all MASAs by default
+      // TODO: support configurable MASA trust anchors. When a MASA identity is supplied
+      //   in the credentials file (or via a CLI flag), pin only that one via
+      //   builder.addMasaCertificate(...) instead of trusting all.
       builder.setTrustAllMasas(true);
-      // } else {
-      // FIXME if one MASA identity defined in credentials file, use that one as trusted MASA. Or add config flag.
-      // if (masaCred.getCertificate() != null)
-      //  builder.addMasaCertificate(masaCred.getCertificate());
-      // }
 
       registrar = builder.build();
 
