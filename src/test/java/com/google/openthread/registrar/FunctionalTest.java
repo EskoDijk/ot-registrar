@@ -31,6 +31,7 @@ package com.google.openthread.registrar;
 import static org.junit.Assert.assertSame;
 
 import com.google.openthread.Constants;
+import com.google.openthread.Credentials;
 import com.google.openthread.brski.ConstantsBrski;
 import com.google.openthread.brski.ExtendedMediaTypeRegistry;
 import com.google.openthread.brski.StatusTelemetry;
@@ -371,11 +372,21 @@ public final class FunctionalTest {
     X509Certificate cert = cg.genRegistrarCredentials();
     X509Certificate domainCaCert =
         cg.getCredentials(CredentialGenerator.DOMAINCA_ALIAS).getCertificate();
+
+    // Re-pack as fresh Credentials with the new chain, reusing the original
+    // alias/password/private-key.
+    Credentials baseRegCred = cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS);
+    Credentials regCredWithNewChain =
+        new Credentials(
+            baseRegCred.getPrivateKey(),
+            new X509Certificate[]{cert, domainCaCert},
+            baseRegCred.getAlias(),
+            baseRegCred.getPassword());
+
     RegistrarBuilder registrarBuilder = new RegistrarBuilder();
     registrar =
         registrarBuilder
-            .setCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
-            .setCertificateChain(new X509Certificate[]{cert, domainCaCert})
+            .setCredentials(regCredWithNewChain)
             .setTrustAllMasas(true)
             .build();
     registrar.setDomainCA(domainCA);

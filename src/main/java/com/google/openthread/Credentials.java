@@ -42,7 +42,12 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import org.eclipse.californium.elements.util.SslContextUtil;
 
-/** Credentials (certificate and private key) for a single named entity ("alias"). */
+/**
+ * Credentials for a single named entity ("alias"). Carries the entity's private key together with
+ * its full X.509 certificate chain (leaf first, intermediates and/or root last) and the
+ * keystore-protection metadata (alias + password) needed to re-pack the entry into a fresh
+ * {@link java.security.KeyStore}.
+ */
 public class Credentials {
 
   public Credentials(String file, String alias, String password)

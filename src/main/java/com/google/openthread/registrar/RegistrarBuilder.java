@@ -30,9 +30,7 @@ package com.google.openthread.registrar;
 
 import com.google.openthread.Credentials;
 import com.google.openthread.brski.ConstantsBrski;
-import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,8 +40,6 @@ import java.util.Objects;
 public final class RegistrarBuilder {
 
   private final List<X509Certificate> masaCertificates = new ArrayList<>();
-  private PrivateKey privateKey;
-  private X509Certificate[] certificateChain;
   private Credentials credentials;
   private Credentials masaClientCredentials;
   private int port = ConstantsBrski.DEFAULT_REGISTRAR_COAPS_PORT;
@@ -73,64 +69,20 @@ public final class RegistrarBuilder {
     return this;
   }
 
-  /** Supply the credentials for the Registrar for DTLS connections from Pledge, in DTLS server role. */
+  /**
+   * Supply the credentials for the Registrar for DTLS connections from Pledge, in DTLS server
+   * role. To change the private key or certificate chain after construction, build a fresh
+   * {@link Credentials} (via its {@code (PrivateKey, X509Certificate[], String, String)}
+   * constructor) and call this method again.
+   */
   public RegistrarBuilder setCredentials(Credentials cred) throws GeneralSecurityException {
     Objects.requireNonNull(cred, "cred");
-    PrivateKey pk = Objects.requireNonNull(
-        cred.getPrivateKey(), "credentials have no private key");
+    Objects.requireNonNull(cred.getPrivateKey(), "credentials have no private key");
     X509Certificate[] chain = cred.getCertificateChain();
     if (chain == null || chain.length == 0) {
       throw new IllegalArgumentException("credentials have no certificate chain");
     }
-    this.privateKey = pk;
-    this.certificateChain = chain;
     this.credentials = cred;
-    return this;
-  }
-
-  /**
-   * Supply the private key used for DTLS connections from Pledge, in DTLS server role. Requires
-   * {@link #setCredentials} to have been called first (the alias/password come from there).
-   */
-  public RegistrarBuilder setPrivateKey(PrivateKey privateKey)
-      throws GeneralSecurityException, IOException {
-    Objects.requireNonNull(privateKey, "privateKey");
-    if (this.credentials == null) {
-      throw new IllegalStateException(
-          "setCredentials(...) must be called before setPrivateKey(...)");
-    }
-    this.privateKey = privateKey;
-    this.credentials =
-        new Credentials(
-            privateKey,
-            this.certificateChain,
-            this.credentials.getAlias(),
-            this.credentials.getPassword());
-    return this;
-  }
-
-  /**
-   * Supply the X.509 certificate chain used for DTLS connections from Pledge, in DTLS server role.
-   * Requires {@link #setCredentials} to have been called first (the alias/password come from
-   * there).
-   */
-  public RegistrarBuilder setCertificateChain(X509Certificate[] certificateChain)
-      throws GeneralSecurityException, IOException {
-    Objects.requireNonNull(certificateChain, "certificateChain");
-    if (certificateChain.length == 0) {
-      throw new IllegalArgumentException("certificateChain is empty");
-    }
-    if (this.credentials == null) {
-      throw new IllegalStateException(
-          "setCredentials(...) must be called before setCertificateChain(...)");
-    }
-    this.certificateChain = certificateChain;
-    this.credentials =
-        new Credentials(
-            this.privateKey,
-            certificateChain,
-            this.credentials.getAlias(),
-            this.credentials.getPassword());
     return this;
   }
 
