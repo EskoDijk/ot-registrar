@@ -29,7 +29,7 @@
 
 set -e
 
-## Test if we has the given command.
+## Test whether the given command exists.
 ## Args: $1, the command.
 has_command() {
     local cmd=$1
@@ -41,7 +41,9 @@ install_toolchain() {
     os=$(uname)
     if [ "$os" = "Linux" ]; then
         echo "OS is Linux"
-        has_command java || {
+        # Guard on javac, not java: a JRE-only box has 'java' but no compiler,
+        # which the Maven build needs.
+        has_command javac || {
             sudo apt-get update
             sudo apt-get install default-jre default-jdk -y
         }
@@ -51,6 +53,10 @@ install_toolchain() {
         }
     elif [ "$os" = "Darwin" ]; then
         echo "OS is Darwin"
+        has_command brew || {
+            echo "Homebrew is required on macOS. Install it first: https://brew.sh"
+            exit 1
+        }
         # Check javac, not java: macOS ships a /usr/bin/java stub that satisfies
         # 'command -v java' even with no JDK installed. temurin is a PATH-integrated
         # JDK cask; the bare 'java' cask is unreliable across Homebrew versions.
