@@ -45,22 +45,15 @@ import java.security.PublicKey;
 import java.security.cert.X509Certificate;
 import java.security.spec.X509EncodedKeySpec;
 import org.bouncycastle.util.encoders.Hex;
-import org.junit.AfterClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class CoseTest {
 
-  private static final String TEST_CREDENTIALS_STORAGE_FILE = "temp.credentials.store.p12";
   private static final byte[] TEST_CONTENT_BYTES =
       {1, 2, 3, 4, 5, 6, 50, 60, 70, 80, 90, 100, 110};
   private static final Logger logger = LoggerFactory.getLogger(CoseTest.class);
-
-  @AfterClass
-  public static void tearDown() {
-    new File(TEST_CREDENTIALS_STORAGE_FILE).delete();
-  }
 
   @Test
   public void testSignAndVerify() throws Exception {
@@ -137,9 +130,13 @@ public final class CoseTest {
 
     // try creating fresh credentials, sign data, storing keys, loading keys - then use public key
     // to verify.
+    File keyStoreFile = File.createTempFile("test-credentials", ".p12");
+    keyStoreFile.deleteOnExit();
+    String keyStorePath = keyStoreFile.getAbsolutePath();
+
     CredentialGenerator credGen = new CredentialGenerator();
     credGen.make(null, null, null, null, null);
-    credGen.store(TEST_CREDENTIALS_STORAGE_FILE);
+    credGen.store(keyStorePath);
     Credentials credMasaCa = credGen.getCredentials(CredentialGenerator.MASACA_ALIAS);
     PrivateKey signingKey = credMasaCa.getPrivateKey();
 
@@ -150,7 +147,7 @@ public final class CoseTest {
 
     // re-load Credentials from file
     credGen = new CredentialGenerator();
-    credGen.load(TEST_CREDENTIALS_STORAGE_FILE);
+    credGen.load(keyStorePath);
     Credentials credPledge = credGen.getCredentials(CredentialGenerator.PLEDGE_ALIAS);
     credMasaCa = credGen.getCredentials(CredentialGenerator.MASACA_ALIAS);
     OneKey validationKey = new OneKey(credPledge.getCaCertificate().getPublicKey(), null);
