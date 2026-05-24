@@ -46,9 +46,13 @@ echo "--- Creating new Registrar RA certificate as './credentials/local-masa/reg
 # create csr
 openssl req -new -key registrar_private.pem -out temp.csr -subj "/CN=registrar/OU=OpenThread/O=Google/L=SH/C=CN"
 
-# sign csr
-# note: serial no is set manually.
-openssl x509 -req -in temp.csr -extfile ./x509v3_registrar.ext -CA domainca_cert.pem -CAkey domainca_private.pem -set_serial 3 -out registrar_cert2.pem -days $VALIDITY -sha256
+# sign csr.
+# -CAcreateserial randomly initializes the .srl file when it does not exist;
+# we delete it before AND after to guarantee a fresh random 160-bit serial on
+# every run and to avoid leaving CA-state lying around.
+rm -f domainca_cert.srl
+openssl x509 -req -in temp.csr -extfile ./x509v3_registrar.ext -CA domainca_cert.pem -CAkey domainca_private.pem -CAcreateserial -out registrar_cert2.pem -days $VALIDITY -sha256
+rm -f domainca_cert.srl
 
 # cleanup temp file
 rm temp.csr
