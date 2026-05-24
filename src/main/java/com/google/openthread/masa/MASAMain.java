@@ -31,7 +31,6 @@ package com.google.openthread.masa;
 import com.google.openthread.Credentials;
 import com.google.openthread.main.OtRegistrarConfig;
 import com.google.openthread.tools.CredentialGenerator;
-import java.security.KeyStoreException;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,13 +49,6 @@ public class MASAMain {
     try {
       Credentials cred = new Credentials(config.keyStoreFile, CredentialGenerator.MASA_ALIAS, CredentialGenerator.PASSWORD);
       Credentials credCa = new Credentials(config.keyStoreFile, CredentialGenerator.MASACA_ALIAS, CredentialGenerator.PASSWORD);
-
-      if (cred.getPrivateKey() == null || cred.getCertificate() == null) {
-        throw new KeyStoreException("can't find MASA server key or certificate in key store");
-      }
-      if (credCa.getPrivateKey() == null || credCa.getCertificate() == null) {
-        throw new KeyStoreException("can't find MASA CA key or CA certificate in key store");
-      }
 
       masa = new MASA(cred, credCa, config.serverPort);
     } catch (Exception e) {

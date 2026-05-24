@@ -31,7 +31,6 @@ package com.google.openthread.pledge;
 import com.google.openthread.Credentials;
 import com.google.openthread.main.OtRegistrarConfig;
 import com.google.openthread.tools.CredentialGenerator;
-import java.security.KeyStoreException;
 import java.util.Objects;
 import java.util.Scanner;
 import org.slf4j.Logger;
@@ -50,9 +49,6 @@ public class PledgeMain {
       String password = CredentialGenerator.PASSWORD;
       Credentials cred = new Credentials(config.keyStoreFile, CredentialGenerator.PLEDGE_ALIAS, password);
 
-      if (cred.getPrivateKey() == null || cred.getCertificateChain() == null) {
-        throw new KeyStoreException(String.format("can't find pledge key or certificate: %s", CredentialGenerator.PLEDGE_ALIAS));
-      }
       Pledge pledge = new Pledge(cred, config.registrarUri);
       runCli(pledge);
       pledge.shutdown();
