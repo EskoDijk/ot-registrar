@@ -35,7 +35,7 @@ import org.bouncycastle.util.encoders.Hex;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class CBORTest {
+public final class CBORTest {
 
   @Test
   public void testSimple() {
@@ -56,7 +56,8 @@ public class CBORTest {
     request.Add("constrained-voucher-request", container);
 
     String jsonStr = request.ToJSONString();
-    CBORObject.FromJSONString(jsonStr);
+    // Round-trip through JSON and verify the canonical JSON form is stable.
+    Assert.assertEquals(jsonStr, CBORObject.FromJSONString(jsonStr).ToJSONString());
   }
 
   @Test

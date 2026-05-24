@@ -28,21 +28,18 @@
 
 package com.google.openthread.brski;
 
-import com.google.openthread.*;
-import com.google.openthread.pledge.*;
-import com.google.openthread.registrar.*;
-import com.upokecenter.cbor.CBORObject;
+import com.google.openthread.SecurityUtils;
+import com.google.openthread.pledge.Pledge;
 import java.security.KeyPair;
 import java.util.Date;
-import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ExamplePayloadsTest {
+public final class ExamplePayloadsTest {
 
-  private static Logger logger = LoggerFactory.getLogger(ExamplePayloadsTest.class);
+  private static final Logger logger = LoggerFactory.getLogger(ExamplePayloadsTest.class);
 
   @Test
   public void voucherExamplePayload() throws Exception {
@@ -53,7 +50,9 @@ public class ExamplePayloadsTest {
     cvr.setNonce(Pledge.generateNonce());
 
     KeyPair kp = SecurityUtils.genKeyPair();
-    cvr.setProximityRegistrarSPKI(SubjectPublicKeyInfo.getInstance(kp.getPublic().getEncoded()).getEncoded());
+    // PublicKey.getEncoded() already returns the X.509 SubjectPublicKeyInfo DER bytes,
+    // so no wrap/unwrap round-trip via SubjectPublicKeyInfo is needed.
+    cvr.setProximityRegistrarSPKI(kp.getPublic().getEncoded());
     Assert.assertTrue(cvr.validate());
 
     logger.info("example constrained voucher request payload:");
@@ -67,7 +66,7 @@ public class ExamplePayloadsTest {
     cv.setNonce(cvr.getNonce());
 
     kp = SecurityUtils.genKeyPair();
-    cv.setPinnedDomainSPKI(SubjectPublicKeyInfo.getInstance(kp.getPublic().getEncoded()).getEncoded());
+    cv.setPinnedDomainSPKI(kp.getPublic().getEncoded());
     Assert.assertTrue(cv.validate());
 
     logger.info("example constrained voucher payload:");

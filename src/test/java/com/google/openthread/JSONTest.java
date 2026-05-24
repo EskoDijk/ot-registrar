@@ -33,54 +33,51 @@ import com.google.openthread.brski.Voucher;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import org.junit.Assert;
 import org.junit.Test;
 
-public class JSONTest {
-
-  /** * Utility class defining the structure of the Voucher. */
-  @SuppressWarnings("serial")
-  class GsonVoucher extends HashMap<String, HashMap<String, Object>> {
-    //
-  }
+public final class JSONTest {
 
   @Test
   public void testSimple() {
     Gson gson = new Gson();
-    GsonVoucher request = new GsonVoucher();
-    HashMap<String, Object> container = new HashMap<String, Object>();
-    container.put("created-on", (new Date()).toString());
-    container.put("expires-on", (new Date()).toString());
+    String createdOn = new Date().toString();
+    String expiresOn = new Date().toString();
+    String lastRenewal = new Date().toString();
+
+    HashMap<String, Object> container = new HashMap<>();
+    container.put("created-on", createdOn);
+    container.put("expires-on", expiresOn);
     container.put("assertion", Voucher.Assertion.VERIFIED.toString());
     container.put("serial-number", "JADA123456789");
     container.put("idevid-issuer", "AQINDw==");
     container.put("pinned-domain-cert", "AQINDw==");
     container.put("domain-cert-revocation-checks", Boolean.FALSE);
-    container.put("last-renewal-date", (new Date()).toString());
+    container.put("last-renewal-date", lastRenewal);
     container.put("proximity-registrar-subject-public-key-info", "AQINDw==");
+
+    HashMap<String, HashMap<String, Object>> request = new HashMap<>();
     request.put("constrained-voucher-request", container);
 
-    // serialize request to JSON
     String jsonStr = gson.toJson(request);
-    System.out.println(jsonStr);
-    System.out.println("\n");
 
-    // unserialize from JSON to request2
-    Object o =
-        gson.fromJson(
-            jsonStr, Object.class); // use 'Object' class, to avoid casting runtime errors.
-    o.toString(); // dummy test
-
-    // access the individual container elements again
     @SuppressWarnings("unchecked")
-    Map<String, Map<String, Object>> request2 = (Map<String, Map<String, Object>>) o;
+    Map<String, Map<String, Object>> request2 =
+        (Map<String, Map<String, Object>>) gson.fromJson(jsonStr, Object.class);
     Map<String, Object> container2 = request2.get("constrained-voucher-request");
-    for (String key : container2.keySet()) {
-      Object val = container2.get(key);
-      System.out.println(key + "=" + val);
-    }
-  }
 
-  public static void main(String args[]) {
-    new JSONTest().testSimple();
+    // Every key/value the producer put in must round-trip back to the consumer.
+    Assert.assertNotNull("missing wrapper key after round-trip", container2);
+    Assert.assertEquals(container.size(), container2.size());
+    Assert.assertEquals(createdOn, container2.get("created-on"));
+    Assert.assertEquals(expiresOn, container2.get("expires-on"));
+    Assert.assertEquals(lastRenewal, container2.get("last-renewal-date"));
+    Assert.assertEquals(Voucher.Assertion.VERIFIED.toString(), container2.get("assertion"));
+    Assert.assertEquals("JADA123456789", container2.get("serial-number"));
+    Assert.assertEquals("AQINDw==", container2.get("idevid-issuer"));
+    Assert.assertEquals("AQINDw==", container2.get("pinned-domain-cert"));
+    Assert.assertEquals(Boolean.FALSE, container2.get("domain-cert-revocation-checks"));
+    Assert.assertEquals(
+        "AQINDw==", container2.get("proximity-registrar-subject-public-key-info"));
   }
 }
