@@ -41,5 +41,11 @@ Californium.properties
 # OpenSSL CA serial-number state files
 *.srl
 
+# Build outputs of the credentials/ regen scripts (regenerable from PEMs)
+credentials/keystore_ietf-draft-constrained-brski.p12
+credentials/pledge_credentials.p12
+credentials/local-masa/test_credentials.p12
+credentials/local-masa/registrar_cert2.pem
+
 # Mac OS X
 .DS_Store
