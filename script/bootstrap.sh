@@ -51,7 +51,10 @@ install_toolchain() {
         }
     elif [ "$os" = "Darwin" ]; then
         echo "OS is Darwin"
-        has_command java || brew install --cask java
+        # Check javac, not java: macOS ships a /usr/bin/java stub that satisfies
+        # 'command -v java' even with no JDK installed. temurin is a PATH-integrated
+        # JDK cask; the bare 'java' cask is unreliable across Homebrew versions.
+        has_command javac || brew install --cask temurin
         has_command mvn || brew install maven
     else
         echo "platform $os is not fully supported"
