@@ -34,9 +34,11 @@ import com.google.openthread.brski.ConstantsBrski;
 import com.google.openthread.brski.HardwareModuleName;
 import com.google.openthread.tools.CredentialGenerator;
 import com.upokecenter.cbor.CBORObject;
-import java.security.*;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.cert.X509Certificate;
-import java.util.Arrays;
 import java.util.List;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -44,11 +46,10 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.operator.jcajce.JcaContentVerifierProviderBuilder;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder;
-import org.bouncycastle.util.encoders.Hex;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class SecurityUtilsTest {
+public final class SecurityUtilsTest {
 
   @Test
   public void testSignatureVerification() throws Exception {
@@ -89,16 +90,14 @@ public class SecurityUtilsTest {
 
   @Test
   public void testSubjectPublicKeyInfo() throws Exception {
+    // PublicKey.getEncoded() is documented to return the X.509 SubjectPublicKeyInfo
+    // DER encoding. Verify the round-trip through SubjectPublicKeyInfo.getInstance
+    // is byte-stable -- several other tests and callers rely on it (e.g. building
+    // proximity-registrar-SPKI directly from PublicKey.getEncoded()).
     KeyPair kp = SecurityUtils.genKeyPair();
     PublicKey pk = kp.getPublic();
     SubjectPublicKeyInfo spki = SubjectPublicKeyInfo.getInstance(pk.getEncoded());
-    System.out.println("public key algorithm: " + pk.getAlgorithm());
-    System.out.println("public key: ");
-    System.out.println(Hex.toHexString(pk.getEncoded()));
-
-    System.out.println("spki key algorithm: " + spki.getAlgorithm().getAlgorithm().getId());
-    System.out.println("spki: ");
-    System.out.println(Hex.toHexString(spki.getEncoded()));
+    Assert.assertArrayEquals(pk.getEncoded(), spki.getEncoded());
   }
 
   @Test
@@ -162,6 +161,6 @@ public class SecurityUtilsTest {
     // verify that the last part of akiOctetString in fact contains the keyId.
     byte[] akiOctetStringLastPart = new byte[20];
     System.arraycopy(akiOctetString, 6, akiOctetStringLastPart, 0, 20);
-    Assert.assertArrayEquals(keyId, akiOctetStringLastPart); // TODO check order expected, actual here.
+    Assert.assertArrayEquals(keyId, akiOctetStringLastPart);
   }
 }
