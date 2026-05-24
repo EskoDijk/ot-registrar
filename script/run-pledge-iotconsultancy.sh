@@ -39,4 +39,4 @@ if [ "$#" -eq 1 ]; then
 fi
 
 echo "Pledge using IoTconsultancy credentials with Registrar: ${REGISTRAR}"
-./script/run -pledge -f ./credentials/iotconsultancy-masa/credentials.p12 -r ${REGISTRAR}
+./script/run -pledge -f ./credentials/iotconsultancy-masa/credentials.p12 -r "${REGISTRAR}"

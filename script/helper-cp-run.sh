@@ -31,7 +31,7 @@ set -e
 
 # Pick the JAR built from the current pom.xml version (glob so the script
 # doesn't have to be updated when the version bumps).
-JAR_FILE=$(ls -1 ./target/ot-registrar-*-jar-with-dependencies.jar 2>/dev/null | head -n 1)
+JAR_FILE=$(find ./target -maxdepth 1 -name 'ot-registrar-*-jar-with-dependencies.jar' -print -quit 2>/dev/null)
 
 if [ -z "${JAR_FILE}" ] || [ ! -f "${JAR_FILE}" ]; then
   echo "Please build using 'mvn -DskipTests package' before running."

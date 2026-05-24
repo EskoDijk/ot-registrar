@@ -32,7 +32,7 @@
 
 if [ -d "./credentials/local-masa" ]
 then
-  cd ./credentials/local-masa
+  cd ./credentials/local-masa || exit 1
 else
   echo "Please run script from base directory of this repo."
   exit 1

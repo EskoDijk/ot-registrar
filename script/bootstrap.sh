@@ -33,7 +33,7 @@ set -e
 ## Args: $1, the command.
 has_command() {
     local cmd=$1
-    command -v $cmd > /dev/null 2>&1
+    command -v "$cmd" > /dev/null 2>&1
 }
 
 install_toolchain() {
