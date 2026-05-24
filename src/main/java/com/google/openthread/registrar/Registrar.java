@@ -54,8 +54,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
@@ -91,7 +89,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author wgtdkp
  */
-public class Registrar extends CoapServer {
+public final class Registrar extends CoapServer {
   // EST resources___________EST EST-CoAPS
   // /cacerts________________/crts
   // /simpleenroll___________/sen
@@ -106,9 +104,31 @@ public class Registrar extends CoapServer {
   // /voucher-status_________/vs
   // /enrollstatus___________/es
 
+  private static final Logger logger = LoggerFactory.getLogger(Registrar.class);
+
   static {
     BouncyCastleInitializer.init();
   }
+
+  private final int listenPort;
+  private final PrivateKey privateKey;
+  private final X509Certificate[] certificateChain;
+  private final X509Certificate[] masaTrustAnchors;
+  // credentials used as a HTTP/CoAP client towards MASA.
+  private final Credentials masaClientCredentials;
+  private final boolean isHttpToMasa;
+
+  private DomainCA domainCA;
+  private int forcedVoucherRequestFormat = -1;
+  private String forcedMasaUri = null;
+
+  private final Map<Principal, StatusTelemetry> enrollStatusLog = new HashMap<>();
+  private final Map<Principal, StatusTelemetry> voucherStatusLog = new HashMap<>();
+  // keep track of issued vouchers
+  private final Map<Principal, Voucher> voucherLog = new HashMap<>();
+
+  private VoucherRequest lastRvr = null;
+  private byte[] lastRvrCoseSigned = null;
 
   /**
    * Constructing registrar with specified settings, credentials and listening port.
@@ -154,10 +174,10 @@ public class Registrar extends CoapServer {
     logger.info(
         "Registrar starting - Number of trusted MASA servers: "
             + (this.masaTrustAnchors.length == 0 ? "ALL MASAs" : this.masaTrustAnchors.length));
-    if (this.setForcedMasaUri != null) {
+    if (this.forcedMasaUri != null) {
       logger.info(
           "                   - MASA URI forced to: "
-              + this.setForcedMasaUri
+              + this.forcedMasaUri
               + " (-masa parameter)");
     }
     super.start();
@@ -199,9 +219,9 @@ public class Registrar extends CoapServer {
    */
   public void setForcedMasaUri(String uri) {
     if (uri.length() == 0) {
-      this.setForcedMasaUri = null;
+      this.forcedMasaUri = null;
     } else {
-      this.setForcedMasaUri = uri;
+      this.forcedMasaUri = uri;
     }
   }
 
@@ -339,7 +359,7 @@ public class Registrar extends CoapServer {
         // Get client certificate, it is pledge's idevid for voucher request
         Principal clientId = exchange.advanced().getRequest().getSourceContext().getPeerIdentity();
         if (!(clientId instanceof X509CertPath)) {
-          logger.error("unsupported client identity type");
+          logger.warn("unsupported client identity type");
           exchange.respond(ResponseCode.UNAUTHORIZED, "Unsupported client identity type.");
           return;
         }
@@ -357,7 +377,7 @@ public class Registrar extends CoapServer {
               (Sign1Message)
                   Message.DecodeFromBytes(exchange.getRequestPayload(), MessageTag.Sign1);
           if (!sign1Msg.validate(new OneKey(idevid.getPublicKey(), null))) {
-            logger.error("COSE-sign1 voucher-request validation failed");
+            logger.warn("COSE-sign1 voucher-request validation failed");
             exchange.respond(ResponseCode.NOT_FOUND, "COSE-Sign1 validation failed");
             return;
           }
@@ -368,7 +388,7 @@ public class Registrar extends CoapServer {
           pledgeReq =
               (VoucherRequest) new CBORSerializer().deserialize(exchange.getRequestPayload());
         } else {
-          logger.error("unsupported voucher request format: " + contentFormat);
+          logger.warn("unsupported voucher request format: " + contentFormat);
           exchange.respond(
               ResponseCode.UNSUPPORTED_CONTENT_FORMAT,
               "unsupported voucher request Content Format: " + contentFormat);
@@ -378,7 +398,7 @@ public class Registrar extends CoapServer {
         // Validate pledge's voucher request
         if (!pledgeReq.validate()) {
           final String msg = "voucher request did not validate";
-          logger.error(msg);
+          logger.warn(msg);
           exchange.respond(ResponseCode.FORBIDDEN, msg);
           return;
         }
@@ -400,7 +420,7 @@ public class Registrar extends CoapServer {
         if (pledgeReq.getProximityRegistrarSPKI() != null) {
           if (!Arrays.equals(
               pledgeReq.getProximityRegistrarSPKI(), getCertificate().getPublicKey().getEncoded())) {
-            logger.error("unmatched proximity registrar SPKI in Pledge's Voucher Request");
+            logger.warn("unmatched proximity registrar SPKI in Pledge's Voucher Request");
             exchange.respond(ResponseCode.BAD_REQUEST, "proximityRegistrarSPKI error");
             return;
           }
@@ -417,7 +437,7 @@ public class Registrar extends CoapServer {
         // extracted from pledge's idevid.
         req.setSerialNumber(Pledge.getSerialNumber(idevid));
         if (req.getSerialNumber() == null || !req.getSerialNumber().equals(pledgeReq.getSerialNumber())) {
-          logger.error(
+          logger.warn(
               String.format(
                   "bad serial number in voucher request: [%s] != [%s]",
                   pledgeReq.getSerialNumber(), req.getSerialNumber()));
@@ -438,7 +458,7 @@ public class Registrar extends CoapServer {
                   req.getIdevidIssuer().length, Hex.toHexString(req.getIdevidIssuer())));
         } else {
           String msg = "missing AKI in Pledge IDevID certificate";
-          logger.error(msg);
+          logger.warn(msg);
           exchange.respond(ResponseCode.BAD_REQUEST, msg);
           return;
         }
@@ -510,14 +530,14 @@ public class Registrar extends CoapServer {
         // Request voucher from MASA server indicated in IDevID cert, or else the
         // default one.
         String uri = SecurityUtils.getMasaUri(idevid);
-        if ((uri == null || uri.length() == 0) && setForcedMasaUri == null) {
+        if ((uri == null || uri.length() == 0) && forcedMasaUri == null) {
           uri = Constants.DEFAULT_MASA_URI;
           logger.warn(
               "pledge certificate does not include MASA uri, using default masa uri: " + uri);
-        } else if (uri != null && setForcedMasaUri == null) {
+        } else if (uri != null && forcedMasaUri == null) {
           logger.info("Constructing Registrar Voucher Req to MASA: " + uri);
         } else {
-          uri = setForcedMasaUri;
+          uri = forcedMasaUri;
           logger.info("Using forced MASA URI to send Registrar Voucher Req: " + uri);
         }
 
@@ -551,7 +571,7 @@ public class Registrar extends CoapServer {
         if (response.getContentFormat()
             != ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR) {
           // TODO(wgtdkp): we can support more formats
-          logger.error("Not-supported content format from MASA: " + response.getContentFormat());
+          logger.warn("Not-supported content format from MASA: " + response.getContentFormat());
           exchange.respond(ResponseCode.SERVICE_UNAVAILABLE);
           return;
         }
@@ -633,10 +653,10 @@ public class Registrar extends CoapServer {
    */
   public final class MASAConnectorHttp {
 
-    protected SSLContext sc;
+    private final SSLContext sc;
 
     MASAConnectorHttp(X509Certificate[] trustAnchors) throws Exception {
-      initEndPoint(trustAnchors);
+      this.sc = buildSslContext(trustAnchors);
     }
 
     /**
@@ -648,8 +668,7 @@ public class Registrar extends CoapServer {
      * @return null if any error happens
      */
     public RestfulVoucherResponse requestVoucher(
-        String requestMediaType, byte[] body, String masaURI)
-        throws IOException, ConnectorException, NoSuchAlgorithmException, KeyManagementException {
+        String requestMediaType, byte[] body, String masaURI) throws IOException {
       URL url =
           new URL(
               "https://" + masaURI + ConstantsBrski.BRSKI_PATH + "/" + ConstantsBrski.REQUEST_VOUCHER_HTTP);
@@ -684,12 +703,13 @@ public class Registrar extends CoapServer {
           httpStatus, respPayload, ConstantsBrski.MEDIA_TYPE_VOUCHER_COSE_CBOR);
     }
 
-    private void initEndPoint(X509Certificate[] trustAnchors) throws Exception {
-      sc = SSLContext.getInstance("TLS");
+    private SSLContext buildSslContext(X509Certificate[] trustAnchors) throws Exception {
+      SSLContext ctx = SSLContext.getInstance("TLS");
       KeyManagerFactory kmf =
           KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
       kmf.init(masaClientCredentials.getKeyStore(), CredentialGenerator.PASSWORD.toCharArray());
-      sc.init(kmf.getKeyManagers(), new TrustManager[]{new InsecureTrustManager()}, null);
+      ctx.init(kmf.getKeyManagers(), new TrustManager[]{new InsecureTrustManager()}, null);
+      return ctx;
     }
   }
 
@@ -789,18 +809,18 @@ public class Registrar extends CoapServer {
    * @return
    */
   public Principal[] getKnownClients() {
-    HashSet<Principal> l = new HashSet<Principal>();
+    HashSet<Principal> l = new HashSet<>();
     l.addAll(voucherLog.keySet());
     l.addAll(voucherStatusLog.keySet());
     l.addAll(enrollStatusLog.keySet());
-    return l.toArray(new Principal[]{});
+    return l.toArray(new Principal[0]);
   }
 
   /**
    * get the last voucher-status telemetry that was sent by a specific client.
    *
    * @param client the secure client identifier
-   * @returns If available, the last voucher-status telemetry. If client did not send any voucher-status telemetry, it returns null. If client did send voucher-status telemetry, but in an unrecognized
+   * @return If available, the last voucher-status telemetry. If client did not send any voucher-status telemetry, it returns null. If client did send voucher-status telemetry, but in an unrecognized
    * format, it returns StatusTelemetry.UNDEFINED.
    */
   public StatusTelemetry getVoucherStatusLogEntry(Principal client) {
@@ -814,7 +834,7 @@ public class Registrar extends CoapServer {
    * get the last enroll-status telemetry that was sent by a specific client.
    *
    * @param client the secure client identifier
-   * @returns If available, the last enroll-status telemetry. If client did not send any enroll-status telemetry, it returns null. If client did send enroll-status telemetry, but in an unrecognized
+   * @return If available, the last enroll-status telemetry. If client did not send any enroll-status telemetry, it returns null. If client did send enroll-status telemetry, but in an unrecognized
    * format, it returns StatusTelemetry.UNDEFINED.
    */
   public StatusTelemetry getEnrollStatusLogEntry(Principal client) {
@@ -845,18 +865,18 @@ public class Registrar extends CoapServer {
   /**
    * get the Registrar's EE certificate
    *
-   * @return
+   * @return the Registrar's leaf certificate
    */
-  X509Certificate getCertificate() {
+  private X509Certificate getCertificate() {
     return certificateChain[0];
   }
 
   /**
    * get the Registrar's Domain (CA) certificate, i.e. the top-level certificate in the chain.
    *
-   * @return
+   * @return the top-level certificate in the Registrar's chain
    */
-  X509Certificate getDomainCertificate() {
+  private X509Certificate getDomainCertificate() {
     return certificateChain[certificateChain.length - 1];
   }
 
@@ -905,8 +925,7 @@ public class Registrar extends CoapServer {
     } else {
       verifier =
           new RegistrarCertificateVerifier(
-              trustAnchors.toArray(
-                  new X509Certificate[trustAnchors.size()])); // trust only given MASA CAs.
+              trustAnchors.toArray(new X509Certificate[0])); // trust only given MASA CAs.
     }
 
     CoapEndpoint endpoint =
@@ -915,37 +934,4 @@ public class Registrar extends CoapServer {
     addEndpoint(endpoint);
   }
 
-  private final int listenPort;
-
-  private DomainCA domainCA;
-
-  private PrivateKey privateKey;
-
-  private X509Certificate[] certificateChain;
-
-  private X509Certificate[] masaTrustAnchors;
-
-  // credentials used as a HTTP/CoAP client towards MASA.
-  private Credentials masaClientCredentials;
-
-  protected int forcedVoucherRequestFormat = -1;
-
-  protected boolean isHttpToMasa = true;
-
-  protected String setForcedMasaUri = null;
-
-  protected Map<Principal, StatusTelemetry> enrollStatusLog =
-      new HashMap<Principal, StatusTelemetry>();
-
-  protected Map<Principal, StatusTelemetry> voucherStatusLog =
-      new HashMap<Principal, StatusTelemetry>();
-
-  // keep track of issued vouchers
-  protected Map<Principal, Voucher> voucherLog = new HashMap<Principal, Voucher>();
-
-  private VoucherRequest lastRvr = null;
-
-  private byte[] lastRvrCoseSigned = null;
-
-  private final static Logger logger = LoggerFactory.getLogger(Registrar.class);
 }
