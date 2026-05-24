@@ -50,8 +50,9 @@ import com.google.openthread.brski.VoucherRequest;
 import com.google.openthread.domainca.DomainCA;
 import com.google.openthread.pledge.Pledge;
 import com.google.openthread.tools.CredentialGenerator;
-import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URL;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
@@ -176,6 +177,7 @@ public class Registrar extends CoapServer {
     switch (mediaType) {
       case "":
         this.forcedVoucherRequestFormat = -1;
+        break;
       case ConstantsBrski.MEDIA_TYPE_VOUCHER_CMS_JSON:
         this.forcedVoucherRequestFormat = ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON;
         break;
@@ -384,9 +386,7 @@ public class Registrar extends CoapServer {
         // Constructing new voucher request (RVR) for MASA
         // ref: section 5.5 BRSKI RFC8995
         boolean isJsonRVR =
-            (forcedVoucherRequestFormat == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON
-                || forcedVoucherRequestFormat
-                == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_JSON);
+            forcedVoucherRequestFormat == ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_CMS_JSON;
         VoucherRequest req = new VoucherRequest();
         if (!isJsonRVR) {
           req.setConstrained(true);
@@ -662,22 +662,26 @@ public class Registrar extends CoapServer {
       con.setDoOutput(true);
       con.setRequestProperty("Content-Type", requestMediaType);
       con.setRequestProperty("Accept", ConstantsBrski.MEDIA_TYPE_VOUCHER_COSE_CBOR);
-      con.setInstanceFollowRedirects(true);
-      con.connect();
-      DataOutputStream out = new DataOutputStream(con.getOutputStream());
-      out.write(body);
-      out.flush();
-      out.close();
+
+      try (OutputStream out = con.getOutputStream()) {
+        out.write(body);
+      }
+
+      // For 2xx the body is on getInputStream(); for 4xx/5xx it's on getErrorStream(),
+      // and getInputStream() would throw IOException — so pick by status code instead
+      // of relying on exception flow. Either stream may be null for an empty response.
+      int httpStatus = con.getResponseCode();
       byte[] respPayload = null;
-      try {
-        respPayload = con.getInputStream().readAllBytes();
-      } catch (IOException ex) { // in case no data is sent by MASA.
-        ;
+      InputStream body2 = (httpStatus >= 400) ? con.getErrorStream() : con.getInputStream();
+      if (body2 != null) {
+        try (InputStream in = body2) {
+          respPayload = in.readAllBytes();
+        }
       }
       // TODO below assumes the Content-Type of the response, because Accept header was used. May
       // need to be checked though.
       return new RestfulVoucherResponse(
-          con.getResponseCode(), respPayload, ConstantsBrski.MEDIA_TYPE_VOUCHER_COSE_CBOR);
+          httpStatus, respPayload, ConstantsBrski.MEDIA_TYPE_VOUCHER_COSE_CBOR);
     }
 
     private void initEndPoint(X509Certificate[] trustAnchors) throws Exception {
