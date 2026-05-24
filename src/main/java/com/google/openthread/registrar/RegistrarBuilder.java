@@ -28,7 +28,7 @@
 
 package com.google.openthread.registrar;
 
-import com.google.openthread.*;
+import com.google.openthread.Credentials;
 import com.google.openthread.brski.ConstantsBrski;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -36,53 +36,69 @@ import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
-/**
- * The builder for creating Registrar instance
- *
- * @author wgtdkp
- */
-public class RegistrarBuilder {
+/** The builder for creating Registrar instance. */
+public final class RegistrarBuilder {
 
-  public RegistrarBuilder() {
-    masaCertificates = new ArrayList<>();
-  }
+  private final List<X509Certificate> masaCertificates = new ArrayList<>();
+  private PrivateKey privateKey;
+  private X509Certificate[] certificateChain;
+  private Credentials credentials;
+  private Credentials masaClientCredentials;
+  private int port = ConstantsBrski.DEFAULT_REGISTRAR_COAPS_PORT;
+  private boolean isHttpToMasa = true;
+  private boolean isTrustAllMasas = false;
 
   /**
-   * Supply the credentials to be used for Registrar in its role as MASA-client. By default, no separate credentials are used and rather the 'setCredentials()' credentials are used for authentication
-   * to MASA server as a client.
+   * Supply the credentials to be used for Registrar in its role as MASA-client. By default, no
+   * separate credentials are used and rather the 'setCredentials()' credentials are used for
+   * authentication to MASA server as a client.
    *
-   * @param cred Credentials to use in client role towards MASA server, or null to re-use the 'setCredentials()' credentials for this.
-   * @return
-   * @throws GeneralSecurityException
+   * @param cred Credentials to use in client role towards MASA server, or null to re-use the
+   *             'setCredentials()' credentials for this.
    */
   public RegistrarBuilder setMasaClientCredentials(Credentials cred)
       throws GeneralSecurityException {
+    if (cred != null) {
+      if (cred.getPrivateKey() == null) {
+        throw new IllegalArgumentException("MASA-client credentials have no private key");
+      }
+      X509Certificate[] chain = cred.getCertificateChain();
+      if (chain == null || chain.length == 0) {
+        throw new IllegalArgumentException("MASA-client credentials have no certificate chain");
+      }
+    }
     this.masaClientCredentials = cred;
     return this;
   }
 
-  /**
-   * Supply the credentials for the Registrar for DTLS connections from Pledge, in DTLS server role.
-   *
-   * @param cred
-   * @return
-   */
+  /** Supply the credentials for the Registrar for DTLS connections from Pledge, in DTLS server role. */
   public RegistrarBuilder setCredentials(Credentials cred) throws GeneralSecurityException {
-    this.privateKey = cred.getPrivateKey();
-    this.certificateChain = cred.getCertificateChain();
+    Objects.requireNonNull(cred, "cred");
+    PrivateKey pk = Objects.requireNonNull(
+        cred.getPrivateKey(), "credentials have no private key");
+    X509Certificate[] chain = cred.getCertificateChain();
+    if (chain == null || chain.length == 0) {
+      throw new IllegalArgumentException("credentials have no certificate chain");
+    }
+    this.privateKey = pk;
+    this.certificateChain = chain;
     this.credentials = cred;
     return this;
   }
 
   /**
-   * Supply the private key used for DTLS connections from Pledge, in DTLS server role.
-   *
-   * @param privateKey
-   * @return
+   * Supply the private key used for DTLS connections from Pledge, in DTLS server role. Requires
+   * {@link #setCredentials} to have been called first (the alias/password come from there).
    */
   public RegistrarBuilder setPrivateKey(PrivateKey privateKey)
       throws GeneralSecurityException, IOException {
+    Objects.requireNonNull(privateKey, "privateKey");
+    if (this.credentials == null) {
+      throw new IllegalStateException(
+          "setCredentials(...) must be called before setPrivateKey(...)");
+    }
     this.privateKey = privateKey;
     this.credentials =
         new Credentials(
@@ -95,12 +111,19 @@ public class RegistrarBuilder {
 
   /**
    * Supply the X.509 certificate chain used for DTLS connections from Pledge, in DTLS server role.
-   *
-   * @param certificateChain
-   * @return
+   * Requires {@link #setCredentials} to have been called first (the alias/password come from
+   * there).
    */
   public RegistrarBuilder setCertificateChain(X509Certificate[] certificateChain)
       throws GeneralSecurityException, IOException {
+    Objects.requireNonNull(certificateChain, "certificateChain");
+    if (certificateChain.length == 0) {
+      throw new IllegalArgumentException("certificateChain is empty");
+    }
+    if (this.credentials == null) {
+      throw new IllegalStateException(
+          "setCredentials(...) must be called before setCertificateChain(...)");
+    }
     this.certificateChain = certificateChain;
     this.credentials =
         new Credentials(
@@ -112,10 +135,8 @@ public class RegistrarBuilder {
   }
 
   /**
-   * Add a MASA certificate of a trusted MASA server. Only needed if 'setTrustAllMasas(true)' is not enabled.
-   *
-   * @param masaCertificate
-   * @return
+   * Add a MASA certificate of a trusted MASA server. Only needed if 'setTrustAllMasas(true)' is
+   * not enabled.
    */
   public RegistrarBuilder addMasaCertificate(X509Certificate masaCertificate) {
     masaCertificates.add(masaCertificate);
@@ -123,9 +144,8 @@ public class RegistrarBuilder {
   }
 
   /**
-   * Sets whether to trust ALL MASAs (true) or only MASAs for which certificates were added (false). By default, this is 'false'.
-   *
-   * @param status
+   * Sets whether to trust ALL MASAs (true) or only MASAs for which certificates were added
+   * (false). By default, this is 'false'.
    */
   public RegistrarBuilder setTrustAllMasas(boolean status) {
     this.isTrustAllMasas = status;
@@ -138,10 +158,10 @@ public class RegistrarBuilder {
   }
 
   /**
-   * Sets whether HTTPS is used to communicate with the MASA. This is usually the case (true). Only for testing situations HTTPS is set to 'false', in which case CoAP will be used.
+   * Sets whether HTTPS is used to communicate with the MASA. This is usually the case (true). Only
+   * for testing situations HTTPS is set to 'false', in which case CoAP will be used.
    *
    * @param isHttp true if HTTPS is to be used, false if COAPS is to be used.
-   * @return
    */
   public RegistrarBuilder setHttpToMasa(boolean isHttp) {
     this.isHttpToMasa = isHttp;
@@ -149,7 +169,8 @@ public class RegistrarBuilder {
   }
 
   /**
-   * return the number of supported/trusted MASA servers. Use addMasaCertificate() to add more trusted MASA servers.
+   * Return the number of supported/trusted MASA servers. Use addMasaCertificate() to add more
+   * trusted MASA servers.
    *
    * @return the number of MASA certificates that are considered trusted.
    */
@@ -158,12 +179,17 @@ public class RegistrarBuilder {
   }
 
   public Registrar build() throws RegistrarException, GeneralSecurityException {
+    if (credentials == null) {
+      throw new RegistrarException("Registrar credentials not set; call setCredentials() first");
+    }
     X509Certificate[] masaCerts = getMasaCertificates();
-    if (credentials == null
-        || (masaCerts.length == 0 && !isTrustAllMasas)
-        || (masaCerts.length > 0 && isTrustAllMasas)) {
+    if (masaCerts.length == 0 && !isTrustAllMasas) {
       throw new RegistrarException(
-          "bad or missing Registrar credentials, or misconfiguration of builder");
+          "no MASA trust anchors set and setTrustAllMasas(true) not configured");
+    }
+    if (masaCerts.length > 0 && isTrustAllMasas) {
+      throw new RegistrarException(
+          "MASA trust anchors set and setTrustAllMasas(true); these are mutually exclusive");
     }
     return new Registrar(
         credentials,
@@ -174,14 +200,6 @@ public class RegistrarBuilder {
   }
 
   private X509Certificate[] getMasaCertificates() {
-    return masaCertificates.toArray(new X509Certificate[masaCertificates.size()]);
+    return masaCertificates.toArray(new X509Certificate[0]);
   }
-
-  private PrivateKey privateKey;
-  private X509Certificate[] certificateChain;
-  private List<X509Certificate> masaCertificates;
-  private Credentials credentials, masaClientCredentials;
-  private int port = ConstantsBrski.DEFAULT_REGISTRAR_COAPS_PORT;
-  private boolean isHttpToMasa = true;
-  private boolean isTrustAllMasas = false;
 }
