@@ -39,6 +39,8 @@ public final class RegistrarMain {
 
   private static final Logger logger = LoggerFactory.getLogger(RegistrarMain.class);
 
+  private RegistrarMain() {}
+
   public static int startRegistrar(OtRegistrarConfig config) {
     Registrar registrar;
 
