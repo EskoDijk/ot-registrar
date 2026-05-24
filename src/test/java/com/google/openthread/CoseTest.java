@@ -50,16 +50,16 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CoseTest {
+public final class CoseTest {
 
-  private static String TEST_CREDENTIALS_STORAGE_FILE = "temp.credentials.store.p12";
-  private static byte[] TEST_CONTENT_BYTES = {1, 2, 3, 4, 5, 6, 50, 60, 70, 80, 90, 100, 110};
-  private static Logger logger = LoggerFactory.getLogger(CoseTest.class);
+  private static final String TEST_CREDENTIALS_STORAGE_FILE = "temp.credentials.store.p12";
+  private static final byte[] TEST_CONTENT_BYTES =
+      {1, 2, 3, 4, 5, 6, 50, 60, 70, 80, 90, 100, 110};
+  private static final Logger logger = LoggerFactory.getLogger(CoseTest.class);
 
   @AfterClass
-  public static void tearDown() throws Exception {
-    File fn = new File(TEST_CREDENTIALS_STORAGE_FILE);
-    fn.delete();
+  public static void tearDown() {
+    new File(TEST_CREDENTIALS_STORAGE_FILE).delete();
   }
 
   @Test
@@ -99,10 +99,10 @@ public class CoseTest {
     byte[] signature =
         SecurityUtils.genCoseSign1Message(
             key, SecurityUtils.COSE_SIGNATURE_ALGORITHM, TEST_CONTENT_BYTES);
-    logger.debug("Encoded COSE message: " + Hex.toHexString(signature));
+    logger.debug("Encoded COSE message: {}", Hex.toHexString(signature));
 
     Sign1Message msg = (Sign1Message) Message.DecodeFromBytes(signature, MessageTag.Sign1);
-    assert (msg.validate(new OneKey(cert.getPublicKey(), null)));
+    assertTrue(msg.validate(new OneKey(cert.getPublicKey(), null)));
   }
 
   @Test
@@ -120,16 +120,16 @@ public class CoseTest {
     byte[] signedMsg =
         SecurityUtils.genCoseSign1Message(
             signingKey, SecurityUtils.COSE_SIGNATURE_ALGORITHM, TEST_CONTENT_BYTES);
-    logger.debug("Encoded COSE message: " + Hex.toHexString(signedMsg));
+    logger.debug("Encoded COSE message: {}", Hex.toHexString(signedMsg));
 
     Sign1Message msg = (Sign1Message) Message.DecodeFromBytes(signedMsg, MessageTag.Sign1);
 
     // test that Pledge can validate the MASA CA's COSE object
-    assert (msg.validate(validationKey));
+    assertTrue(msg.validate(validationKey));
 
     // test that MASA CA can validate its own COSE object
     OneKey validationKey2 = new OneKey(credMasaCa.getPublicKey(), null);
-    assert (msg.validate(validationKey2));
+    assertTrue(msg.validate(validationKey2));
   }
 
   @Test
@@ -146,7 +146,7 @@ public class CoseTest {
     byte[] signedMsg =
         SecurityUtils.genCoseSign1Message(
             signingKey, SecurityUtils.COSE_SIGNATURE_ALGORITHM, TEST_CONTENT_BYTES);
-    logger.debug("Encoded COSE message: " + Hex.toHexString(signedMsg));
+    logger.debug("Encoded COSE message: {}", Hex.toHexString(signedMsg));
 
     // re-load Credentials from file
     credGen = new CredentialGenerator();
@@ -158,11 +158,11 @@ public class CoseTest {
     Sign1Message msg = (Sign1Message) Message.DecodeFromBytes(signedMsg, MessageTag.Sign1);
 
     // test that Pledge can validate MASA's signature
-    assert (msg.validate(validationKey));
+    assertTrue(msg.validate(validationKey));
 
     // test that MASA itself can validate MASA's signature
     OneKey validationKey2 = new OneKey(credMasaCa.getPublicKey(), null);
-    assert (msg.validate(validationKey2));
+    assertTrue(msg.validate(validationKey2));
   }
 
   /**
@@ -187,8 +187,6 @@ public class CoseTest {
     byte[] coseData2 = Hex.decode(coseHex2);
     byte[] coseDataPatched = Hex.decode(coseHexPatched);
     byte[] publicKeyAsn = Hex.decode(publicKeyAsnHex);
-
-    // logger.info(Hex.toHexString(convertDerToConcat(Hex.decode("3046022100CBDFF5E6270A4F94639CD12FB4D1BE312F5E3E88A44758135082D311A3155FF7022100DA8FD7BC42F1178BD1CE816D8C0FD6F819DD9CF52CF50BAA82252E1DE23FAD6D"), 32)));
 
     // decode Cose-Sign1 messages
     Sign1Message msg = (Sign1Message) Message.DecodeFromBytes(coseData, MessageTag.Sign1);
