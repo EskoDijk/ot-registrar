@@ -43,11 +43,16 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyStore;
+import java.security.PrivateKey;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -99,10 +104,27 @@ public class CredentialGenerator extends CredentialsSet {
   public static final String CREDENTIALS_FILE_HONEYDUKES = "credentials/honeydukes/credentials.p12";
 
   private String masaUri = Constants.DEFAULT_MASA_URI;
-  private KeyPair DUMMY_KEYPAIR = SecurityUtils.genKeyPair();
+  private KeyPair dummyKeyPair; // lazily allocated by getDummyKeyPair()
   private boolean isIncludeExtKeyUsage = true;
-  private static int pledgeSerialNumber = 9528;
-  private static Logger logger = LoggerFactory.getLogger(CredentialGenerator.class);
+  private int pledgeSerialNumber = 9528;
+  private static final Logger logger = LoggerFactory.getLogger(CredentialGenerator.class);
+
+  /**
+   * Lazily-allocated EC key pair used as a stand-in when {@link #make} loads a
+   * certificate file without an accompanying private key file. Only created on
+   * first use so that the common case (everything generated, or everything
+   * supplied with keys) doesn't pay for an unused keygen.
+   */
+  private KeyPair getDummyKeyPair() {
+    if (dummyKeyPair == null) {
+      try {
+        dummyKeyPair = SecurityUtils.genKeyPair();
+      } catch (Exception e) {
+        throw new IllegalStateException("dummy key pair generation failed", e);
+      }
+    }
+    return dummyKeyPair;
+  }
 
   public CredentialGenerator() throws Exception {
     super(CredentialGenerator.PASSWORD);
@@ -304,11 +326,11 @@ public class CredentialGenerator extends CredentialsSet {
 
     // MASA CA
     if (masaCaCertKeyFiles != null) {
-      masaCaCert = loadCertAndLogErrors(masaCaCertKeyFiles[0]);
+      masaCaCert = loadCertFromPemFile(masaCaCertKeyFiles[0]);
       if (masaCaCertKeyFiles.length > 1) {
-        masaCaKeyPair = loadPrivateKeyAndLogErrors(masaCaCert, masaCaCertKeyFiles[1]);
+        masaCaKeyPair = loadPrivateKeyFromPemFile(masaCaCert, masaCaCertKeyFiles[1]);
       } else {
-        masaCaKeyPair = DUMMY_KEYPAIR;
+        masaCaKeyPair = getDummyKeyPair();
       }
     } else {
       masaCaKeyPair = SecurityUtils.genKeyPair();
@@ -321,11 +343,11 @@ public class CredentialGenerator extends CredentialsSet {
     X509Certificate cert;
     KeyPair keyPair;
     if (masaCertKeyFiles != null) {
-      cert = loadCertAndLogErrors(masaCertKeyFiles[0]);
+      cert = loadCertFromPemFile(masaCertKeyFiles[0]);
       if (masaCertKeyFiles.length > 1) {
-        keyPair = loadPrivateKeyAndLogErrors(cert, masaCertKeyFiles[1]);
+        keyPair = loadPrivateKeyFromPemFile(cert, masaCertKeyFiles[1]);
       } else {
-        keyPair = DUMMY_KEYPAIR;
+        keyPair = getDummyKeyPair();
       }
     } else {
       keyPair = SecurityUtils.genKeyPair();
@@ -345,8 +367,8 @@ public class CredentialGenerator extends CredentialsSet {
     X509Certificate domaincaCert;
     KeyPair domaincaKeyPair;
     if (domaincaCertKeyFiles != null) {
-      domaincaCert = loadCertAndLogErrors(domaincaCertKeyFiles[0]);
-      domaincaKeyPair = loadPrivateKeyAndLogErrors(domaincaCert, domaincaCertKeyFiles[1]);
+      domaincaCert = loadCertFromPemFile(domaincaCertKeyFiles[0]);
+      domaincaKeyPair = loadPrivateKeyFromPemFile(domaincaCert, domaincaCertKeyFiles[1]);
     } else {
       domaincaKeyPair = SecurityUtils.genKeyPair();
       domaincaCert = genSelfSignedCert(domaincaKeyPair, DOMAINCA_DNAME);
@@ -356,8 +378,8 @@ public class CredentialGenerator extends CredentialsSet {
 
     // Registrar
     if (registrarCertKeyFiles != null) {
-      cert = loadCertAndLogErrors(registrarCertKeyFiles[0]);
-      keyPair = loadPrivateKeyAndLogErrors(cert, registrarCertKeyFiles[1]);
+      cert = loadCertFromPemFile(registrarCertKeyFiles[0]);
+      keyPair = loadPrivateKeyFromPemFile(cert, registrarCertKeyFiles[1]);
     } else {
       keyPair = SecurityUtils.genKeyPair();
       cert =
@@ -398,8 +420,8 @@ public class CredentialGenerator extends CredentialsSet {
         new HardwareModuleName(ConstantsBrski.PRIVATE_HARDWARE_TYPE_OID, sn.getBytes());
 
     if (pledgeCertKeyFiles != null) {
-      pledgeCert = loadCertAndLogErrors(pledgeCertKeyFiles[0]);
-      pledgeKeyPair = loadPrivateKeyAndLogErrors(pledgeCert, pledgeCertKeyFiles[1]);
+      pledgeCert = loadCertFromPemFile(pledgeCertKeyFiles[0]);
+      pledgeKeyPair = loadPrivateKeyFromPemFile(pledgeCert, pledgeCertKeyFiles[1]);
     } else {
       pledgeKeyPair = SecurityUtils.genKeyPair();
       pledgeCert =
@@ -427,44 +449,24 @@ public class CredentialGenerator extends CredentialsSet {
   }
 
   /**
-   * load a certificate PEM from file and log any load/parse errors to the log. Any exception is thrown to caller.
+   * Load a certificate PEM from file.
    *
-   * @param fn
-   * @return
-   * @throws IOException
-   * @throws CertificateException
+   * @param fn the PEM file path
    */
-  protected X509Certificate loadCertAndLogErrors(String fn)
+  protected X509Certificate loadCertFromPemFile(String fn)
       throws IOException, CertificateException {
-    try {
-      Reader reader = new FileReader(fn);
-      X509Certificate cert = SecurityUtils.parseCertFromPem(reader);
-      return cert;
-    } catch (IOException ex) {
-      logger.error("Could not read PEM cert file: " + fn, ex);
-      throw (ex);
-    } catch (CertificateException ex) {
-      logger.error("Certificate parsing error in cert file: " + fn, ex);
-      throw (ex);
+    try (Reader reader = new FileReader(fn, StandardCharsets.UTF_8)) {
+      return SecurityUtils.parseCertFromPem(reader);
     }
   }
 
   /**
-   * load the private key PEM file in 'fn' and combine this with the public key in 'cert', to return the combined KeyPair. Any errors in load/parse are logged and any exceptions are thrown up.
-   *
-   * @param cert
-   * @param fn
-   * @return
+   * Load a private-key PEM file and combine it with the public key in {@code cert} to return the
+   * resulting {@link KeyPair}.
    */
-  protected KeyPair loadPrivateKeyAndLogErrors(X509Certificate cert, String fn) throws IOException {
-    try {
-      Reader reader = new FileReader(fn);
-      KeyPair keypair =
-          new KeyPair(cert.getPublicKey(), SecurityUtils.parsePrivateKeyFromPem(reader));
-      return keypair;
-    } catch (IOException ex) {
-      logger.error("Could not read PEM cert file: " + fn, ex);
-      throw (ex);
+  protected KeyPair loadPrivateKeyFromPemFile(X509Certificate cert, String fn) throws IOException {
+    try (Reader reader = new FileReader(fn, StandardCharsets.UTF_8)) {
+      return new KeyPair(cert.getPublicKey(), SecurityUtils.parsePrivateKeyFromPem(reader));
     }
   }
 
@@ -513,33 +515,33 @@ public class CredentialGenerator extends CredentialsSet {
         MASACA_ALIAS, MASA_ALIAS, PLEDGE_ALIAS, DOMAINCA_ALIAS, REGISTRAR_ALIAS, COMMISSIONER_ALIAS
     };
 
-    for (int i = 0; i < files.length; ++i) {
-      String alias = files[i];
+    for (String alias : files) {
       KeyPair kp = getCredentials(alias).getKeyPair();
       X509Certificate cert = getCredentials(alias).getCertificate();
-      File kf = new File(files[i] + "_private.pem");
-      kf.createNewFile();
-      try (OutputStream os = new FileOutputStream(kf, false)) {
-        JcaPEMWriter writer = new JcaPEMWriter(new PrintWriter(os));
-        writer.writeObject(kp.getPrivate());
-        writer.close();
 
-        // Verify the key in PEM file TODO
-        // PrivateKey pk = parsePrivateKey(kf.getName());
-        // if (!Arrays.equals(pk.getEncoded(), keys[i].getPrivate().getEncoded())) {
-        //    throw new UnrecoverableKeyException("bad private key in PEM file");
-        // }
+      File kf = new File(alias + "_private.pem");
+      try (OutputStream os = new FileOutputStream(kf, false);
+          JcaPEMWriter writer = new JcaPEMWriter(new PrintWriter(os))) {
+        writer.writeObject(kp.getPrivate());
+      }
+      // Round-trip the just-written private-key PEM and confirm the encoding matches.
+      try (Reader reader = new FileReader(kf, StandardCharsets.UTF_8)) {
+        PrivateKey roundTripped = SecurityUtils.parsePrivateKeyFromPem(reader);
+        if (!Arrays.equals(roundTripped.getEncoded(), kp.getPrivate().getEncoded())) {
+          throw new UnrecoverableKeyException("bad private key in PEM file: " + kf.getName());
+        }
       }
 
-      File cf = new File(files[i] + "_cert.pem");
-      cf.createNewFile();
-      try (OutputStream os = new FileOutputStream(cf, false)) {
-        JcaPEMWriter writer = new JcaPEMWriter(new PrintWriter(os));
+      File cf = new File(alias + "_cert.pem");
+      try (OutputStream os = new FileOutputStream(cf, false);
+          JcaPEMWriter writer = new JcaPEMWriter(new PrintWriter(os))) {
         writer.writeObject(cert);
-        writer.close();
-
-        // Verify the cert in PEM file TODO
-        // X509Certificate cert = parseCertificate(cf.getName());
+      }
+      try (Reader reader = new FileReader(cf, StandardCharsets.UTF_8)) {
+        X509Certificate roundTripped = SecurityUtils.parseCertFromPem(reader);
+        if (!Arrays.equals(roundTripped.getEncoded(), cert.getEncoded())) {
+          throw new CertificateEncodingException("bad certificate in PEM file: " + cf.getName());
+        }
       }
     }
   }
