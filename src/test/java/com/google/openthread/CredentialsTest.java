@@ -34,6 +34,9 @@ import com.google.openthread.tools.CredentialGenerator;
 import java.io.File;
 import java.io.Reader;
 import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.cert.CertPath;
 import java.security.cert.CertPathValidator;
 import java.security.cert.CertPathValidatorException;
@@ -61,28 +64,32 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-public class CredentialsTest {
+public final class CredentialsTest {
 
-  public static final String KEY_STORE_FILE = "test-credentials.temp.p12";
+  private static final int CERT_MAX_BYTES = 1024;
+  private static final int PUBKEY_MAX_BYTES = 256;
+
+  private static String keyStoreFile;
   private static String pledgeSn;
 
   @BeforeClass
   public static void createCredentialFile() throws Exception {
+    File tmp = File.createTempFile("test-credentials", ".p12");
+    keyStoreFile = tmp.getAbsolutePath();
     CredentialGenerator cg = new CredentialGenerator();
     cg.make(null, null, null, null, null);
-    cg.store(KEY_STORE_FILE);
+    cg.store(keyStoreFile);
     pledgeSn = cg.getPledgeSerialNumber();
   }
 
   @AfterClass
-  public static void cleanCredentialFile() {
-    File f = new File(KEY_STORE_FILE);
-    Assert.assertTrue(f.delete());
+  public static void cleanCredentialFile() throws Exception {
+    Files.deleteIfExists(Path.of(keyStoreFile));
   }
 
   @Test
   public void testASN1() throws Exception {
-    byte[] hardwareModuleName = "OT-9527".getBytes();
+    byte[] hardwareModuleName = "OT-9527".getBytes(StandardCharsets.UTF_8);
     ASN1EncodableVector v = new ASN1EncodableVector();
     v.add(new ASN1ObjectIdentifier(ConstantsBrski.HARDWARE_MODULE_NAME_OID));
     v.add(new DEROctetString(hardwareModuleName));
@@ -90,6 +97,7 @@ public class CredentialsTest {
         new GeneralNames(new GeneralName(GeneralName.otherName, new DERSequence(v)))
             .getEncoded(ASN1Encoding.DER);
     GeneralNames names = GeneralNames.getInstance(encoded);
+    Assert.assertEquals(1, names.getNames().length);
     for (GeneralName name : names.getNames()) {
       Assert.assertEquals(GeneralName.otherName, name.getTagNo());
       ASN1Sequence seq = DERSequence.getInstance(name.getName());
@@ -101,13 +109,13 @@ public class CredentialsTest {
 
   @Test
   public void testDomainCredentials() throws Exception {
-    Credentials domainCred = new Credentials(KEY_STORE_FILE, CredentialGenerator.DOMAINCA_ALIAS, CredentialGenerator.PASSWORD);
-    Credentials registrarCred = new Credentials(KEY_STORE_FILE, CredentialGenerator.REGISTRAR_ALIAS, CredentialGenerator.PASSWORD);
+    Credentials domainCred = new Credentials(keyStoreFile, CredentialGenerator.DOMAINCA_ALIAS, CredentialGenerator.PASSWORD);
+    Credentials registrarCred = new Credentials(keyStoreFile, CredentialGenerator.REGISTRAR_ALIAS, CredentialGenerator.PASSWORD);
 
     Assert.assertEquals(3, domainCred.getCertificate().getVersion());
     Assert.assertEquals(3, registrarCred.getCertificate().getVersion());
-    Assert.assertTrue(registrarCred.getCertificate().getEncoded().length < 1024);
-    Assert.assertTrue(registrarCred.getCertificate().getPublicKey().getEncoded().length < 1024);
+    Assert.assertTrue(registrarCred.getCertificate().getEncoded().length < CERT_MAX_BYTES);
+    Assert.assertTrue(registrarCred.getCertificate().getPublicKey().getEncoded().length < PUBKEY_MAX_BYTES);
     Assert.assertEquals(2, registrarCred.getCertificateChain().length);
 
     Assert.assertEquals(registrarCred.getCertificate().getIssuerX500Principal(), domainCred.getCertificate().getSubjectX500Principal());
@@ -117,21 +125,21 @@ public class CredentialsTest {
 
   @Test
   public void testMASACredentials() throws Exception {
-    Credentials masaCred = new Credentials(KEY_STORE_FILE, CredentialGenerator.MASACA_ALIAS, CredentialGenerator.PASSWORD);
-    Credentials pledgeCred = new Credentials(KEY_STORE_FILE, CredentialGenerator.PLEDGE_ALIAS, CredentialGenerator.PASSWORD);
+    Credentials masaCred = new Credentials(keyStoreFile, CredentialGenerator.MASACA_ALIAS, CredentialGenerator.PASSWORD);
+    Credentials pledgeCred = new Credentials(keyStoreFile, CredentialGenerator.PLEDGE_ALIAS, CredentialGenerator.PASSWORD);
 
-    Assert.assertEquals(SecurityUtils.getMasaUri(pledgeCred.getCertificate()), Constants.DEFAULT_MASA_URI);
+    Assert.assertEquals(Constants.DEFAULT_MASA_URI, SecurityUtils.getMasaUri(pledgeCred.getCertificate()));
     Assert.assertEquals(2, pledgeCred.getCertificateChain().length);
 
     pledgeCred.getCertificate().verify(masaCred.getCertificate().getPublicKey());
 
     String pledgeSN = SecurityUtils.getSerialNumber(pledgeCred.getCertificate());
     Assert.assertNotNull(pledgeSN);
-    Assert.assertEquals(pledgeSN, pledgeSn);
+    Assert.assertEquals(pledgeSn, pledgeSN);
     HardwareModuleName hwsn = SecurityUtils.getHWModuleName(pledgeCred.getCertificate());
 
     Assert.assertNotNull(hwsn);
-    Assert.assertEquals(new String(hwsn.getSerialNumber().getOctets()), pledgeSn);
+    Assert.assertEquals(pledgeSn, new String(hwsn.getSerialNumber().getOctets(), StandardCharsets.UTF_8));
   }
 
   @Test
@@ -167,7 +175,7 @@ public class CredentialsTest {
 
   @Test(expected = CertPathValidatorException.class)
   public void testRegistrarCertChainValidationWithSelfFails() throws Exception {
-    Credentials registrarCred = new Credentials(KEY_STORE_FILE, CredentialGenerator.REGISTRAR_ALIAS, CredentialGenerator.PASSWORD);
+    Credentials registrarCred = new Credentials(keyStoreFile, CredentialGenerator.REGISTRAR_ALIAS, CredentialGenerator.PASSWORD);
     X509Certificate cert = registrarCred.getCertificate();
 
     Set<TrustAnchor> trustAnchors = new HashSet<>();
