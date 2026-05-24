@@ -1,4 +1,4 @@
- #!/bin/bash
+#!/bin/bash
 #
 #  Copyright (c) 2022, The OpenThread Registrar Authors.
 #  All rights reserved.
@@ -26,11 +26,11 @@
 #  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #  POSSIBILITY OF SUCH DAMAGE.
 #
- CREDS=./credentials/ietf-draft-constrained-brski
- echo "Creating .p12 keystore file for credentials in $CREDS ..."
- ./script/helper-cp-run.sh com.google.openthread.tools.CredentialGenerator \
-              -c $CREDS/domain_ca.pem $CREDS/privkey_domain_ca.pem \
-              -r $CREDS/registrar.pem $CREDS/privkey_registrar.pem \
-              -m $CREDS/masa_ca.pem $CREDS/privkey_masa_ca.pem \
-              -p $CREDS/pledge.pem $CREDS/privkey_pledge.pem \
-              -o ./credentials/keystore_ietf-draft-constrained-brski.p12
+CREDS=./credentials/ietf-draft-constrained-brski
+echo "Creating .p12 keystore file for credentials in $CREDS ..."
+./script/helper-cp-run.sh com.google.openthread.tools.CredentialGenerator \
+    -c $CREDS/domain_ca.pem $CREDS/privkey_domain_ca.pem \
+    -r $CREDS/registrar.pem $CREDS/privkey_registrar.pem \
+    -m $CREDS/masa_ca.pem $CREDS/privkey_masa_ca.pem \
+    -p $CREDS/pledge.pem $CREDS/privkey_pledge.pem \
+    -o ./credentials/keystore_ietf-draft-constrained-brski.p12

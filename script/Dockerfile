@@ -50,7 +50,4 @@ COPY . .
 # FIXME check if it should be CMD or SHELL; and if the 'bash' part should be split off.
 CMD ./script/run-servers.sh && bash
 
-# TODO: enable ports to let Registrar receive external traffic (5684).
-EXPOSE 5683:5683/udp
-EXPOSE 5684:5684/udp
-EXPOSE 5685:5685/udp
+EXPOSE 5683/udp 5684/udp 5685/udp

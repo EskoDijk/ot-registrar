@@ -40,7 +40,7 @@ if [ ! -f /etc/docker/daemon.json ]; then
 fi
 
 # Create docker image if not existing yet
-if ! $(sudo docker image ls | grep -q "${IMAGE_NAME}"); then
+if ! sudo docker images -q "${IMAGE_NAME}:${VERSION}" | grep -q .; then
     # Building package
     echo "building OT Registrar package..."
     mvn clean -Dmaven.test.skip=true package

@@ -49,14 +49,14 @@ install_toolchain() {
         }
     elif [ $(uname) = "Darwin" ]; then
         echo "OS is Darwin"
-        has_command java || brew cask install java
+        has_command java || brew install --cask java
         has_command mvn || brew install maven
     else
         echo "platform $(uname) is not fully supported"
         exit 1
     fi
     java -version
-    mvn -verion
+    mvn -version
 }
 
 install_toolchain
