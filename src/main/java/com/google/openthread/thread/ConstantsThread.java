@@ -31,12 +31,17 @@ package com.google.openthread.thread;
 /**
  * Thread or OpenThread specific constants are defined here.
  */
-public class ConstantsThread {
+public final class ConstantsThread {
+
+  private ConstantsThread() {}
 
   // --- OID items
-  public static final String THREAD_DOMAIN_NAME_OID = "1.3.6.1.4.1.44970.1"; // per Thread 1.4 spec
 
-  // -- Other items
+  // OID for the Thread Domain Name X.509 extension, per Thread 1.4 spec.
+  public static final String THREAD_DOMAIN_NAME_OID = "1.3.6.1.4.1.44970.1";
+
+  // --- Other items
+
   // Default Thread Domain Name per Thread 1.4 spec. Must not be changed, unless spec changes.
   public static final String THREAD_DOMAIN_NAME_DEFAULT = "DefaultDomain";
 }

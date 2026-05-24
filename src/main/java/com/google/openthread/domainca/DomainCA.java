@@ -82,7 +82,7 @@ public final class DomainCA {
   private static final Logger logger = LoggerFactory.getLogger(DomainCA.class);
 
   protected static final ASN1ObjectIdentifier THREAD_DOMAIN_NAME_OID_ASN1 =
-      new ASN1ObjectIdentifier(ConstantsThread.THREAD_DOMAIN_NAME_OID); // per Thread 1.2 spec
+      new ASN1ObjectIdentifier(ConstantsThread.THREAD_DOMAIN_NAME_OID);
 
   private static final X509ExtensionUtils EXT_UTILS = new BcX509ExtensionUtils();
 

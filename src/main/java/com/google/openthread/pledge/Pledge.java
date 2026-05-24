@@ -106,7 +106,7 @@ public final class Pledge extends CoapClient {
   private static final Logger logger = LoggerFactory.getLogger(Pledge.class);
 
   protected static final ASN1ObjectIdentifier THREAD_DOMAIN_NAME_OID_ASN1 =
-      new ASN1ObjectIdentifier(ConstantsThread.THREAD_DOMAIN_NAME_OID); // per Thread 1.2 spec
+      new ASN1ObjectIdentifier(ConstantsThread.THREAD_DOMAIN_NAME_OID);
 
   private static final SecureRandom NONCE_RNG = new SecureRandom();
 
