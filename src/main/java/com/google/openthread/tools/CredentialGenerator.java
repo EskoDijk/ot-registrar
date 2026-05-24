@@ -76,7 +76,17 @@ import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CredentialGenerator extends CredentialsSet {
+public final class CredentialGenerator extends CredentialsSet {
+
+  private static final String HELP_FORMAT =
+      "\n"
+          + "CredentialGenerator [-c <domain-ca-cert> <domain-ca-key>]\n"
+          + "[-r <registrar-cert> <registrar-key>]\n"
+          + "[-p <pledge-cert> <pledge-key>]\n"
+          + "[-ms <masa-server-cert> <masa-server-key>]\n"
+          + "[-m <masa-ca-cert> <masa-ca-key>]\n"
+          + "[-u <masa-uri>]\n"
+          + "[-d] -o <output-file>\n";
 
   public static final String PASSWORD = "OpenThread";
 
@@ -156,7 +166,7 @@ public class CredentialGenerator extends CredentialsSet {
             true,
             new KeyUsage(KeyUsage.digitalSignature | KeyUsage.keyCertSign | KeyUsage.cRLSign)
                 .getEncoded());
-    List<Extension> extensions = new ArrayList<Extension>();
+    List<Extension> extensions = new ArrayList<>();
     extensions.add(keyUsage);
     return SecurityUtils.genCertificate(
         keyPair, dname, keyPair, new X500Name(dname), true, extensions);
@@ -292,7 +302,7 @@ public class CredentialGenerator extends CredentialsSet {
     Extension san =
         new Extension(Extension.subjectAlternativeName, false, subjectAltName.getEncoded());
 
-    List<Extension> extensions = new ArrayList<Extension>();
+    List<Extension> extensions = new ArrayList<>();
     extensions.add(keyUsage);
     extensions.add(extKeyUsage);
     extensions.add(san);
@@ -503,9 +513,7 @@ public class CredentialGenerator extends CredentialsSet {
 
     KeyStore ks = this.getKeyStore();
 
-    File file = new File(filename);
-    file.createNewFile();
-    try (OutputStream os = new FileOutputStream(file, false)) {
+    try (OutputStream os = new FileOutputStream(filename, false)) {
       ks.store(os, password);
     }
   }
@@ -547,13 +555,6 @@ public class CredentialGenerator extends CredentialsSet {
   }
 
   public static void main(String[] args) {
-    final String HELP_FORMAT =
-        "\n"
-            + "CredentialGenerator [-c <domain-ca-cert> <domain-ca-key>]\n[-r <registrar-cert> <registrar-key>]\n[-p <pledge-cert> <pledge-key>]\n"
-            + "[-ms <masa-server-cert> <masa-server-key>]\n"
-            + "[-m <masa-ca-cert> <masa-ca-key>]\n[-u <masa-uri>]\n[-d] -o <output-file>\n"
-            + "";
-
     HelpFormatter helper = new HelpFormatter();
     Options options = new Options();
 
@@ -647,12 +648,11 @@ public class CredentialGenerator extends CredentialsSet {
         throw new IllegalArgumentException("need to specify keystore file!");
       }
 
+      CredentialGenerator cg = new CredentialGenerator();
       String masaUri = cmd.getOptionValue('u');
       if (masaUri != null) {
-        throw new Exception("MASA URI option not yet implemented.");
+        cg.setMasaUri(masaUri);
       }
-
-      CredentialGenerator cg = new CredentialGenerator();
       cg.make(
           cmd.getOptionValues("c"),
           cmd.getOptionValues("m"),
@@ -668,7 +668,7 @@ public class CredentialGenerator extends CredentialsSet {
       System.err.println("error: " + e.getMessage());
       e.printStackTrace();
       helper.printHelp(HELP_FORMAT, options);
-      return;
+      System.exit(1);
     }
   }
 }
