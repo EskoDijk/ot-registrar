@@ -28,14 +28,13 @@
 
 package com.google.openthread.brski;
 
-import java.text.ParseException;
 import java.util.Date;
 import org.bouncycastle.util.encoders.Base64;
 import org.bouncycastle.util.encoders.Hex;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class VoucherTest {
+public final class VoucherTest {
 
   @Test
   public void testYoungDate() throws Exception {
@@ -64,6 +63,8 @@ public class VoucherTest {
     Assert.assertEquals(v1.getAssertion(), v2.getAssertion());
     Assert.assertEquals(v1.getSerialNumber(), v2.getSerialNumber());
     Assert.assertArrayEquals(v1.getPinnedDomainCert(), v2.getPinnedDomainCert());
+    Assert.assertEquals(v1.getCreatedOn().getTime(), v2.getCreatedOn().getTime());
+    Assert.assertEquals(v1.getExpiresOn().getTime(), v2.getExpiresOn().getTime());
 
     data = new JSONSerializer().serialize(v1);
     Voucher v3 = new JSONSerializer().deserialize(data);
@@ -72,6 +73,8 @@ public class VoucherTest {
     Assert.assertEquals(v1.getAssertion(), v3.getAssertion());
     Assert.assertEquals(v1.getSerialNumber(), v3.getSerialNumber());
     Assert.assertArrayEquals(v1.getPinnedDomainCert(), v3.getPinnedDomainCert());
+    Assert.assertEquals(v1.getCreatedOn().getTime(), v3.getCreatedOn().getTime());
+    Assert.assertEquals(v1.getExpiresOn().getTime(), v3.getExpiresOn().getTime());
   }
 
   @Test
@@ -118,6 +121,8 @@ public class VoucherTest {
     Assert.assertEquals(cv1.getAssertion(), cv2.getAssertion());
     Assert.assertEquals(cv1.getSerialNumber(), cv2.getSerialNumber());
     Assert.assertArrayEquals(cv1.getPinnedDomainSPKI(), cv2.getPinnedDomainSPKI());
+    Assert.assertEquals(cv1.getCreatedOn().getTime(), cv2.getCreatedOn().getTime());
+    Assert.assertEquals(cv1.getExpiresOn().getTime(), cv2.getExpiresOn().getTime());
   }
 
   @Test
@@ -154,7 +159,7 @@ public class VoucherTest {
     Assert.assertEquals(Voucher.Assertion.PROXIMITY, cvr.getAssertion());
     Assert.assertEquals("JADA123456789", cvr.getSerialNumber());
     Assert.assertEquals(633, cvr.getProximityRegistrarSPKI().length);
-    Assert.assertEquals(cvr.getCreatedOn(), Voucher.dateFromYoungFormat("2016-10-07T19:31:42Z"));
+    Assert.assertEquals(Voucher.dateFromYoungFormat("2016-10-07T19:31:42Z"), cvr.getCreatedOn());
   }
 
   @Test
