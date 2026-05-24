@@ -24,12 +24,10 @@ package com.google.openthread.tools;
 import COSE.MessageTag;
 import COSE.OneKey;
 import COSE.Sign1Message;
+import com.google.openthread.SecurityUtils;
 import com.upokecenter.cbor.CBORObject;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
 import java.nio.file.Files;
-import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,13 +36,13 @@ import org.slf4j.LoggerFactory;
  * Tool (CLI) to validate COSE_Sign1 signature, loading the COSE from binary .cbor file; and loading
  * the signer's certificate from either binary DER .crt / .der or PEM file.
  */
-public class CoseValidator {
+public final class CoseValidator {
 
-  private static Logger logger = LoggerFactory.getLogger(CredentialGenerator.class);
+  private static final Logger logger = LoggerFactory.getLogger(CoseValidator.class);
 
   public CoseValidator() {}
 
-  public static void main(String[] args) throws Exception {
+  public static void main(String[] args) {
 
     if (args.length != 2) {
       System.out.println("CoseValidator");
@@ -55,7 +53,7 @@ public class CoseValidator {
     try {
       CoseValidator app = new CoseValidator();
       CBORObject c = app.loadCborFile(args[0]);
-      X509Certificate cert = app.loadX509Certificate(args[1]);
+      X509Certificate cert = SecurityUtils.loadX509Certificate(args[1]);
       if (app.validateCose(c, cert)) {
         System.out.println("COSE object validated ok against signer identity.");
       } else {
@@ -66,34 +64,20 @@ public class CoseValidator {
     }
   }
 
-  public X509Certificate loadX509Certificate(String fn) throws Exception {
-    CertificateFactory cf = CertificateFactory.getInstance("X.509");
-    InputStream in = null;
-    try {
-      in = new FileInputStream(fn);
-      X509Certificate cert = (X509Certificate) cf.generateCertificate(in);
-      return cert;
-    } finally {
-      if (in != null) in.close();
-    }
-  }
-
   public CBORObject loadCborFile(String fn) throws Exception {
-    byte[] b;
-    b = Files.readAllBytes((new File(fn)).toPath());
+    byte[] b = Files.readAllBytes(new File(fn).toPath());
     CBORObject c = CBORObject.DecodeFromBytes(b);
-    // logger.debug("Loaded CBOR object file "+fn+": " + b.length + " bytes.");
+    logger.debug("Loaded CBOR object file {}: {} bytes.", fn, b.length);
     return c;
   }
 
   public boolean validateCose(CBORObject cose, X509Certificate cert) {
     try {
       OneKey pubKey = new OneKey(cert.getPublicKey(), null);
-      logger.info("Validating COSE_Sign1 object against public key: " + pubKey.AsCBOR().toString());
+      logger.info("Validating COSE_Sign1 object against public key: {}", pubKey.AsCBOR());
       Sign1Message msg =
           (Sign1Message) Sign1Message.DecodeFromBytes(cose.EncodeToBytes(), MessageTag.Sign1);
-      boolean isOk = msg.validate(pubKey);
-      return isOk;
+      return msg.validate(pubKey);
     } catch (Exception ex) {
       logger.error("Validation failed", ex);
     }
