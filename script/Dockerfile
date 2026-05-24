@@ -39,9 +39,9 @@ WORKDIR /home/ot-registrar
 
 COPY . .
 
-# Shell-form CMD is intentional: we run a server-launcher and then drop into
-# bash to keep the container alive interactively. The Docker JSON-args
-# recommendation does not apply when we deliberately want shell features.
-CMD ./script/run-servers.sh && bash
+# Use exec-form CMD with an explicit bash invocation so the JSONArgsRecommended
+# lint passes while we still get the '&&' chain and the interactive shell that
+# keeps the container alive.
+CMD ["/bin/bash", "-c", "./script/run-servers.sh && bash"]
 
 EXPOSE 5683/udp 5684/udp 5685/udp
