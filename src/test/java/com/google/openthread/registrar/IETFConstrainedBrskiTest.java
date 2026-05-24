@@ -28,15 +28,20 @@
 
 package com.google.openthread.registrar;
 
-import com.google.openthread.brski.*;
-import com.google.openthread.domainca.*;
-import com.google.openthread.masa.*;
-import com.google.openthread.pledge.*;
+import com.google.openthread.brski.ConstantsBrski;
+import com.google.openthread.brski.Voucher;
+import com.google.openthread.domainca.DomainCA;
+import com.google.openthread.masa.MASA;
+import com.google.openthread.pledge.Pledge;
 import com.google.openthread.pledge.Pledge.CertState;
-import com.google.openthread.tools.*;
+import com.google.openthread.tools.CredentialGenerator;
 import org.bouncycastle.util.encoders.Hex;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +49,9 @@ import org.slf4j.LoggerFactory;
  * This test code is to specifically produce the COSE examples in the Appendix of IETF draft
  * "Constrained BRSKI" - see https://datatracker.ietf.org/doc/html/draft-ietf-anima-constrained-voucher
  */
-public class IETFConstrainedBrskiTest {
+public final class IETFConstrainedBrskiTest {
+
+  private static final Logger logger = LoggerFactory.getLogger(IETFConstrainedBrskiTest.class);
 
   public static final String REGISTRAR_URI = "coaps://[::1]:" + ConstantsBrski.DEFAULT_REGISTRAR_COAPS_PORT;
   public static final String THREAD_DOMAIN_NAME = "Thread-Test";
@@ -56,21 +63,13 @@ public class IETFConstrainedBrskiTest {
   private Pledge pledge;
   private MASA masa;
 
-  // credentials used
+  // credentials used (loaded once in @BeforeClass)
   private static CredentialGenerator cg;
-
-  // log object
-  private static Logger logger = LoggerFactory.getLogger(IETFConstrainedBrskiTest.class);
 
   @BeforeClass
   public static void setup() throws Exception {
-    // loaded credentials set
     cg = new CredentialGenerator();
     cg.load(CREDENTIALS_KEYSTORE_FILE);
-  }
-
-  @AfterClass
-  public static void tearDown() {
   }
 
   @Before
@@ -81,6 +80,10 @@ public class IETFConstrainedBrskiTest {
     initEntities(cg);
   }
 
+  // TODO: support pinning a single MASA CA here instead of trusting all. Replace
+  //   setTrustAllMasas(true) with .addMasaCertificate(
+  //     cg.getCredentials(CredentialGenerator.MASACA_ALIAS).getCertificate())
+  //   once the test scenarios distinguish trust modes.
   protected void initEntities(CredentialGenerator credGen) throws Exception {
     masa =
         new MASA(
@@ -96,8 +99,7 @@ public class IETFConstrainedBrskiTest {
     registrar =
         registrarBuilder
             .setCredentials(credGen.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
-            // .addMasaCertificate(cg.masaCaCert)   // enable this, to trust a single MASA CA only
-            .setTrustAllMasas(true) // or enable this, to trust all MASAs.
+            .setTrustAllMasas(true)
             .build();
     registrar.setDomainCA(domainCA);
     registrar.setForcedMasaUri("localhost:" + ConstantsBrski.DEFAULT_MASA_HTTPS_PORT); // force localhost, don't use MASA URI in Pledge IDevID
@@ -113,9 +115,9 @@ public class IETFConstrainedBrskiTest {
     masa.stop();
   }
 
-  private void VerifyPledge(Pledge pledge) {
-    Assert.assertNotEquals(pledge.getState(), CertState.NO_CONTACT);
-    Assert.assertNotEquals(pledge.getState(), CertState.PROVISIONALLY_ACCEPT);
+  private void verifyPledge(Pledge pledge) {
+    Assert.assertNotEquals(CertState.NO_CONTACT, pledge.getState());
+    Assert.assertNotEquals(CertState.PROVISIONALLY_ACCEPT, pledge.getState());
   }
 
   @Test
@@ -123,17 +125,20 @@ public class IETFConstrainedBrskiTest {
     // let Pledge create a PVR and get Voucher.
     Voucher voucher = pledge.requestVoucher();
     Assert.assertTrue(voucher.validate());
-    VerifyPledge(pledge);
+    verifyPledge(pledge);
     Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
 
     // display the artifacts.
-    logger.info("Pledge Voucher Request (PVR) sent by Pledge:\n" + pledge.getLastPvr().toString());
-    logger.info("Pledge Voucher Request (PVR) sent by Pledge as Hex string:\n" + Hex.toHexString(pledge.getLastPvrCoseSigned()));
+    logger.info("Pledge Voucher Request (PVR) sent by Pledge:\n{}", pledge.getLastPvr());
+    logger.info("Pledge Voucher Request (PVR) sent by Pledge as Hex string:\n{}",
+        Hex.toHexString(pledge.getLastPvrCoseSigned()));
 
-    logger.info("Registrar Voucher Request (RVR) sent by Registrar:\n" + registrar.getLastRvr().toString());
-    logger.info("Registrar Voucher Request (RVR) sent by Registrar as Hex string:\n" + Hex.toHexString(registrar.getLastRvrCoseSigned()));
+    logger.info("Registrar Voucher Request (RVR) sent by Registrar:\n{}", registrar.getLastRvr());
+    logger.info("Registrar Voucher Request (RVR) sent by Registrar as Hex string:\n{}",
+        Hex.toHexString(registrar.getLastRvrCoseSigned()));
 
-    logger.info("Voucher created by MASA:\n" + voucher);
-    logger.info("Voucher created by MASA as Hex string:\n" + Hex.toHexString(pledge.getLastVoucherCoseSigned()));
+    logger.info("Voucher created by MASA:\n{}", voucher);
+    logger.info("Voucher created by MASA as Hex string:\n{}",
+        Hex.toHexString(pledge.getLastVoucherCoseSigned()));
   }
 }
