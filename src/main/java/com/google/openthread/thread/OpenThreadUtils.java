@@ -32,55 +32,69 @@ package com.google.openthread.thread;
  * Utilities for dealing with an OpenThread CLI dongle/device. Used when testing an OpenThread CLI
  * Pledge against the Registrar.
  */
-public class OpenThreadUtils {
+public final class OpenThreadUtils {
+
+  private OpenThreadUtils() {}
 
   /**
    * From a set of OT CLI output lines, filter out all lines containing info/debug log messages, all
    * empty lines, and prompt ("> ") chars/lines.
    *
-   * @param log string of log lines or multiple lines, separated by CRLF or CR.
-   * @return filtered log lines
+   * @param logLines string of one or more newline-separated log lines.
+   * @return filtered log lines, newline-separated.
    */
   public static String filterOutLogLines(String logLines) {
     StringBuilder res = new StringBuilder();
     String[] aLogLines = logLines.split("\n");
     for (String l : aLogLines) {
       l = l.trim();
-      if (l.startsWith("> ")) l = l.substring(2);
-      if (l.length() == 0) continue;
-      if (l.startsWith("[INFO]")) continue;
-      if (l.startsWith("[CRIT]")) continue;
-      if (l.startsWith("[WARN]")) continue;
-      if (l.startsWith("[[WARN]")) continue;
-      res.append(l);
+      if (l.startsWith("> ")) {
+        l = l.substring(2);
+      }
+      if (l.isEmpty()) {
+        continue;
+      }
+      if (l.startsWith("[INFO]") || l.startsWith("[CRIT]") || l.startsWith("[WARN]")) {
+        continue;
+      }
+      res.append(l).append("\n");
     }
     return res.toString();
   }
 
   public static boolean detectEnrollSuccess(String log) {
-    if (log.length() == 0) return false;
-    String[] aL = log.split("\n");
-    for (String l : aL) {
-      if (l.trim().startsWith("Join success")) return true;
+    if (log.isEmpty()) {
+      return false;
+    }
+    for (String l : log.split("\n")) {
+      if (l.trim().startsWith("Join success")) {
+        return true;
+      }
     }
     return false;
   }
 
   public static boolean detectEnrollFailure(String log) {
-    if (log.length() == 0) return false;
-    String[] aL = log.split("\n");
-    for (String l : aL) {
-      if (l.trim().startsWith("Join failed [")) return true;
-      if (l.trim().startsWith("Error ")) return true;
+    if (log.isEmpty()) {
+      return false;
+    }
+    for (String l : log.split("\n")) {
+      String trimmed = l.trim();
+      if (trimmed.startsWith("Join failed [") || trimmed.startsWith("Error ")) {
+        return true;
+      }
     }
     return false;
   }
 
   public static boolean detectNkpFailure(String log) {
-    if (log.length() == 0) return false;
-    String[] aL = log.split("\n");
-    for (String l : aL) {
-      if (l.trim().startsWith("Error ")) return true;
+    if (log.isEmpty()) {
+      return false;
+    }
+    for (String l : log.split("\n")) {
+      if (l.trim().startsWith("Error ")) {
+        return true;
+      }
     }
     return false;
   }
