@@ -32,7 +32,7 @@ set -e
 readonly CREDENTIAL=./credentials/local-masa/test_credentials.p12
 readonly CRED_DIR=./credentials/local-masa
 
-./script/helper-cp-run.sh com.google.openthread.tools.CredentialGenerator \
+./script/lib/helper-cp-run.sh com.google.openthread.tools.CredentialGenerator \
     -c $CRED_DIR/domainca_cert.pem $CRED_DIR/domainca_private.pem \
     -m $CRED_DIR/masa_cert.pem $CRED_DIR/masa_private.pem \
     -r $CRED_DIR/registrar_cert.pem $CRED_DIR/registrar_private.pem \

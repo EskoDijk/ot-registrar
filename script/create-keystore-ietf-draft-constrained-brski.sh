@@ -30,7 +30,7 @@ set -e
 
 CREDS=./credentials/ietf-draft-constrained-brski
 echo "Creating .p12 keystore file for credentials in $CREDS ..."
-./script/helper-cp-run.sh com.google.openthread.tools.CredentialGenerator \
+./script/lib/helper-cp-run.sh com.google.openthread.tools.CredentialGenerator \
     -c $CREDS/domain_ca.pem $CREDS/privkey_domain_ca.pem \
     -r $CREDS/registrar.pem $CREDS/privkey_registrar.pem \
     -m $CREDS/masa_ca.pem $CREDS/privkey_masa_ca.pem \

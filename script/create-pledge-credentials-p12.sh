@@ -37,7 +37,7 @@ fi
 readonly CREDENTIAL=./credentials/pledge_credentials.p12
 readonly CRED_DIR=./credentials/local-masa
 
-./script/helper-cp-run.sh com.google.openthread.tools.CredentialGenerator \
+./script/lib/helper-cp-run.sh com.google.openthread.tools.CredentialGenerator \
     -m "$CRED_DIR/masa_cert.pem" "$CRED_DIR/masa_private.pem" \
     -p "$1" "$2" \
     -o $CREDENTIAL

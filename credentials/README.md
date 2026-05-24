@@ -42,7 +42,7 @@ Keystore password is `OpenThread` (`CredentialGenerator.PASSWORD`).
 
 There is no regeneration script for the three `default_*.p12` files. If
 they need to be refreshed, run `CredentialGenerator` directly (see
-`./script/recreate-test-credentials-p12.sh` for a template) and copy the
+`./script/create-test-credentials-p12.sh` for a template) and copy the
 resulting keystore into place.
 
 ### `local-masa/`
@@ -52,9 +52,9 @@ Standalone PEM cert + private-key files for a complete BRSKI topology
 Used by:
 
 - `./script/create-pledge-credentials-p12.sh` — packages a pledge .p12.
-- `./script/recreate-test-credentials-p12.sh` — packages the full
+- `./script/create-test-credentials-p12.sh` — packages the full
   Registrar/MASA/DomainCA keystore.
-- `./script/recreate-ot-registrar-cert.sh` — re-issues only the
+- `./script/create-ot-registrar-cert.sh` — re-issues only the
   Registrar EE cert (random serial via `-CAcreateserial`).
 - `x509v3_registrar.ext` — OpenSSL extension config used by the script
   above.
@@ -97,5 +97,5 @@ For the in-repo fixtures (`local-masa/`, `ietf-draft-constrained-brski/`,
 3. Commit the updated PEMs and `.p12`.
 
 The Java code path (`SecurityUtils.allocateSerialNumber`) and the
-`-CAcreateserial` flag in `recreate-ot-registrar-cert.sh` both produce
+`-CAcreateserial` flag in `create-ot-registrar-cert.sh` both produce
 random 160-bit serial numbers (matching RFC 5280 §4.1.2.2).

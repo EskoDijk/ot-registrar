@@ -33,7 +33,7 @@ set -e
 readonly CRED_DIR=./credentials/iotconsultancy-masa
 readonly CREDENTIAL=${CRED_DIR}/credentials.p12
 
-./script/helper-cp-run.sh com.google.openthread.tools.CredentialGenerator \
+./script/lib/helper-cp-run.sh com.google.openthread.tools.CredentialGenerator \
    -ms $CRED_DIR/TestVendor_masa.pem $CRED_DIR/privkey_TestVendor_masa.pem \
    -m $CRED_DIR/TestVendor_masa_ca.pem $CRED_DIR/privkey_TestVendor_masa_ca.pem \
    -p $CRED_DIR/TestVendor_1.pem $CRED_DIR/privkey_TestVendor_1.pem \

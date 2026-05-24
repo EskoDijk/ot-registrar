@@ -35,4 +35,4 @@ set -e
 readonly CREDENTIAL=./credentials/honeydukes/credentials.p12
 readonly CRED_DIR=./credentials/honeydukes
 
-./script/helper-cp-run.sh com.google.openthread.tools.CredentialGenerator -m $CRED_DIR/vendor.crt -p $CRED_DIR/device.crt $CRED_DIR/key.pem -o $CREDENTIAL
+./script/lib/helper-cp-run.sh com.google.openthread.tools.CredentialGenerator -m $CRED_DIR/vendor.crt -p $CRED_DIR/device.crt $CRED_DIR/key.pem -o $CREDENTIAL

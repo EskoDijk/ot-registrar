@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#  Copyright (c) 2022, The OpenThread Registrar Authors.
+#  Copyright (c) 2024, The OpenThread Registrar Authors.
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -29,4 +29,17 @@
 
 set -e
 
-./script/helper-cp-run.sh com.google.openthread.tools.CoseValidator "$@"
+# Internal helper -- not a user entry point. Invoked by the other script/*.sh
+# wrappers to run a main class on the built JAR's classpath. Run from the repo
+# root. Usage: script/lib/helper-cp-run.sh <fully.qualified.MainClass> [args...]
+
+# Pick the JAR built from the current pom.xml version (glob so the script
+# doesn't have to be updated when the version bumps).
+JAR_FILE=$(find ./target -maxdepth 1 -name 'ot-registrar-*-jar-with-dependencies.jar' -print -quit 2>/dev/null)
+
+if [ -z "${JAR_FILE}" ] || [ ! -f "${JAR_FILE}" ]; then
+  echo "Please build using 'mvn -DskipTests package' before running."
+  exit 1
+fi
+
+java -cp "${JAR_FILE}" "$@"

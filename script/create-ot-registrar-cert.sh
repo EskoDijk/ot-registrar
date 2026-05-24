@@ -27,7 +27,7 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-# Recreate the cert for: OT Registrar (RA)
+# Create (or recreate) the cert for: OT Registrar (RA)
 # signed by root=domainCA
 
 if [ -d "./credentials/local-masa" ]
