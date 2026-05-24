@@ -28,9 +28,30 @@
 
 package com.google.openthread.brski;
 
+/**
+ * Strategy for converting a {@link Voucher} (or {@link VoucherRequest}) to and from a wire
+ * representation. Implementations include {@link CBORSerializer} (constrained / Thread) and
+ * {@link JSONSerializer} (classic BRSKI per RFC 8995).
+ */
 public interface VoucherSerializer {
 
+  /**
+   * Encode the given voucher to its wire representation.
+   *
+   * @param voucher the voucher to encode; must not be {@code null}.
+   * @return the encoded bytes; never {@code null}.
+   * @throws VoucherSerializationException if the voucher cannot be encoded (e.g. a required field
+   *     is missing or contains a value the wire format cannot represent).
+   */
   byte[] serialize(Voucher voucher) throws VoucherSerializationException;
 
+  /**
+   * Decode a voucher from its wire representation.
+   *
+   * @param data the encoded bytes; must not be {@code null}.
+   * @return the decoded voucher; never {@code null}.
+   * @throws VoucherSerializationException if the input is malformed or fails any format-specific
+   *     consistency check.
+   */
   Voucher deserialize(byte[] data) throws VoucherSerializationException;
 }
