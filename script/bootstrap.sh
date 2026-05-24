@@ -37,7 +37,9 @@ has_command() {
 }
 
 install_toolchain() {
-    if [ $(uname) = "Linux" ]; then
+    local os
+    os=$(uname)
+    if [ "$os" = "Linux" ]; then
         echo "OS is Linux"
         has_command java || {
             sudo apt-get update
@@ -47,12 +49,12 @@ install_toolchain() {
             sudo apt-get update
             sudo apt-get install maven -y
         }
-    elif [ $(uname) = "Darwin" ]; then
+    elif [ "$os" = "Darwin" ]; then
         echo "OS is Darwin"
         has_command java || brew install --cask java
         has_command mvn || brew install maven
     else
-        echo "platform $(uname) is not fully supported"
+        echo "platform $os is not fully supported"
         exit 1
     fi
     java -version

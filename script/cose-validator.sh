@@ -27,4 +27,6 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
+set -e
+
 ./script/helper-cp-run.sh com.google.openthread.tools.CoseValidator "$@"

@@ -27,7 +27,17 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
+set -e
+
+if [ $# -lt 2 ]; then
+  echo "Usage: $0 <pledge-cert.pem> <pledge-key.pem>"
+  exit 1
+fi
+
 readonly CREDENTIAL=./credentials/pledge_credentials.p12
 readonly CRED_DIR=./credentials/local-masa
 
-./script/helper-cp-run.sh com.google.openthread.tools.CredentialGenerator -m $CRED_DIR/masa_cert.pem $CRED_DIR/masa_private.pem -p $1 $2 -o $CREDENTIAL
+./script/helper-cp-run.sh com.google.openthread.tools.CredentialGenerator \
+    -m "$CRED_DIR/masa_cert.pem" "$CRED_DIR/masa_private.pem" \
+    -p "$1" "$2" \
+    -o $CREDENTIAL

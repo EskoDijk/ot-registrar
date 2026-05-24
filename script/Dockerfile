@@ -27,27 +27,21 @@
 
 FROM ubuntu:22.04
 
-RUN apt-get update
-
-RUN apt-get install maven git sudo lsb-core net-tools -y
-
-#RUN apt-get install -y software-properties-common
-
-#RUN apt-get update
-
-#RUN add-apt-repository ppa:openjdk-r/ppa
-#RUN apt-get update
-RUN apt-get install openjdk-11-jdk -y
-RUN java -version
+# Combined into one RUN so we get a single image layer and so the apt-list
+# cleanup at the end actually shrinks the image.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        maven git sudo net-tools openjdk-11-jdk \
+    && rm -rf /var/lib/apt/lists/* \
+    && java -version
 
 WORKDIR /home/ot-registrar
 
 COPY . .
 
-# RUN mvn clean package
-
-# CMD triggers a warning as per https://docs.docker.com/reference/build-checks/json-args-recommended/
-# FIXME check if it should be CMD or SHELL; and if the 'bash' part should be split off.
+# Shell-form CMD is intentional: we run a server-launcher and then drop into
+# bash to keep the container alive interactively. The Docker JSON-args
+# recommendation does not apply when we deliberately want shell features.
 CMD ./script/run-servers.sh && bash
 
 EXPOSE 5683/udp 5684/udp 5685/udp

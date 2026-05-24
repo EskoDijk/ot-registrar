@@ -27,6 +27,8 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
+set -e
+
 readonly CREDENTIAL=./credentials/local-masa/test_credentials.p12
 readonly CRED_DIR=./credentials/local-masa
 

@@ -27,4 +27,6 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
+set -e
+
 mvn package -DskipTests

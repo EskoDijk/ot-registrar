@@ -30,6 +30,8 @@
 # This script is to run the Java Pledge with Honeydukes IDevID.
 # The Honeydukes test vendor/MASA is located at: https://honeydukes.sandelman.ca/
 
+set -e
+
 readonly CREDENTIAL=./credentials/honeydukes/credentials.p12
 readonly CRED_DIR=./credentials/honeydukes
 

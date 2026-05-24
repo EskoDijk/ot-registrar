@@ -28,7 +28,9 @@
 #
 
 # This runs a Pledge using Honeydukes IDevID, onboarding via cloud Registrar.
-# The script create-pledge-credentials-p12-honeydukes.sh can be used to create 
+# The script create-pledge-credentials-p12-honeydukes.sh can be used to create
 # or recreate the credentials file.
+
+set -e
 
 ./script/run -pledge -f ./credentials/honeydukes/credentials.p12 -r coaps://masa.iotconsultancy.nl

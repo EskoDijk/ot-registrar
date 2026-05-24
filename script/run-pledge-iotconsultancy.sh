@@ -28,8 +28,10 @@
 #
 
 # This runs a Pledge using IoTconsultancy IDevID, onboarding via cloud Registrar.
-# The script create-pledge-credentials-p12-iotconsultancy.sh can be used to create 
+# The script create-pledge-credentials-p12-iotconsultancy.sh can be used to create
 # or recreate the credentials file.
+
+set -e
 
 REGISTRAR="coaps://masa.iotconsultancy.nl/"
 if [ "$#" -eq 1 ]; then

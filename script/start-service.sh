@@ -29,16 +29,16 @@
 
 # Start the OT Registrar service in a Docker container for testing.
 
+set -e
+
 readonly SUBNET=fdaa:bb::/64
 readonly IP6_ADDR=fdaa:bb::de6
 readonly NETWORK=network-openthread
 
-readonly CUR_DIR=$(dirname "$(realpath -s $0)")
-#readonly ROOT_DIR="${CUR_DIR}/.."
 readonly ROOT_DIR=$(pwd)
 
 echo "creating subnet ${NETWORK}=${SUBNET} ..."
-sudo docker network rm $NETWORK
+sudo docker network rm $NETWORK 2>/dev/null || true
 sudo docker network create --ipv6 --subnet=$SUBNET $NETWORK
 
 echo "starting ot-registrar(ip=${IP6_ADDR}) container..."

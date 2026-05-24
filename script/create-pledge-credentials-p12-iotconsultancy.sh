@@ -28,6 +28,8 @@
 #
 
 # This script is to run the Java Pledge with IoTconsultancy IDevID.
+set -e
+
 readonly CRED_DIR=./credentials/iotconsultancy-masa
 readonly CREDENTIAL=${CRED_DIR}/credentials.p12
 
@@ -35,4 +37,4 @@ readonly CREDENTIAL=${CRED_DIR}/credentials.p12
    -ms $CRED_DIR/TestVendor_masa.pem $CRED_DIR/privkey_TestVendor_masa.pem \
    -m $CRED_DIR/TestVendor_masa_ca.pem $CRED_DIR/privkey_TestVendor_masa_ca.pem \
    -p $CRED_DIR/TestVendor_1.pem $CRED_DIR/privkey_TestVendor_1.pem \
-   -o $CREDENTIAL 
+   -o $CREDENTIAL
