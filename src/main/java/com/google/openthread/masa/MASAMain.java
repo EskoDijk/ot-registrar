@@ -32,6 +32,7 @@ import com.google.openthread.Credentials;
 import com.google.openthread.main.OtRegistrarConfig;
 import com.google.openthread.tools.CredentialGenerator;
 import java.security.KeyStoreException;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +44,7 @@ public class MASAMain {
   private static final Logger logger = LoggerFactory.getLogger(MASAMain.class);
 
   public static int startMasa(OtRegistrarConfig config) {
+    Objects.requireNonNull(config, "config");
     MASA masa;
 
     try {

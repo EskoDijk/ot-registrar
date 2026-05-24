@@ -32,6 +32,7 @@ import com.google.openthread.Credentials;
 import com.google.openthread.domainca.DomainCA;
 import com.google.openthread.main.OtRegistrarConfig;
 import com.google.openthread.tools.CredentialGenerator;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +43,7 @@ public final class RegistrarMain {
   private RegistrarMain() {}
 
   public static int startRegistrar(OtRegistrarConfig config) {
+    Objects.requireNonNull(config, "config");
     Registrar registrar;
 
     try {

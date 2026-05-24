@@ -32,6 +32,7 @@ import com.google.openthread.Credentials;
 import com.google.openthread.main.OtRegistrarConfig;
 import com.google.openthread.tools.CredentialGenerator;
 import java.security.KeyStoreException;
+import java.util.Objects;
 import java.util.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +45,7 @@ public class PledgeMain {
   private static final Logger logger = LoggerFactory.getLogger(PledgeMain.class);
 
   public static int startPledge(OtRegistrarConfig config) {
+    Objects.requireNonNull(config, "config");
     try {
       String password = CredentialGenerator.PASSWORD;
       Credentials cred = new Credentials(config.keyStoreFile, CredentialGenerator.PLEDGE_ALIAS, password);
