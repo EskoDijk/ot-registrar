@@ -43,7 +43,12 @@ import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class RegistrarCertificateVerifier implements CertificateVerifier {
+public final class RegistrarCertificateVerifier implements CertificateVerifier {
+
+  private static final Logger logger =
+      LoggerFactory.getLogger(RegistrarCertificateVerifier.class);
+
+  private final Set<TrustAnchor> trustAnchors;
 
   /**
    * Create a new RegistrarCertificateVerifier that only trusts the given rootCertificates. Use null
@@ -53,13 +58,14 @@ public class RegistrarCertificateVerifier implements CertificateVerifier {
    *     trust ALL.
    */
   public RegistrarCertificateVerifier(X509Certificate[] rootCertificates) {
-    this.trustAnchors = new HashSet<>();
-    if (rootCertificates != null) {
-      for (X509Certificate cert : rootCertificates) {
-        trustAnchors.add(new TrustAnchor(cert, null));
-      }
-    } else {
+    if (rootCertificates == null) {
       this.trustAnchors = null;
+    } else {
+      Set<TrustAnchor> set = new HashSet<>();
+      for (X509Certificate cert : rootCertificates) {
+        set.add(new TrustAnchor(cert, null));
+      }
+      this.trustAnchors = set;
     }
   }
 
@@ -70,7 +76,7 @@ public class RegistrarCertificateVerifier implements CertificateVerifier {
       // Trust everyone
       return;
     }
-    if (trustAnchors.size() == 0) {
+    if (trustAnchors.isEmpty()) {
       // Trust no-one
       AlertMessage alert =
           new AlertMessage(
@@ -96,18 +102,15 @@ public class RegistrarCertificateVerifier implements CertificateVerifier {
               session.getPeer());
       throw new HandshakeException("Certificate chain could not be validated", alert, e);
     }
-    logger.info("handshake - certificate validation succeed!");
+    logger.info("handshake - certificate validation succeeded");
   }
 
   @Override
   public X509Certificate[] getAcceptedIssuers() {
-    // This is used in CertificateRequest message, we set it to an empty array to include
-    // no trusted anchor issuers in that message. Because we could have many MASA truct
-    // anchors, there is risk of IP fragment problem. So we make this empty as we don't
+    // This is used in the CertificateRequest message; we set it to an empty array to include
+    // no trusted anchor issuers in that message. Because we could have many MASA trust
+    // anchors, there is risk of IP fragmentation. So we leave this empty as we don't
     // really need it.
-    return new X509Certificate[] {};
+    return new X509Certificate[0];
   }
-
-  private Set<TrustAnchor> trustAnchors;
-  private static Logger logger = LoggerFactory.getLogger(RegistrarCertificateVerifier.class);
 }
