@@ -28,10 +28,20 @@
 
 package com.google.openthread.registrar;
 
-public class RegistrarException extends Exception {
-  RegistrarException(String msg) {
+/**
+ * Thrown by {@link Registrar} and {@link RegistrarBuilder} when configuration or
+ * runtime state is invalid (missing credentials, mutually exclusive options,
+ * unsupported certificate chains, etc.).
+ */
+public final class RegistrarException extends Exception {
+
+  private static final long serialVersionUID = -6928238805950700896L;
+
+  public RegistrarException(String msg) {
     super(msg);
   }
 
-  private static final long serialVersionUID = -6928238805950700896L;
+  public RegistrarException(String msg, Throwable cause) {
+    super(msg, cause);
+  }
 }

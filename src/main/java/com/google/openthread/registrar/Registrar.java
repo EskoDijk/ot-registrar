@@ -162,7 +162,7 @@ public final class Registrar extends CoapServer {
       }
 
     } catch (Exception e) {
-      throw new RegistrarException(e.getMessage());
+      throw new RegistrarException(e.getMessage(), e);
     }
 
     initResources();
