@@ -31,27 +31,37 @@ package com.google.openthread.registrar;
 import static org.junit.Assert.assertSame;
 
 import com.google.openthread.Constants;
-import com.google.openthread.brski.*;
-import com.google.openthread.domainca.*;
-import com.google.openthread.masa.*;
-import com.google.openthread.pledge.*;
+import com.google.openthread.brski.ConstantsBrski;
+import com.google.openthread.brski.ExtendedMediaTypeRegistry;
+import com.google.openthread.brski.StatusTelemetry;
+import com.google.openthread.brski.Voucher;
+import com.google.openthread.domainca.DomainCA;
+import com.google.openthread.masa.MASA;
+import com.google.openthread.pledge.Pledge;
 import com.google.openthread.pledge.Pledge.CertState;
-import com.google.openthread.tools.*;
+import com.google.openthread.pledge.PledgeException;
+import com.google.openthread.tools.CredentialGenerator;
 import java.io.IOException;
-import java.security.cert.*;
+import java.security.cert.X509Certificate;
 import org.bouncycastle.util.encoders.Hex;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class FunctionalTest {
+public final class FunctionalTest {
 
   public static final String REGISTRAR_URI = "coaps://[::1]:" + ConstantsBrski.DEFAULT_REGISTRAR_COAPS_PORT;
   public static final String DEFAULT_DOMAIN_NAME = "Thread-Test";
+
+  private static final Logger logger = LoggerFactory.getLogger(FunctionalTest.class);
 
   // the acting entities
   private DomainCA domainCA;
@@ -62,8 +72,6 @@ public class FunctionalTest {
   // credentials used
   private static CredentialGenerator cg;
 
-  private final static Logger logger = LoggerFactory.getLogger(FunctionalTest.class);
-
   @BeforeClass
   public static void setup() throws Exception {
     // generated credentials set
@@ -71,15 +79,15 @@ public class FunctionalTest {
     cg.make(null, null, null, null, null);
   }
 
-  @AfterClass
-  public static void tearDown() {
-  }
-
   @Before
   public void init() throws Exception {
     initEntities(cg);
   }
 
+  // TODO: support pinning a single MASA CA here instead of trusting all. Replace
+  //   setTrustAllMasas(true) with .addMasaCertificate(
+  //     cg.getCredentials(CredentialGenerator.MASACA_ALIAS).getCertificate())
+  //   once the test scenarios distinguish trust modes.
   protected void initEntities(CredentialGenerator credGen) throws Exception {
     masa =
         new MASA(
@@ -97,8 +105,7 @@ public class FunctionalTest {
     registrar =
         registrarBuilder
             .setCredentials(credGen.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
-            // .addMasaCertificate(cg.masaCaCert)   // enable this, to trust a single MASA CA only
-            .setTrustAllMasas(true) // or enable this, to trust all MASAs.
+            .setTrustAllMasas(true)
             .build();
     registrar.setDomainCA(domainCA);
 
@@ -117,8 +124,7 @@ public class FunctionalTest {
     X509Certificate cert = pledge.getOperationalCert();
     Assert.assertNotNull(cert);
 
-    String domainName = pledge.getDomainName();
-    Assert.assertEquals(domainName, registrar.getDomainName());
+    Assert.assertEquals(registrar.getDomainName(), pledge.getDomainName());
 
     // we expect the LDevID to NOT contain subject key id, per 802.1AR-2018 spec section 8.10.2 for LDevID.
     byte[] subjKeyId = cert.getExtensionValue("2.5.29.14");
@@ -126,8 +132,8 @@ public class FunctionalTest {
   }
 
   private void verifyPledge(Pledge pledge) {
-    Assert.assertNotEquals(pledge.getState(), CertState.NO_CONTACT);
-    Assert.assertNotEquals(pledge.getState(), CertState.PROVISIONALLY_ACCEPT);
+    Assert.assertNotEquals(CertState.NO_CONTACT, pledge.getState());
+    Assert.assertNotEquals(CertState.PROVISIONALLY_ACCEPT, pledge.getState());
     // TODO - implement state verification of Pledge after voucher request, while enroll may or may
     // not have happened at this point.
   }
@@ -297,7 +303,8 @@ public class FunctionalTest {
       threads[i] = new PledgeThread();
     }
 
-    // run the Pledges
+    // run the Pledges -- staggered slightly to simulate Pledges arriving non-simultaneously,
+    // rather than a synchronized thundering herd at the Registrar.
     for (PledgeThread thread : threads) {
       thread.start();
       Thread.sleep(20);
@@ -311,7 +318,7 @@ public class FunctionalTest {
           String msg =
               "Pledge [" + thread.getId() + "] had an exception/error: " + thread.errorState;
           logger.error(msg, thread.errorState);
-          Assert.fail();
+          Assert.fail(msg);
         }
       } catch (InterruptedException e) {
         Assert.fail("join failed: " + e.getMessage());
@@ -419,7 +426,7 @@ public class FunctionalTest {
     Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
     pledge.enroll();
     verifyEnroll(pledge);
-    voucher.validate();
+    Assert.assertTrue(voucher.validate());
     Assert.assertEquals(ResponseCode.CHANGED, pledge.sendEnrollStatusTelemetry(true, null));
   }
 }
