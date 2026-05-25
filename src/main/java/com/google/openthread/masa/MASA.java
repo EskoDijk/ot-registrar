@@ -117,6 +117,28 @@ public final class MASA {
     }
   }
 
+  /**
+   * Logs every received HTTP request - including ones for unknown paths or with an unsupported
+   * method - before delegating to the actual resource handlers. For interop testing.
+   */
+  final class RequestLoggingHttpHandler implements HttpHandler {
+    private final HttpHandler next;
+
+    RequestLoggingHttpHandler(HttpHandler next) {
+      this.next = next;
+    }
+
+    @Override
+    public void handleRequest(HttpServerExchange exchange) throws Exception {
+      logger.info(
+          "received HTTP request: {} {} from {}",
+          exchange.getRequestMethod(),
+          exchange.getRequestURI(),
+          exchange.getSourceAddress());
+      next.handleRequest(exchange);
+    }
+  }
+
   final class RootResourceHttpHandler implements HttpHandler {
     @Override
     public void handleRequest(HttpServerExchange exchange) throws Exception {
@@ -417,7 +439,7 @@ public final class MASA {
     httpServer =
         Undertow.builder()
             .addHttpsListener(listenPort, "::", httpSsl)
-            .setHandler(masaPathHandler)
+            .setHandler(new RequestLoggingHttpHandler(masaPathHandler))
             .build();
   }
 }
