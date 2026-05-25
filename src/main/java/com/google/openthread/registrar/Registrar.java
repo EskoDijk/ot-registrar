@@ -931,6 +931,8 @@ public final class Registrar extends CoapServer {
     CoapEndpoint endpoint =
         SecurityUtils.genCoapServerEndPoint(
             listenPort, null, privateKey, certificateChain, verifier);
+    // Log every received request (incl. unknown-path / unsupported-method ones) for interop testing.
+    endpoint.addInterceptor(new RequestLoggingInterceptor());
     addEndpoint(endpoint);
   }
 
