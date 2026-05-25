@@ -28,25 +28,37 @@
 
 name: Build
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Cancel superseded runs on the same branch/PR, never on main
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
 
-  cancel-previous-runs:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: rokroskar/workflow-run-cleanup-action@master
-        env:
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-        if: "github.ref != 'refs/heads/main'"
-
   package-test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java-version: ['11', '17', '21']
+    name: package-test (JDK ${{ matrix.java-version }})
     steps:
-      - uses: actions/checkout@v4
-      - name: Bootstrap
-        run: script/bootstrap.sh
-      - name: Package
-        run: mvn package -Dmaven.test.skip=true
+      - uses: actions/checkout@v5
+      - name: Set up JDK ${{ matrix.java-version }}
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java-version }}
+          cache: maven
+      - name: Build
+        run: script/build.sh
       - name: Test
-        run: mvn test
+        run: script/test.sh
