@@ -54,6 +54,7 @@ import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.cert.CertPath;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -61,8 +62,11 @@ import java.security.cert.X509Certificate;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import javax.security.auth.x500.X500Principal;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.ASN1String;
@@ -113,14 +117,25 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
 import org.bouncycastle.util.Selector;
 import org.bouncycastle.util.Store;
+import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.elements.config.UdpConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConfig;
+import org.eclipse.californium.scandium.config.DtlsConfig.DtlsRole;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateMessage;
 import org.eclipse.californium.scandium.dtls.CertificateType;
-import org.eclipse.californium.scandium.dtls.DTLSSession;
+import org.eclipse.californium.scandium.dtls.CertificateVerificationResult;
+import org.eclipse.californium.scandium.dtls.ConnectionId;
+import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
+import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
  * Provides common security-related definitions and functionalities.
@@ -139,6 +154,11 @@ public class SecurityUtils {
 
   static {
     BouncyCastleInitializer.init();
+    // Register the Californium 3.x configuration modules so that
+    // Configuration.createStandardWithoutFile() knows the CoAP/DTLS/UDP definitions.
+    CoapConfig.register();
+    DtlsConfig.register();
+    UdpConfig.register();
     try {
       certFactory = CertificateFactory.getInstance("X.509");
     } catch (CertificateException ex) {
@@ -563,20 +583,44 @@ public class SecurityUtils {
     }
   }
 
-  public static final class DoNothingVerifier implements CertificateVerifier {
+  public static final class DoNothingVerifier implements NewAdvancedCertificateVerifier {
 
     public DoNothingVerifier(X509Certificate[] rootCertificates) {
       this.rootCertificates = rootCertificates;
     }
 
     @Override
-    public void verifyCertificate(CertificateMessage message, DTLSSession session) {
-      // We do nothing to accept the peer
+    public List<CertificateType> getSupportedCertificateTypes() {
+      return Collections.singletonList(CertificateType.X_509);
     }
 
     @Override
-    public X509Certificate[] getAcceptedIssuers() {
-      return rootCertificates;
+    public CertificateVerificationResult verifyCertificate(
+        ConnectionId cid,
+        ServerNames serverName,
+        InetSocketAddress remotePeer,
+        boolean clientUsage,
+        boolean verifySubject,
+        boolean truncateCertificatePath,
+        CertificateMessage message) {
+      // We do nothing to accept the peer
+      return new CertificateVerificationResult(cid, message.getCertificateChain(), null);
+    }
+
+    @Override
+    public List<X500Principal> getAcceptedIssuers() {
+      List<X500Principal> res = new ArrayList<>();
+      if (rootCertificates != null) {
+        for (X509Certificate cert : rootCertificates) {
+          res.add(cert.getSubjectX500Principal());
+        }
+      }
+      return res;
+    }
+
+    @Override
+    public void setResultHandler(HandshakeResultHandler resultHandler) {
+      // Verification is performed synchronously, so no asynchronous result handler is needed.
     }
 
     private X509Certificate[] rootCertificates;
@@ -586,7 +630,7 @@ public class SecurityUtils {
       X509Certificate[] trustAnchors,
       PrivateKey privateKey,
       X509Certificate[] certificateChain,
-      CertificateVerifier verifier,
+      NewAdvancedCertificateVerifier verifier,
       boolean isSniEnabled) {
     return genCoapEndPoint(
         -1, trustAnchors, privateKey, certificateChain, verifier, false, isSniEnabled);
@@ -597,7 +641,7 @@ public class SecurityUtils {
       X509Certificate[] trustAnchors,
       PrivateKey privateKey,
       X509Certificate[] certificateChain,
-      CertificateVerifier verifier) {
+      NewAdvancedCertificateVerifier verifier) {
     assert (port >= 0);
     return genCoapEndPoint(port, trustAnchors, privateKey, certificateChain, verifier, true, true);
   }
@@ -607,53 +651,65 @@ public class SecurityUtils {
       X509Certificate[] trustAnchors,
       PrivateKey privateKey,
       X509Certificate[] certificateChain,
-      CertificateVerifier verifier,
+      NewAdvancedCertificateVerifier verifier,
       boolean isServerEndPoint,
       boolean isSniEnabled) {
-    DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder();
+    Configuration configuration = Configuration.createStandardWithoutFile();
 
     if (isServerEndPoint) {
-      config.setSupportedCipherSuites(
+      configuration.setAsList(
+          DtlsConfig.DTLS_CIPHER_SUITES,
           CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
           CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM,
           CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8,
           CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM);
     } else {
-      config.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+      configuration.setAsList(
+          DtlsConfig.DTLS_CIPHER_SUITES, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
     }
 
-    config.setRetransmissionTimeout(10 * 1000);
+    configuration.set(DtlsConfig.DTLS_RETRANSMISSION_TIMEOUT, 10, TimeUnit.SECONDS);
 
     // Set Max Fragment Length to 2^10 bytes.
-    config.setMaxFragmentLengthCode(2);
+    configuration.set(
+        DtlsConfig.DTLS_MAX_FRAGMENT_LENGTH, MaxFragmentLengthExtension.Length.BYTES_1024);
 
     // OpenThread CoAP doesn't handle fragments, so it still fails
-    config.setMaxTransmissionUnit(1024);
+    configuration.set(DtlsConfig.DTLS_MAX_TRANSMISSION_UNIT, 1024);
 
-    config.setSniEnabled(isSniEnabled);
+    configuration.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, isSniEnabled);
+    configuration.set(
+        DtlsConfig.DTLS_ROLE, port >= 0 ? DtlsRole.SERVER_ONLY : DtlsRole.CLIENT_ONLY);
+
+    DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(configuration);
+
     if (port >= 0) {
       // Server
-      config.setServerOnly(true).setAddress(new InetSocketAddress(port));
-    } else {
-      // Client
-      config.setClientOnly();
+      config.setAddress(new InetSocketAddress(port));
     }
 
-    if (verifier != null) {
-      config.setCertificateVerifier(verifier);
+    // In Scandium 3.x the trust anchors are part of the certificate verifier. When an explicit
+    // verifier is supplied it is fully responsible for validation; otherwise fall back to a
+    // static verifier that validates the peer chain against the given trust anchors.
+    NewAdvancedCertificateVerifier certificateVerifier = verifier;
+    if (certificateVerifier == null && trustAnchors != null && trustAnchors.length > 0) {
+      certificateVerifier =
+          StaticNewAdvancedCertificateVerifier.builder()
+              .setTrustedCertificates(trustAnchors)
+              .build();
+    }
+    if (certificateVerifier != null) {
+      config.setAdvancedCertificateVerifier(certificateVerifier);
     }
 
-    if (trustAnchors != null) {
-      config.setTrustStore(trustAnchors);
-    }
-
-    List<CertificateType> types = new ArrayList<>();
-
-    types.add(CertificateType.X_509);
-    config.setIdentity(privateKey, certificateChain, types);
+    config.setCertificateIdentityProvider(
+        new SingleCertificateProvider(privateKey, certificateChain, CertificateType.X_509));
 
     DTLSConnector connector = new DTLSConnector(config.build());
-    return new CoapEndpoint.Builder().setConnector(connector).build();
+    return new CoapEndpoint.Builder()
+        .setConnector(connector)
+        .setConfiguration(configuration)
+        .build();
   }
 
   // As defined in 4.2.1.2 of RFC 5280, authority key identifier (subject key identifier of CA)

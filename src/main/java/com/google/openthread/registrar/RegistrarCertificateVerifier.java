@@ -28,22 +28,31 @@
 
 package com.google.openthread.registrar;
 
+import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
+import java.security.cert.CertPath;
 import java.security.cert.CertPathValidator;
 import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import javax.security.auth.x500.X500Principal;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.CertificateMessage;
-import org.eclipse.californium.scandium.dtls.DTLSSession;
+import org.eclipse.californium.scandium.dtls.CertificateType;
+import org.eclipse.californium.scandium.dtls.CertificateVerificationResult;
+import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
-import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
+import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
+import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class RegistrarCertificateVerifier implements CertificateVerifier {
+public final class RegistrarCertificateVerifier implements NewAdvancedCertificateVerifier {
 
   private static final Logger logger =
       LoggerFactory.getLogger(RegistrarCertificateVerifier.class);
@@ -70,20 +79,32 @@ public final class RegistrarCertificateVerifier implements CertificateVerifier {
   }
 
   @Override
-  public void verifyCertificate(CertificateMessage message, DTLSSession session)
-      throws HandshakeException {
+  public List<CertificateType> getSupportedCertificateTypes() {
+    return Collections.singletonList(CertificateType.X_509);
+  }
+
+  @Override
+  public CertificateVerificationResult verifyCertificate(
+      ConnectionId cid,
+      ServerNames serverName,
+      InetSocketAddress remotePeer,
+      boolean clientUsage,
+      boolean verifySubject,
+      boolean truncateCertificatePath,
+      CertificateMessage message) {
+    CertPath certChain = message.getCertificateChain();
+
     if (trustAnchors == null) {
       // Trust everyone
-      return;
+      return new CertificateVerificationResult(cid, certChain, null);
     }
     if (trustAnchors.isEmpty()) {
       // Trust no-one
       AlertMessage alert =
           new AlertMessage(
-              AlertMessage.AlertLevel.FATAL,
-              AlertMessage.AlertDescription.BAD_CERTIFICATE,
-              session.getPeer());
-      throw new HandshakeException("no client is trusted", alert);
+              AlertMessage.AlertLevel.FATAL, AlertMessage.AlertDescription.BAD_CERTIFICATE);
+      return new CertificateVerificationResult(
+          cid, new HandshakeException("no client is trusted", alert), null);
     }
 
     try {
@@ -91,26 +112,31 @@ public final class RegistrarCertificateVerifier implements CertificateVerifier {
       params.setRevocationEnabled(false);
 
       CertPathValidator validator = CertPathValidator.getInstance("PKIX");
-      validator.validate(message.getCertificateChain(), params);
+      validator.validate(certChain, params);
 
     } catch (GeneralSecurityException e) {
       logger.error("handshake - certificate validation failed: " + e.getMessage(), e);
       AlertMessage alert =
           new AlertMessage(
-              AlertMessage.AlertLevel.FATAL,
-              AlertMessage.AlertDescription.BAD_CERTIFICATE,
-              session.getPeer());
-      throw new HandshakeException("Certificate chain could not be validated", alert, e);
+              AlertMessage.AlertLevel.FATAL, AlertMessage.AlertDescription.BAD_CERTIFICATE);
+      return new CertificateVerificationResult(
+          cid, new HandshakeException("Certificate chain could not be validated", alert, e), null);
     }
     logger.info("handshake - certificate validation succeeded");
+    return new CertificateVerificationResult(cid, certChain, null);
   }
 
   @Override
-  public X509Certificate[] getAcceptedIssuers() {
-    // This is used in the CertificateRequest message; we set it to an empty array to include
+  public List<X500Principal> getAcceptedIssuers() {
+    // This is used in the CertificateRequest message; we set it to an empty list to include
     // no trusted anchor issuers in that message. Because we could have many MASA trust
     // anchors, there is risk of IP fragmentation. So we leave this empty as we don't
     // really need it.
-    return new X509Certificate[0];
+    return Collections.emptyList();
+  }
+
+  @Override
+  public void setResultHandler(HandshakeResultHandler resultHandler) {
+    // Verification is performed synchronously, so no asynchronous result handler is needed.
   }
 }

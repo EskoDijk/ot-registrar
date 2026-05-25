@@ -29,6 +29,7 @@
 package com.google.openthread.pledge;
 
 import com.google.openthread.brski.ConstantsBrski;
+import java.net.InetSocketAddress;
 import java.security.cert.CertPath;
 import java.security.cert.CertPathValidator;
 import java.security.cert.CertificateException;
@@ -36,9 +37,11 @@ import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import javax.security.auth.x500.X500Principal;
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1Primitive;
@@ -47,12 +50,14 @@ import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.KeyPurposeId;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
-import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
-import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateMessage;
-import org.eclipse.californium.scandium.dtls.DTLSSession;
+import org.eclipse.californium.scandium.dtls.CertificateType;
+import org.eclipse.californium.scandium.dtls.CertificateVerificationResult;
+import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
-import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
+import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
+import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,7 +65,7 @@ import org.slf4j.LoggerFactory;
  * CertificateVerifier for the Pledge, to perform all actions with a Registrar such as BRSKI voucher
  * request, enrollment, re-enrollment, etc. Only valid for scope of contact with a Registrar.
  */
-public final class PledgeCertificateVerifier implements CertificateVerifier {
+public final class PledgeCertificateVerifier implements NewAdvancedCertificateVerifier {
 
   private static final Logger logger = LoggerFactory.getLogger(PledgeCertificateVerifier.class);
 
@@ -78,8 +83,19 @@ public final class PledgeCertificateVerifier implements CertificateVerifier {
   }
 
   @Override
-  public void verifyCertificate(CertificateMessage message, DTLSSession session)
-      throws HandshakeException {
+  public List<CertificateType> getSupportedCertificateTypes() {
+    return Collections.singletonList(CertificateType.X_509);
+  }
+
+  @Override
+  public CertificateVerificationResult verifyCertificate(
+      ConnectionId cid,
+      ServerNames serverName,
+      InetSocketAddress remotePeer,
+      boolean clientUsage,
+      boolean verifySubject,
+      boolean truncateCertificatePath,
+      CertificateMessage message) {
 
     // We save the provisionally accepted registrar certificate chain, it will be verified
     // later, after we get a pinned domain/Registrar certificate in the voucher.
@@ -87,10 +103,12 @@ public final class PledgeCertificateVerifier implements CertificateVerifier {
 
     // Check that it contains at least something to verify later.
     if (peerCertPath.getCertificates().isEmpty()) {
-      AlertMessage alert =
-          new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE, session.getPeer());
       peerAccepted = false;
-      throw new HandshakeException("No server certificates", alert);
+      AlertMessage alert =
+          new AlertMessage(
+              AlertMessage.AlertLevel.FATAL, AlertMessage.AlertDescription.BAD_CERTIFICATE);
+      return new CertificateVerificationResult(
+          cid, new HandshakeException("No server certificates", alert), null);
     }
 
     try {
@@ -128,7 +146,7 @@ public final class PledgeCertificateVerifier implements CertificateVerifier {
         params.setRevocationEnabled(false);
 
         CertPathValidator validator = CertPathValidator.getInstance("PKIX");
-        validator.validate(message.getCertificateChain(), params);
+        validator.validate(peerCertPath, params);
         logger.info("handshake - certificate validation succeeded");
       } else {
         // We do no verification here to provisionally accept registrar certificate.
@@ -139,25 +157,31 @@ public final class PledgeCertificateVerifier implements CertificateVerifier {
       peerAccepted = true;
     } catch (Exception e) {
       logger.error("handshake - certificate validation failed: " + e.getMessage(), e);
+      peerAccepted = false;
       AlertMessage alert =
           new AlertMessage(
-              AlertMessage.AlertLevel.FATAL,
-              AlertMessage.AlertDescription.BAD_CERTIFICATE,
-              session.getPeer());
-      peerAccepted = false;
-      throw new HandshakeException("Certificate chain could not be validated", alert, e);
+              AlertMessage.AlertLevel.FATAL, AlertMessage.AlertDescription.BAD_CERTIFICATE);
+      return new CertificateVerificationResult(
+          cid, new HandshakeException("Certificate chain could not be validated", alert, e), null);
     }
+
+    return new CertificateVerificationResult(cid, peerCertPath, null);
   }
 
   @Override
-  public X509Certificate[] getAcceptedIssuers() {
-    List<X509Certificate> res = new ArrayList<>();
+  public List<X500Principal> getAcceptedIssuers() {
+    List<X500Principal> res = new ArrayList<>();
     for (TrustAnchor ta : trustAnchors) {
       if (ta.getTrustedCert() != null) {
-        res.add(ta.getTrustedCert());
+        res.add(ta.getTrustedCert().getSubjectX500Principal());
       }
     }
-    return res.toArray(new X509Certificate[0]);
+    return res;
+  }
+
+  @Override
+  public void setResultHandler(HandshakeResultHandler resultHandler) {
+    // Verification is performed synchronously, so no asynchronous result handler is needed.
   }
 
   public void addTrustAnchor(TrustAnchor ta) {
