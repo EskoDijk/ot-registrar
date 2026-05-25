@@ -80,7 +80,7 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.exception.ConnectorException;
-import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -919,7 +919,7 @@ public final class Registrar extends CoapServer {
     List<X509Certificate> trustAnchors = new ArrayList<>(Arrays.asList(masaTrustAnchors));
     trustAnchors.add(getDomainCertificate());
 
-    CertificateVerifier verifier;
+    NewAdvancedCertificateVerifier verifier;
     if (this.masaTrustAnchors.length == 0) {
       verifier = new RegistrarCertificateVerifier(null); // trust all clients.
     } else {

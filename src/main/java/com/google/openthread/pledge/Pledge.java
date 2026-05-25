@@ -94,7 +94,7 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.elements.exception.ConnectorException;
-import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -669,11 +669,19 @@ public final class Pledge extends CoapClient {
   }
 
   private void initEndpoint(
-      PrivateKey privateKey, X509Certificate[] certificateChain, CertificateVerifier verifier) {
+      PrivateKey privateKey,
+      X509Certificate[] certificateChain,
+      NewAdvancedCertificateVerifier verifier) {
     CoapEndpoint endpoint =
         SecurityUtils.genCoapClientEndPoint(
             new X509Certificate[]{}, privateKey, certificateChain, verifier, false);
     setEndpoint(endpoint);
+    // Californium's CoapClient pins the destination EndpointContext from the previous response
+    // to keep follow-up requests on the same DTLS session. When we swap the endpoint (e.g. for
+    // re-enrollment or reset) that pinned context refers to a session that no longer exists, and
+    // the strict context matcher would drop the next request. Clear it so the freshly created
+    // endpoint performs a new handshake.
+    setDestinationContext(null);
   }
 
   // We need a provisional DTLS session before requesting
