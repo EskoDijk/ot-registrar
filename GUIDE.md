@@ -20,13 +20,19 @@ All setup commands assume you are starting in the project's root directory.
     mvn package
     ```
 
-    Or, to skip the tests:
+    Or, to skip the tests, use either:
+
+    ```bash
+    ./script/build.sh
+    ```
+
+    or:
 
     ```bash
     mvn -DskipTests package
     ```
 
-    Either of these creates a JAR file at `target/ot-registrar-x.y.z-jar-with-dependencies.jar`, where `x.y.z` is the version number.
+    Any of the above creates a JAR file at `target/ot-registrar-x.y.z-jar-with-dependencies.jar`, where `x.y.z` is the version number.
 
 ## Run services
 
@@ -36,8 +42,7 @@ The OT Registrar JAR file includes the Registrar, MASA server, and a simulated P
 
 To run the registrar or MASA server, we need a structured keystore file (in PKCS#12 format) containing the credentials.
 
-Details on how to generate credentials will be added at a later time. For this guide, we'll use 
-credentials provided with OT Registrar in the `credentials` directory.
+Details on how to generate credentials will be added at a later time. For this guide, we'll use default credentials provided with OT Registrar in the `credentials` directory.
 
 ### Run the registrar
 
@@ -53,10 +58,9 @@ Use the `-h` option to learn what arguments are available:
 ```text
 $ ./script/run -h
 usage: [-registrar | -masa | -pledge] [-h] [-d <domain-name>] [-f
-                   <keystore-file>] [-p <udp-port>] [-v] [-vv] [-vvv]
-                   [-vvvv]
- -d,--domainname <domain-name>       the domain name
- -f,--keyfile <keystore-file>        the keystore file in PKCS#12 format
+                   <keystore-file>] [-p <udp-port>] [-v [-v ...]]
+ -d,--domainname <domain-name>       the Thread Domain name
+ -f,--keyfile <keystore-file>        the keystore file in PKCS#12 format (.p12)
  -h,--help                           print this message
  -m,--masaUri <forced-masa-uri>      force the given MASA URI instead of
                                      the default one
@@ -67,15 +71,11 @@ usage: [-registrar | -masa | -pledge] [-h] [-d <domain-name>] [-f
  -r,--registrarUri <registrar-uri>   for a Pledge, the Registrar to
                                      connect to
  -registrar                          start as cBRSKI Registrar
- -v,--verbose                        verbose mode for logs
- -vv                                 more verbose mode for logs
- -vvv                                even more verbose mode for logs
- -vvvv                               most verbose mode for logs
+ -v,--verbose                        verbose mode for logs; repeat (-v -v
+                                     ... up to 4 times) to raise the level
 ```
 
-NOTE: for any of the `./script/run` commands above and below, the verbosity flags (`-v -vv` etc) can 
-be added to see more output about the process. So, this guide can be repeated with more 
-verbose logging.
+NOTE: for any of the `./script/run` commands above and below, the verbosity flags (one or more `-v`) can be added to see more output about the process. So, this guide can be repeated with more verbose logging.
 
 ### Run the MASA server
 
@@ -88,7 +88,7 @@ $ ./script/run -masa -p 9443
 
 ### Run the pledge
 
-Use a simulated pledge to test the Registrar.
+Use a simulated pledge to test the Registrar and MASA.
 
 Start the pledge in another shell window or tab, connecting to a specific host and port where the Registrar is expected:
 
@@ -131,11 +131,13 @@ Done
 
 ## The Docker service
 
-You can use `script/run-servers.sh` to run both Registrar and MASA on the local host. To avoid having to frequently start and stop servers, OT Registrar provides a Docker image to start all services with a single command.
+You can use `script/run-servers.sh` to run both Registrar and MASA on the local host, in the background.
 
-_**Note:** Only supported on Linux._
+To avoid having to frequently start and stop servers, OT Registrar provides a Docker image to start all services with a single command.
 
-1. Do the bootstrap script if you haven't already.
+**Note:** Only supported on Linux.
+
+1. Run the bootstrap script if you haven't already.
 
 2. Build the Docker image:
 
@@ -143,8 +145,8 @@ _**Note:** Only supported on Linux._
     ./script/build-docker-image.sh
     ```
 
-3. Start all services in a Docker:
+3. Run the Registrar and MASA servers in a Docker:
 
     ```bash
-    ./script/start-service.sh
+    ./script/run-docker-servers.sh
     ```

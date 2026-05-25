@@ -84,7 +84,7 @@ public final class OtRegistrarMain {
             .longOpt("keyfile")
             .hasArg()
             .argName("keystore-file")
-            .desc("the keystore file in PKCS#12 format")
+            .desc("the keystore file in PKCS#12 format (.p12)")
             .build();
 
     Option portOpt =
