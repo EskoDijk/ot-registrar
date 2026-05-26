@@ -28,6 +28,8 @@
 
 package com.google.openthread.main;
 
+import com.google.openthread.CredentialsSet;
+import com.google.openthread.Role;
 import com.google.openthread.brski.ConstantsBrski;
 
 public final class OtRegistrarConfig {
@@ -43,7 +45,7 @@ public final class OtRegistrarConfig {
   static OtRegistrarConfig defaultPledge() {
     OtRegistrarConfig config = new OtRegistrarConfig();
     config.role = Role.Pledge;
-    config.keyStoreFile = "./credentials/default_pledge.p12";
+    config.keyStoreFile = CredentialsSet.keystorePath("default", Role.Pledge);
     config.registrarUri = "coaps://localhost:5684";
     return config;
   }
@@ -53,7 +55,7 @@ public final class OtRegistrarConfig {
     config.role = Role.Registrar;
     config.serverPort = 5684;
     config.domainName = "DefaultDomain";
-    config.keyStoreFile = "./credentials/default_registrar.p12";
+    config.keyStoreFile = CredentialsSet.keystorePath("default", Role.Registrar);
     return config;
   }
 
@@ -61,7 +63,7 @@ public final class OtRegistrarConfig {
     OtRegistrarConfig config = new OtRegistrarConfig();
     config.role = Role.Masa;
     config.serverPort = ConstantsBrski.DEFAULT_MASA_HTTPS_PORT;
-    config.keyStoreFile = "./credentials/default_masa.p12";
+    config.keyStoreFile = CredentialsSet.keystorePath("default", Role.Masa);
     return config;
   }
 

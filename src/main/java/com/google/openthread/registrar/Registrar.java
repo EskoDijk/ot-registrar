@@ -32,15 +32,9 @@ import COSE.Message;
 import COSE.MessageTag;
 import COSE.OneKey;
 import COSE.Sign1Message;
-import com.google.openthread.BouncyCastleInitializer;
+import com.google.openthread.*;
 import com.google.openthread.brski.ConstantsBrski;
-import com.google.openthread.Credentials;
-import com.google.openthread.Constants;
-import com.google.openthread.InsecureHostnameVerifier;
-import com.google.openthread.InsecureTrustManager;
 import com.google.openthread.brski.ExtendedMediaTypeRegistry;
-import com.google.openthread.RequestDumper;
-import com.google.openthread.SecurityUtils;
 import com.google.openthread.brski.CBORSerializer;
 import com.google.openthread.brski.JSONSerializer;
 import com.google.openthread.brski.RestfulVoucherResponse;
@@ -49,7 +43,6 @@ import com.google.openthread.brski.Voucher;
 import com.google.openthread.brski.VoucherRequest;
 import com.google.openthread.domainca.DomainCA;
 import com.google.openthread.pledge.Pledge;
-import com.google.openthread.tools.CredentialGenerator;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -707,7 +700,7 @@ public final class Registrar extends CoapServer {
       SSLContext ctx = SSLContext.getInstance("TLS");
       KeyManagerFactory kmf =
           KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-      kmf.init(masaClientCredentials.getKeyStore(), CredentialGenerator.PASSWORD.toCharArray());
+      kmf.init(masaClientCredentials.getKeyStore(), CredentialsSet.DEFAULT_PASSWORD.toCharArray());
       ctx.init(kmf.getKeyManagers(), new TrustManager[]{new InsecureTrustManager()}, null);
       return ctx;
     }

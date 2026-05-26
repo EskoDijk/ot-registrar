@@ -28,8 +28,10 @@
 #
 
 # This runs a Pledge using Honeydukes IDevID, onboarding via cloud Registrar.
-# The script create-pledge-credentials-p12-honeydukes.sh can be used to create
-# or recreate the credentials file.
+# It uses the pre-built credentials/honeydukes/credentials.p12. NOTE: that .p12
+# cannot currently be regenerated via ./script/create-credentials-p12.sh on
+# JDK 17+, because the honeydukes IDevID's issuing CA certificate is not part of
+# the fixture (see credentials/README.md, honeydukes section).
 
 set -e
 

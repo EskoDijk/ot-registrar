@@ -33,6 +33,7 @@ import com.google.openthread.brski.ConstantsBrski;
 import com.google.openthread.Credentials;
 import com.google.openthread.CredentialsSet;
 import com.google.openthread.brski.HardwareModuleName;
+import com.google.openthread.Role;
 import com.google.openthread.SecurityUtils;
 import java.io.File;
 import java.io.FileInputStream;
@@ -44,6 +45,7 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyStore;
 import java.security.PrivateKey;
@@ -78,42 +80,14 @@ import org.slf4j.LoggerFactory;
 
 public final class CredentialGenerator extends CredentialsSet {
 
-  private static final String HELP_FORMAT =
-      "\n"
-          + "CredentialGenerator [-c <domain-ca-cert> <domain-ca-key>]\n"
-          + "[-r <registrar-cert> <registrar-key>]\n"
-          + "[-p <pledge-cert> <pledge-key>]\n"
-          + "[-ms <masa-server-cert> <masa-server-key>]\n"
-          + "[-m <masa-ca-cert> <masa-ca-key>]\n"
-          + "[-u <masa-uri>]\n"
-          + "[-d] -o <output-file>\n";
-
-  public static final String PASSWORD = "OpenThread";
-
-  public static final String DNAME_PREFIX = "C=CN,L=SH,O=Google,OU=OpenThread,CN=";
-
-  public static final String DOMAINCA_ALIAS = "domainca";
-  public static final String DOMAINCA_DNAME = DNAME_PREFIX + DOMAINCA_ALIAS;
-
-  public static final String REGISTRAR_ALIAS = "registrar";
-  public static final String REGISTRAR_DNAME = DNAME_PREFIX + REGISTRAR_ALIAS;
-
-  public static final String COMMISSIONER_ALIAS = "commissioner";
-  public static final String COMMISSIONER_DNAME = DNAME_PREFIX + COMMISSIONER_ALIAS;
-
-  public static final String MASA_ALIAS = "masa";
-  public static final String MASACA_ALIAS = "masaca";
-  public static final String MASA_DNAME = DNAME_PREFIX + MASA_ALIAS;
-  public static final String MASACA_DNAME = DNAME_PREFIX + MASACA_ALIAS;
-
-  public static final String PLEDGE_ALIAS = "pledge";
+  private static final String PASSWORD = Constants.KEY_STORE_PASSWORD;
+  /** Default vendor ID for generated certificate DNs (overridable via {@link #setVendorId}). */
+  public static final String DEFAULT_VENDOR_ID = "TestVendor";
   public static final String PLEDGE_SN = "OT-";
-  public static final String PLEDGE_DNAME = DNAME_PREFIX + PLEDGE_ALIAS + ",SERIALNUMBER=";
 
-  public static final String CREDENTIALS_FILE_IOTCONSULTANCY = "credentials/iotconsultancy-masa/credentials.p12";
-  public static final String CREDENTIALS_FILE_HONEYDUKES = "credentials/honeydukes/credentials.p12";
-
+  private static final String HELP_FORMAT = "\nCredentialGenerator [...<see options below>...]\n";
   private String masaUri = Constants.DEFAULT_MASA_URI;
+  private String vendorId = DEFAULT_VENDOR_ID;
   private KeyPair dummyKeyPair; // lazily allocated by getDummyKeyPair()
   private boolean isIncludeExtKeyUsage = true;
   private int pledgeSerialNumber = 9528;
@@ -136,22 +110,50 @@ public final class CredentialGenerator extends CredentialsSet {
     return dummyKeyPair;
   }
 
-  public CredentialGenerator() throws Exception {
+  /**
+   * Create an empty CredentialGenerator. Use {@link #make} to generate or load a full set of
+   * credentials, or {@link #makeRole} to package a single role, then {@link #store} to a keystore.
+   *
+   * @throws GeneralSecurityException on keystore/algorithm errors
+   * @throws IOException              on keystore initialization error
+   */
+  public CredentialGenerator() throws GeneralSecurityException, IOException {
     super(CredentialGenerator.PASSWORD);
   }
 
   /**
-   * Set the MASA URI that will be included in a generated Pledge certificate, in the MASA URI extension (RFC 8995 2.3.2).
+   * Set the MASA URI that will be included in a generated Pledge certificate, in the MASA URI
+   * extension (RFC 8995 2.3.2).
    *
-   * @param masaUri string that is typically only the 'authority' part of a URI. See RFC 8995 for exception cases where more elements can be added.
+   * @param masaUri string that is typically only the 'authority' part of a URI. See RFC 8995 for
+   *     exception cases where more elements can be added.
    */
   public void setMasaUri(String masaUri) {
     this.masaUri = masaUri;
   }
 
   /**
-   * Sets whether the Extended Key Usage (EKU) extensions is included in any generated Registrar cert. By default, it is included and must be included to comply to specifications. For testing
-   * situations it can be excluded.
+   * Set the vendor ID used in the organization (O) and common name (CN) fields of generated
+   * certificate distinguished names. The location (C, L) is unaffected.
+   *
+   * @param vendorId the vendor identifier, e.g. {@code "testvendor"} or {@code "honeydukes"}
+   */
+  public void setVendorId(String vendorId) {
+    this.vendorId = vendorId;
+  }
+
+  /**
+   * Distinguished-name prefix for generated certificates: a fixed location with the organization
+   * and common name taken from the current vendor ID (e.g. {@code C=NL,L=Utrecht,O=acme,CN=acme }).
+   */
+  private String dnamePrefix() {
+    return "C=NL,L=Utrecht,O=" + vendorId + ",CN=" + vendorId + " ";
+  }
+
+  /**
+   * Sets whether the Extended Key Usage (EKU) extension is included in any generated Registrar
+   * cert. By default it is included, and must be included to comply with specifications. For
+   * testing situations it can be excluded.
    *
    * @param isIncluded true if EKU is included (should be used by default), false if not.
    */
@@ -159,6 +161,15 @@ public final class CredentialGenerator extends CredentialsSet {
     this.isIncludeExtKeyUsage = isIncluded;
   }
 
+  /**
+   * Generate a self-signed CA certificate (with key-cert-sign and CRL-sign key usage) for the given
+   * key pair and distinguished name.
+   *
+   * @param keyPair the CA key pair, used as both subject and issuer
+   * @param dname   the subject/issuer distinguished name
+   * @return the generated self-signed certificate
+   * @throws Exception on key, certificate, or signing errors
+   */
   public X509Certificate genSelfSignedCert(KeyPair keyPair, String dname) throws Exception {
     Extension keyUsage =
         new Extension(
@@ -172,6 +183,19 @@ public final class CredentialGenerator extends CredentialsSet {
         keyPair, dname, keyPair, new X500Name(dname), true, extensions);
   }
 
+  /**
+   * Generate a Pledge (IDevID) certificate, embedding the hardware module name and MASA URI
+   * extensions, signed by the given issuer.
+   *
+   * @param subKeyPair    the Pledge (subject) key pair
+   * @param subName       the Pledge (subject) distinguished name
+   * @param issuerKeyPair the issuing MASA CA key pair
+   * @param issuerName    the issuing MASA CA distinguished name
+   * @param moduleName    the hardware module name to embed (RFC 8995 IDevID)
+   * @param masaUri       the MASA URI to embed (RFC 8995 2.3.2)
+   * @return the generated Pledge certificate
+   * @throws Exception on key, certificate, or signing errors
+   */
   public X509Certificate genPledgeCertificate(
       KeyPair subKeyPair,
       String subName,
@@ -212,16 +236,17 @@ public final class CredentialGenerator extends CredentialsSet {
   }
 
   /**
-   * generate a Registrar's certificate which has the cmcRA extended key usage (EKU) set by default. Due to RFC 5280 4.2.1.12 rules, if the EKU is present also the 'server' EKU must be present or else
-   * the identity is not allowed to operate as server. Similar for 'client' EKU; as the Registrar also must operate as a client towards MASA potentially with same identity (or potentially with
-   * another.)
+   * Generate a Registrar certificate, which has the cmcRA extended key usage (EKU) set by default.
+   * Per RFC 5280  4.2.1.12, if that EKU is present the 'server' EKU must also be present, or the
+   * identity is not allowed to operate as a server. Similarly for the 'client' EKU, as the
+   * Registrar must also operate as a client towards the MASA, potentially with the same identity.
    *
-   * @param subKeyPair
-   * @param subName
-   * @param issuerKeyPair
-   * @param issuerName
-   * @return
-   * @throws Exception
+   * @param subKeyPair    the Registrar (subject) key pair
+   * @param subName       the Registrar (subject) distinguished name
+   * @param issuerKeyPair the issuing domain CA key pair
+   * @param issuerName    the issuing domain CA distinguished name
+   * @return the generated Registrar certificate
+   * @throws Exception on key, certificate, or signing errors
    */
   public X509Certificate genRegistrarCertificate(
       KeyPair subKeyPair, String subName, KeyPair issuerKeyPair, X500Name issuerName)
@@ -258,22 +283,34 @@ public final class CredentialGenerator extends CredentialsSet {
   }
 
   /**
-   * Generate a new Registrar certificate using default Registrar/DomainCA credentials stored in this object.
+   * Generate a new Registrar certificate using the default Registrar/DomainCA credentials stored in
+   * this object.
    *
-   * @return
+   * @return the generated Registrar certificate
    */
   public X509Certificate genRegistrarCredentials() throws Exception {
     Credentials regCreds = getCredentials(REGISTRAR_ALIAS);
-    Credentials domainCa = getCredentials(DOMAINCA_ALIAS);
+    Credentials domainCa = getCredentials(DOMAIN_CA_ALIAS);
     X509Certificate cert =
         genRegistrarCertificate(
             regCreds.getKeyPair(),
-            REGISTRAR_DNAME,
+            dnamePrefix() + REGISTRAR_ALIAS,
             domainCa.getKeyPair(),
             new JcaX509CertificateHolder(domainCa.getCertificate()).getSubject());
     return cert;
   }
 
+  /**
+   * Generate a MASA server (TLS) certificate, with the serverAuth EKU and a {@code localhost} DNS
+   * subject alternative name, signed by the given issuer.
+   *
+   * @param subKeyPair    the MASA server (subject) key pair
+   * @param subName       the MASA server (subject) distinguished name
+   * @param issuerKeyPair the issuing MASA CA key pair
+   * @param issuerName    the issuing MASA CA distinguished name
+   * @return the generated MASA server certificate
+   * @throws Exception on key, certificate, or signing errors
+   */
   public X509Certificate genMasaServerCertificate(
       KeyPair subKeyPair, String subName, KeyPair issuerKeyPair, X500Name issuerName)
       throws Exception {
@@ -314,14 +351,14 @@ public final class CredentialGenerator extends CredentialsSet {
   /**
    * Make/generate a complete set of certificates and store locally within this CredentialsSet.
    *
-   * @param domaincaCertKeyFiles  filenames for CA cert file and private key file, respectively, or null to generate this key/cert
-   * @param masaCaCertKeyFiles    filenames for MASA CA cert file and private key file, respectively, or null to generate this key/cert, or a single filename to a MASA CA cert file only (without
-   *                              private key)
-   * @param masaCertKeyFiles      filenames for MASA server cert file and private key file, respectively, or null to generate this key/cert, or a single filename to a MASA server cert file only
-   *                              (without private key)
-   * @param registrarCertKeyFiles filenames for Registrar cert file and private key file, respectively, or null to generate this key/cert
-   * @param pledgeCertKeyFiles    filenames for Pledge cert file and private key file, respectively, or null to generate this key/cert
-   * @throws Exception various error cases
+   * @param domaincaCertKeyFiles  {cert, key} filenames for the domain CA, or null to generate it
+   * @param masaCaCertKeyFiles    {cert, key} filenames for the MASA CA, or null to generate it, or
+   *     a single {cert} filename for a MASA CA certificate without private key
+   * @param masaCertKeyFiles      {cert, key} filenames for the MASA server, or null to generate it,
+   *     or a single {cert} filename for a MASA server certificate without private key
+   * @param registrarCertKeyFiles {cert, key} filenames for the Registrar, or null to generate it
+   * @param pledgeCertKeyFiles    {cert, key} filenames for the Pledge, or null to generate it
+   * @throws Exception on key, certificate, or signing errors
    */
   public void make(
       String[] domaincaCertKeyFiles,
@@ -344,10 +381,10 @@ public final class CredentialGenerator extends CredentialsSet {
       }
     } else {
       masaCaKeyPair = SecurityUtils.genKeyPair();
-      masaCaCert = genSelfSignedCert(masaCaKeyPair, MASACA_DNAME);
+      masaCaCert = genSelfSignedCert(masaCaKeyPair, dnamePrefix() + MASA_CA_ALIAS);
     }
     this.setCredentials(
-        MASACA_ALIAS, new X509Certificate[]{masaCaCert}, masaCaKeyPair.getPrivate());
+        MASA_CA_ALIAS, new X509Certificate[]{masaCaCert}, masaCaKeyPair.getPrivate());
 
     // MASA server
     X509Certificate cert;
@@ -364,7 +401,7 @@ public final class CredentialGenerator extends CredentialsSet {
       cert =
           genMasaServerCertificate(
               keyPair,
-              MASA_DNAME,
+              dnamePrefix() + MASA_ALIAS,
               masaCaKeyPair,
               new JcaX509CertificateHolder(masaCaCert).getSubject());
     }
@@ -381,10 +418,10 @@ public final class CredentialGenerator extends CredentialsSet {
       domaincaKeyPair = loadPrivateKeyFromPemFile(domaincaCert, domaincaCertKeyFiles[1]);
     } else {
       domaincaKeyPair = SecurityUtils.genKeyPair();
-      domaincaCert = genSelfSignedCert(domaincaKeyPair, DOMAINCA_DNAME);
+      domaincaCert = genSelfSignedCert(domaincaKeyPair, dnamePrefix() + DOMAIN_CA_ALIAS);
     }
     this.setCredentials(
-        DOMAINCA_ALIAS, new X509Certificate[]{domaincaCert}, domaincaKeyPair.getPrivate());
+        DOMAIN_CA_ALIAS, new X509Certificate[]{domaincaCert}, domaincaKeyPair.getPrivate());
 
     // Registrar
     if (registrarCertKeyFiles != null) {
@@ -395,7 +432,7 @@ public final class CredentialGenerator extends CredentialsSet {
       cert =
           genRegistrarCertificate(
               keyPair,
-              REGISTRAR_DNAME,
+              dnamePrefix() + REGISTRAR_ALIAS,
               domaincaKeyPair,
               new JcaX509CertificateHolder(domaincaCert).getSubject());
     }
@@ -407,7 +444,7 @@ public final class CredentialGenerator extends CredentialsSet {
     cert =
         SecurityUtils.genCertificate(
             keyPair,
-            COMMISSIONER_DNAME,
+            dnamePrefix() + COMMISSIONER_ALIAS,
             domaincaKeyPair,
             new JcaX509CertificateHolder(domaincaCert).getSubject(),
             false,
@@ -417,14 +454,111 @@ public final class CredentialGenerator extends CredentialsSet {
   }
 
   /**
+   * Package the credentials needed by a single role into this CredentialsSet, from previously
+   * generated cert/key PEM files. Unlike {@link #make}, this does not generate any missing
+   * material and only stores the aliases that the given role actually loads at runtime:
+   *
+   * <ul>
+   *   <li>{@code PLEDGE}: {@code pledge} (key + chain to MASA CA) and {@code masaca} (trusted
+   *       certificate only - the MASA CA private key is not required by a Pledge).
+   *   <li>{@code REGISTRAR}: {@code registrar} (key + chain to domain CA) and {@code domainca}
+   *       (key).
+   *   <li>{@code MASA}: {@code masa} (key + chain to MASA CA) and {@code masaca} (key).
+   * </ul>
+   *
+   * @param role                  the role to package credentials for
+   * @param domaincaCertKeyFiles  {cert, key} PEM files for the domain CA (REGISTRAR role)
+   * @param masaCaCertKeyFiles    {cert[, key]} PEM files for the MASA CA (PLEDGE: cert only;
+   *     MASA: cert + key)
+   * @param masaCertKeyFiles      {cert, key} PEM files for the MASA server (MASA role)
+   * @param registrarCertKeyFiles {cert, key} PEM files for the Registrar (REGISTRAR role)
+   * @param pledgeCertKeyFiles    {cert, key} PEM files for the Pledge (PLEDGE role)
+   * @throws GeneralSecurityException on keystore errors or a bad certificate
+   * @throws IOException              if an input PEM file cannot be read
+   */
+  public void makeRole(
+      Role role,
+      String[] domaincaCertKeyFiles,
+      String[] masaCaCertKeyFiles,
+      String[] masaCertKeyFiles,
+      String[] registrarCertKeyFiles,
+      String[] pledgeCertKeyFiles)
+      throws GeneralSecurityException, IOException {
+    switch (role) {
+      case Pledge: {
+        require(pledgeCertKeyFiles, 2, "-p <pledge-cert> <pledge-key>");
+        require(masaCaCertKeyFiles, 1, "-m <masaca-cert>");
+        X509Certificate masaCaCert = loadCertFromPemFile(masaCaCertKeyFiles[0]);
+        X509Certificate pledgeCert = loadCertFromPemFile(pledgeCertKeyFiles[0]);
+        KeyPair pledgeKey = loadPrivateKeyFromPemFile(pledgeCert, pledgeCertKeyFiles[1]);
+        setCredentials(
+            PLEDGE_ALIAS, new X509Certificate[]{pledgeCert, masaCaCert}, pledgeKey.getPrivate());
+        // A Pledge only needs the MASA CA as a trust anchor, not its private key.
+        setTrustedCertificate(MASA_CA_ALIAS, masaCaCert);
+        break;
+      }
+      case Registrar: {
+        require(registrarCertKeyFiles, 2, "-r <registrar-cert> <registrar-key>");
+        require(domaincaCertKeyFiles, 2, "-c <domainca-cert> <domainca-key>");
+        X509Certificate domaincaCert = loadCertFromPemFile(domaincaCertKeyFiles[0]);
+        KeyPair domaincaKey = loadPrivateKeyFromPemFile(domaincaCert, domaincaCertKeyFiles[1]);
+        X509Certificate registrarCert = loadCertFromPemFile(registrarCertKeyFiles[0]);
+        KeyPair registrarKey = loadPrivateKeyFromPemFile(registrarCert, registrarCertKeyFiles[1]);
+        setCredentials(
+            REGISTRAR_ALIAS,
+            new X509Certificate[]{registrarCert, domaincaCert},
+            registrarKey.getPrivate());
+        setCredentials(
+            DOMAIN_CA_ALIAS, new X509Certificate[]{domaincaCert}, domaincaKey.getPrivate());
+        break;
+      }
+      case Masa: {
+        require(masaCertKeyFiles, 2, "-ms <masa-cert> <masa-key>");
+        require(masaCaCertKeyFiles, 2, "-m <masaca-cert> <masaca-key>");
+        X509Certificate masaCaCert = loadCertFromPemFile(masaCaCertKeyFiles[0]);
+        KeyPair masaCaKey = loadPrivateKeyFromPemFile(masaCaCert, masaCaCertKeyFiles[1]);
+        X509Certificate masaCert = loadCertFromPemFile(masaCertKeyFiles[0]);
+        KeyPair masaKey = loadPrivateKeyFromPemFile(masaCert, masaCertKeyFiles[1]);
+        setCredentials(
+            MASA_ALIAS, new X509Certificate[]{masaCert, masaCaCert}, masaKey.getPrivate());
+        setCredentials(
+            MASA_CA_ALIAS, new X509Certificate[]{masaCaCert}, masaCaKey.getPrivate());
+        break;
+      }
+      default:
+        throw new IllegalArgumentException("unsupported role for credential packaging: " + role);
+    }
+  }
+
+  private static void require(String[] files, int minLen, String optionHint) {
+    if (files == null || files.length < minLen) {
+      throw new IllegalArgumentException("missing required input file(s): " + optionHint);
+    }
+  }
+
+  private static Role parseRole(String s) {
+    switch (s.toLowerCase()) {
+      case "pledge":
+        return Role.Pledge;
+      case "registrar":
+        return Role.Registrar;
+      case "masa":
+        return Role.Masa;
+      default:
+        throw new IllegalArgumentException(
+            "unknown role: " + s + " (expected pledge|registrar|masa)");
+    }
+  }
+
+  /**
    * Make a new Pledge certificate.
    *
-   * @param pledgeCertKeyFiles filenames for Pledge cert file and private key file, respectively, or null to generate
+   * @param pledgeCertKeyFiles {cert, key} filenames for the Pledge, or null to generate it
    */
   public void makePledge(String[] pledgeCertKeyFiles) throws Exception {
     X509Certificate pledgeCert;
     KeyPair pledgeKeyPair;
-    Credentials masaCaCreds = getCredentials(MASACA_ALIAS);
+    Credentials masaCaCreds = getCredentials(MASA_CA_ALIAS);
     String sn = createNewPledgeSerialNumber();
     HardwareModuleName hwModuleName =
         new HardwareModuleName(ConstantsBrski.PRIVATE_HARDWARE_TYPE_OID, sn.getBytes());
@@ -437,7 +571,7 @@ public final class CredentialGenerator extends CredentialsSet {
       pledgeCert =
           genPledgeCertificate(
               pledgeKeyPair,
-              PLEDGE_DNAME + sn,
+              dnamePrefix() + PLEDGE_ALIAS + ",SERIALNUMBER=" + sn,
               masaCaCreds.getKeyPair(),
               new JcaX509CertificateHolder(masaCaCreds.getCertificate()).getSubject(),
               hwModuleName,
@@ -486,12 +620,13 @@ public final class CredentialGenerator extends CredentialsSet {
   }
 
   /**
-   * load a set of previously generated credentials from a file.
+   * Load a set of previously generated credentials from a file.
    *
-   * @param filename
-   * @throws Exception
+   * @param filename the keystore (PKCS#12) file to load
+   * @throws GeneralSecurityException on keystore/algorithm errors
+   * @throws IOException              if the file cannot be read
    */
-  public void load(String filename) throws Exception {
+  public void load(String filename) throws GeneralSecurityException, IOException {
     char[] password = PASSWORD.toCharArray();
     KeyStore ksAll = KeyStore.getInstance(Constants.KEY_STORE_FORMAT);
     File file = new File(filename);
@@ -503,12 +638,13 @@ public final class CredentialGenerator extends CredentialsSet {
   }
 
   /**
-   * store the current set of (generated) credentials in a file.
+   * Store the current set of (generated) credentials in a file.
    *
-   * @param filename
-   * @throws Exception
+   * @param filename the keystore (PKCS#12) file to write
+   * @throws GeneralSecurityException on keystore/algorithm errors
+   * @throws IOException              if the file cannot be written
    */
-  public void store(String filename) throws Exception {
+  public void store(String filename) throws GeneralSecurityException, IOException {
     char[] password = PASSWORD.toCharArray();
 
     KeyStore ks = this.getKeyStore();
@@ -518,16 +654,42 @@ public final class CredentialGenerator extends CredentialsSet {
     }
   }
 
-  public void dumpSeparateFiles() throws Exception {
-    String[] files = {
-        MASACA_ALIAS, MASA_ALIAS, PLEDGE_ALIAS, DOMAINCA_ALIAS, REGISTRAR_ALIAS, COMMISSIONER_ALIAS
+  /**
+   * Write each credential in this set out as PEM files into a new vendor directory
+   * {@code <credentials-dir>/<name>}, using the project's standard naming: {@code <role>.pem} for
+   * each certificate and {@code privkey_<role>.pem} for each private key (e.g. {@code pledge.pem}
+   * and {@code privkey_pledge.pem}). The result can then be packaged into per-role keystores with
+   * {@code script/create-credentials-p12.sh <name>}.
+   *
+   * <p>The directory must not already exist: if it does, a warning is logged and nothing is
+   * written. Each written PEM is verified by round-tripping it and comparing the encoding.
+   *
+   * @param vendorName the vendor directory name to create under the credentials directory
+   * @throws GeneralSecurityException on keystore/algorithm errors or a failed round-trip check
+   * @throws IOException              if the output directory or a PEM file cannot be written/read
+   */
+  public void dumpSeparateFiles(String vendorName) throws GeneralSecurityException, IOException {
+    File dir = new File(Constants.CREDENTIALS_DIR, vendorName);
+    if (dir.exists()) {
+      logger.warn("output directory already exists, not writing credentials: {}", dir.getPath());
+      return;
+    }
+    if (!dir.mkdirs()) {
+      throw new IOException("could not create output directory: " + dir.getPath());
+    }
+
+    // The keystore aliases are also the standard PEM file role-names (see
+    // script/create-credentials-p12.sh), so each alias maps directly to <alias>.pem.
+    String[] aliases = {
+        MASA_CA_ALIAS, MASA_ALIAS, PLEDGE_ALIAS, DOMAIN_CA_ALIAS, REGISTRAR_ALIAS, COMMISSIONER_ALIAS
     };
 
-    for (String alias : files) {
-      KeyPair kp = getCredentials(alias).getKeyPair();
-      X509Certificate cert = getCredentials(alias).getCertificate();
+    for (String alias : aliases) {
+      Credentials creds = getCredentials(alias);
+      KeyPair kp = creds.getKeyPair();
+      X509Certificate cert = creds.getCertificate();
 
-      File kf = new File(alias + "_private.pem");
+      File kf = new File(dir, "privkey_" + alias + ".pem");
       try (OutputStream os = new FileOutputStream(kf, false);
           JcaPEMWriter writer = new JcaPEMWriter(new PrintWriter(os))) {
         writer.writeObject(kp.getPrivate());
@@ -540,7 +702,7 @@ public final class CredentialGenerator extends CredentialsSet {
         }
       }
 
-      File cf = new File(alias + "_cert.pem");
+      File cf = new File(dir, alias + ".pem");
       try (OutputStream os = new FileOutputStream(cf, false);
           JcaPEMWriter writer = new JcaPEMWriter(new PrintWriter(os))) {
         writer.writeObject(cert);
@@ -552,8 +714,15 @@ public final class CredentialGenerator extends CredentialsSet {
         }
       }
     }
+    logger.info("wrote credentials as PEM files to directory: {}", dir.getPath());
   }
 
+  /**
+   * Command-line entry point. Generates or packages credentials and writes them to a PKCS#12
+   * keystore; see the {@code -h} help output for the available options.
+   *
+   * @param args command-line arguments
+   */
   public static void main(String[] args) {
     HelpFormatter helper = new HelpFormatter();
     Options options = new Options();
@@ -569,8 +738,11 @@ public final class CredentialGenerator extends CredentialsSet {
     Option dumpOpt =
         Option.builder("d")
             .longOpt("dump")
-            .hasArg(false)
-            .desc("dump the certificates as separate PEM files")
+            .hasArg()
+            .argName("vendor-dir-name")
+            .desc(
+                "dump the credentials as PEM files into a new credentials/<vendor-dir-name> "
+                    + "directory (which must not already exist)")
             .build();
 
     Option caOpt =
@@ -620,6 +792,15 @@ public final class CredentialGenerator extends CredentialsSet {
             .desc("MASA URI to be embedded in the Pledge certificate")
             .build();
 
+    Option roleOpt =
+        Option.builder("role")
+            .longOpt("role")
+            .hasArg()
+            .argName("pledge|registrar|masa")
+            .desc(
+                "package only the aliases needed by this single role, instead of a full keystore")
+            .build();
+
     Option helpOpt =
         Option.builder("h").longOpt("help").hasArg(false).desc("print this message").build();
 
@@ -632,7 +813,8 @@ public final class CredentialGenerator extends CredentialsSet {
         .addOption(masaServerOpt)
         .addOption(regOpt)
         .addOption(pledgeOpt)
-        .addOption(masaUriOpt);
+        .addOption(masaUriOpt)
+        .addOption(roleOpt);
 
     try {
       CommandLineParser parser = new DefaultParser();
@@ -644,8 +826,10 @@ public final class CredentialGenerator extends CredentialsSet {
       }
 
       String keyStoreFile = cmd.getOptionValue('o');
-      if (keyStoreFile == null) {
-        throw new IllegalArgumentException("need to specify keystore file!");
+      // Output is either a PKCS#12 keystore (-o) and/or a PEM dump directory (-d); at least one
+      // must be specified.
+      if (keyStoreFile == null && !cmd.hasOption('d')) {
+        throw new IllegalArgumentException("need to specify -o <keystore-file> or -d <dump-dir>");
       }
 
       CredentialGenerator cg = new CredentialGenerator();
@@ -653,16 +837,32 @@ public final class CredentialGenerator extends CredentialsSet {
       if (masaUri != null) {
         cg.setMasaUri(masaUri);
       }
-      cg.make(
-          cmd.getOptionValues("c"),
-          cmd.getOptionValues("m"),
-          cmd.getOptionValues("ms"),
-          cmd.getOptionValues("r"),
-          cmd.getOptionValues("p"));
-      cg.store(keyStoreFile);
-
+      // Brand generated certificates with the vendor ID (the dump directory name), when given.
       if (cmd.hasOption('d')) {
-        cg.dumpSeparateFiles();
+        cg.setVendorId(cmd.getOptionValue('d'));
+      }
+      String roleStr = cmd.getOptionValue("role");
+      if (roleStr != null) {
+        cg.makeRole(
+            parseRole(roleStr),
+            cmd.getOptionValues("c"),
+            cmd.getOptionValues("m"),
+            cmd.getOptionValues("ms"),
+            cmd.getOptionValues("r"),
+            cmd.getOptionValues("p"));
+      } else {
+        cg.make(
+            cmd.getOptionValues("c"),
+            cmd.getOptionValues("m"),
+            cmd.getOptionValues("ms"),
+            cmd.getOptionValues("r"),
+            cmd.getOptionValues("p"));
+      }
+      if (keyStoreFile != null) {
+        cg.store(keyStoreFile);
+      }
+      if (cmd.hasOption('d')) {
+        cg.dumpSeparateFiles(cmd.getOptionValue('d'));
       }
     } catch (Exception e) {
       System.err.println("error: " + e.getMessage());

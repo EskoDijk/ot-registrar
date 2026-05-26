@@ -26,7 +26,7 @@
  *    POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.google.openthread.main;
+package com.google.openthread;
 
 public enum Role {
   None, Registrar, Masa, Pledge
