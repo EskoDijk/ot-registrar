@@ -99,6 +99,18 @@ public class CredentialsSet {
   }
 
   /**
+   * Store a certificate as a trusted-certificate entry (no private key) under the given alias. Used
+   * for CA / trust-anchor certificates whose private key is not available (e.g. a third-party MASA
+   * CA), so they cannot be stored as a key entry.
+   *
+   * @param alias the alias to store the certificate under
+   * @param cert  the trusted certificate
+   */
+  public void setTrustedCertificate(String alias, X509Certificate cert) throws Exception {
+    keyStore.setCertificateEntry(alias, cert);
+  }
+
+  /**
    * returns the list of aliases present in the underlying KeyStore.
    *
    * @return aliases known to this CredentialsSet, in no particular order

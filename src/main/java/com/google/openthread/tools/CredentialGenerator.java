@@ -33,6 +33,7 @@ import com.google.openthread.brski.ConstantsBrski;
 import com.google.openthread.Credentials;
 import com.google.openthread.CredentialsSet;
 import com.google.openthread.brski.HardwareModuleName;
+import com.google.openthread.main.Role;
 import com.google.openthread.SecurityUtils;
 import java.io.File;
 import java.io.FileInputStream;
@@ -417,6 +418,101 @@ public final class CredentialGenerator extends CredentialsSet {
   }
 
   /**
+   * Package the credentials needed by a single role into this CredentialsSet, from previously
+   * generated cert/key PEM files. Unlike {@link #make}, this does not generate any missing
+   * material and only stores the aliases that the given role actually loads at runtime:
+   *
+   * <ul>
+   *   <li>{@code PLEDGE}: {@code pledge} (key + chain to MASA CA) and {@code masaca} (trusted
+   *       certificate only - the MASA CA private key is not required by a Pledge).
+   *   <li>{@code REGISTRAR}: {@code registrar} (key + chain to domain CA) and {@code domainca}
+   *       (key).
+   *   <li>{@code MASA}: {@code masa} (key + chain to MASA CA) and {@code masaca} (key).
+   * </ul>
+   *
+   * @param role                  the role to package credentials for
+   * @param domaincaCertKeyFiles  {cert, key} PEM files for the domain CA (REGISTRAR role)
+   * @param masaCaCertKeyFiles    {cert[, key]} PEM files for the MASA CA (PLEDGE: cert only; MASA: cert + key)
+   * @param masaCertKeyFiles      {cert, key} PEM files for the MASA server (MASA role)
+   * @param registrarCertKeyFiles {cert, key} PEM files for the Registrar (REGISTRAR role)
+   * @param pledgeCertKeyFiles    {cert, key} PEM files for the Pledge (PLEDGE role)
+   * @throws Exception on missing input files or load errors
+   */
+  public void makeRole(
+      Role role,
+      String[] domaincaCertKeyFiles,
+      String[] masaCaCertKeyFiles,
+      String[] masaCertKeyFiles,
+      String[] registrarCertKeyFiles,
+      String[] pledgeCertKeyFiles)
+      throws Exception {
+    switch (role) {
+      case Pledge: {
+        require(pledgeCertKeyFiles, 2, "-p <pledge-cert> <pledge-key>");
+        require(masaCaCertKeyFiles, 1, "-m <masaca-cert>");
+        X509Certificate masaCaCert = loadCertFromPemFile(masaCaCertKeyFiles[0]);
+        X509Certificate pledgeCert = loadCertFromPemFile(pledgeCertKeyFiles[0]);
+        KeyPair pledgeKey = loadPrivateKeyFromPemFile(pledgeCert, pledgeCertKeyFiles[1]);
+        setCredentials(
+            PLEDGE_ALIAS, new X509Certificate[]{pledgeCert, masaCaCert}, pledgeKey.getPrivate());
+        // A Pledge only needs the MASA CA as a trust anchor, not its private key.
+        setTrustedCertificate(MASACA_ALIAS, masaCaCert);
+        break;
+      }
+      case Registrar: {
+        require(registrarCertKeyFiles, 2, "-r <registrar-cert> <registrar-key>");
+        require(domaincaCertKeyFiles, 2, "-c <domainca-cert> <domainca-key>");
+        X509Certificate domaincaCert = loadCertFromPemFile(domaincaCertKeyFiles[0]);
+        KeyPair domaincaKey = loadPrivateKeyFromPemFile(domaincaCert, domaincaCertKeyFiles[1]);
+        X509Certificate registrarCert = loadCertFromPemFile(registrarCertKeyFiles[0]);
+        KeyPair registrarKey = loadPrivateKeyFromPemFile(registrarCert, registrarCertKeyFiles[1]);
+        setCredentials(
+            REGISTRAR_ALIAS,
+            new X509Certificate[]{registrarCert, domaincaCert},
+            registrarKey.getPrivate());
+        setCredentials(
+            DOMAINCA_ALIAS, new X509Certificate[]{domaincaCert}, domaincaKey.getPrivate());
+        break;
+      }
+      case Masa: {
+        require(masaCertKeyFiles, 2, "-ms <masa-cert> <masa-key>");
+        require(masaCaCertKeyFiles, 2, "-m <masaca-cert> <masaca-key>");
+        X509Certificate masaCaCert = loadCertFromPemFile(masaCaCertKeyFiles[0]);
+        KeyPair masaCaKey = loadPrivateKeyFromPemFile(masaCaCert, masaCaCertKeyFiles[1]);
+        X509Certificate masaCert = loadCertFromPemFile(masaCertKeyFiles[0]);
+        KeyPair masaKey = loadPrivateKeyFromPemFile(masaCert, masaCertKeyFiles[1]);
+        setCredentials(
+            MASA_ALIAS, new X509Certificate[]{masaCert, masaCaCert}, masaKey.getPrivate());
+        setCredentials(
+            MASACA_ALIAS, new X509Certificate[]{masaCaCert}, masaCaKey.getPrivate());
+        break;
+      }
+      default:
+        throw new IllegalArgumentException("unsupported role for credential packaging: " + role);
+    }
+  }
+
+  private static void require(String[] files, int minLen, String optionHint) {
+    if (files == null || files.length < minLen) {
+      throw new IllegalArgumentException("missing required input file(s): " + optionHint);
+    }
+  }
+
+  private static Role parseRole(String s) {
+    switch (s.toLowerCase()) {
+      case "pledge":
+        return Role.Pledge;
+      case "registrar":
+        return Role.Registrar;
+      case "masa":
+        return Role.Masa;
+      default:
+        throw new IllegalArgumentException(
+            "unknown role: " + s + " (expected pledge|registrar|masa)");
+    }
+  }
+
+  /**
    * Make a new Pledge certificate.
    *
    * @param pledgeCertKeyFiles filenames for Pledge cert file and private key file, respectively, or null to generate
@@ -620,6 +716,15 @@ public final class CredentialGenerator extends CredentialsSet {
             .desc("MASA URI to be embedded in the Pledge certificate")
             .build();
 
+    Option roleOpt =
+        Option.builder("role")
+            .longOpt("role")
+            .hasArg()
+            .argName("pledge|registrar|masa")
+            .desc(
+                "package only the aliases needed by this single role, instead of a full keystore")
+            .build();
+
     Option helpOpt =
         Option.builder("h").longOpt("help").hasArg(false).desc("print this message").build();
 
@@ -632,7 +737,8 @@ public final class CredentialGenerator extends CredentialsSet {
         .addOption(masaServerOpt)
         .addOption(regOpt)
         .addOption(pledgeOpt)
-        .addOption(masaUriOpt);
+        .addOption(masaUriOpt)
+        .addOption(roleOpt);
 
     try {
       CommandLineParser parser = new DefaultParser();
@@ -653,12 +759,23 @@ public final class CredentialGenerator extends CredentialsSet {
       if (masaUri != null) {
         cg.setMasaUri(masaUri);
       }
-      cg.make(
-          cmd.getOptionValues("c"),
-          cmd.getOptionValues("m"),
-          cmd.getOptionValues("ms"),
-          cmd.getOptionValues("r"),
-          cmd.getOptionValues("p"));
+      String roleStr = cmd.getOptionValue("role");
+      if (roleStr != null) {
+        cg.makeRole(
+            parseRole(roleStr),
+            cmd.getOptionValues("c"),
+            cmd.getOptionValues("m"),
+            cmd.getOptionValues("ms"),
+            cmd.getOptionValues("r"),
+            cmd.getOptionValues("p"));
+      } else {
+        cg.make(
+            cmd.getOptionValues("c"),
+            cmd.getOptionValues("m"),
+            cmd.getOptionValues("ms"),
+            cmd.getOptionValues("r"),
+            cmd.getOptionValues("p"));
+      }
       cg.store(keyStoreFile);
 
       if (cmd.hasOption('d')) {

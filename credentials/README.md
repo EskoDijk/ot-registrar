@@ -43,7 +43,44 @@ Keystore password is `OpenThread` (`CredentialGenerator.PASSWORD`).
 There is no regeneration script for the three `default_*.p12` files. If
 they need to be refreshed, run `CredentialGenerator` directly (see
 `./script/create-test-credentials-p12.sh` for a template) and copy the
-resulting keystore into place.
+resulting keystore into place — or build per-role keystores with
+`./script/create-credentials-p12.sh` (below) and copy them into place.
+
+## Building per-role keystores: `create-credentials-p12.sh`
+
+`./script/create-credentials-p12.sh <vendor>` builds per-role PKCS#12
+keystores from a vendor's PEM files and writes them to
+`credentials/<vendor>_<role>.p12`. Copy a result onto a runtime default to
+use it, e.g.:
+
+```bash
+./script/create-credentials-p12.sh local-masa
+cp credentials/local-masa_pledge.p12 credentials/default_pledge.p12
+```
+
+**Uniform file naming** in `credentials/<vendor>/`: each certificate is
+`<name>.pem` and its private key is `privkey_<name>.pem`, where `<name>` is
+the keystore alias / role — `pledge`, `masaca`, `masa`, `domainca`,
+`registrar`.
+
+**What each role keystore contains** (only the aliases that role loads at
+runtime):
+
+| Output `.p12`            | Aliases                                       | Required files in vendor dir |
+|--------------------------|-----------------------------------------------|------------------------------|
+| `<vendor>_pledge.p12`    | `pledge` (key+chain), `masaca` (trust cert)   | `pledge.pem`, `privkey_pledge.pem`, `masaca.pem` |
+| `<vendor>_registrar.p12` | `registrar` (key+chain), `domainca` (key)     | `registrar.pem`, `privkey_registrar.pem`, `domainca.pem`, `privkey_domainca.pem` |
+| `<vendor>_masa.p12`      | `masa` (key+chain), `masaca` (key)            | `masa.pem`, `privkey_masa.pem`, `masaca.pem`, `privkey_masaca.pem` |
+
+The script builds a keystore for each role whose files are present, so a
+pledge-only vendor directory yields only `<vendor>_pledge.p12`. For the
+`pledge` role the MASA CA is stored as a trusted-certificate entry (no
+private key needed), so third-party MASA trust anchors can be used.
+Implemented by `CredentialGenerator -role <role> ...`.
+
+Only `honeydukes/` has been migrated to this scheme so far; the other
+vendor directories below still use their older per-directory naming and
+scripts and can be migrated over time.
 
 ### `local-masa/`
 
@@ -80,11 +117,21 @@ MASA CA + TestVendor MASA server). Loaded by `CoseTest`, `FunctionalTest`
 
 ### `honeydukes/`
 
-Third-party Pledge IDevID fixture (Sandelman's Honeydukes test MASA).
-Used by `./script/run-pledge-honeydukes.sh`. Regenerable via
-`./script/create-pledge-credentials-p12-honeydukes.sh`. Refreshing the
-underlying artifacts requires new material from the upstream Sandelman
-MASA.
+Third-party Pledge IDevID fixture (Sandelman's Honeydukes test MASA),
+migrated to the uniform naming scheme: `pledge.pem` (IDevID) +
+`privkey_pledge.pem`, `masaca.pem` (the "Unstrung Highway CA" trust
+anchor), and `masa.pem` (MASA server cert), plus the alternate IDevIDs
+`device_2021.crt` / `device_2022.crt`. Used by
+`./script/run-pledge-honeydukes.sh` via the pre-built `credentials.p12`.
+
+**Limitation:** this `.p12` cannot currently be regenerated with
+`./script/create-credentials-p12.sh honeydukes` on JDK 17+. The honeydukes
+IDevID is issued by "highway-test.example.com IDevID CA", whose certificate
+is not part of the fixture, so the `pledge`→`masaca` chain does not validly
+chain and the JDK refuses to store it (`Certificate chain is not valid`).
+The committed `credentials.p12` was produced on an older, lenient JDK. To
+regenerate it, the missing IDevID CA certificate would need to be added so
+the pledge chain validates.
 
 ## Regenerating
 
