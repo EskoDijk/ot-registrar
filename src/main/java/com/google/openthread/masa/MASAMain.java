@@ -29,8 +29,9 @@
 package com.google.openthread.masa;
 
 import com.google.openthread.Credentials;
+import com.google.openthread.CredentialsSet;
 import com.google.openthread.main.OtRegistrarConfig;
-import com.google.openthread.tools.CredentialGenerator;
+
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,10 +48,10 @@ public class MASAMain {
     MASA masa;
 
     try {
-      Credentials cred = new Credentials(config.keyStoreFile, CredentialGenerator.MASA_ALIAS, CredentialGenerator.PASSWORD);
-      Credentials credCa = new Credentials(config.keyStoreFile, CredentialGenerator.MASACA_ALIAS, CredentialGenerator.PASSWORD);
+      Credentials cred = new Credentials(config.keyStoreFile, CredentialsSet.MASA_ALIAS, CredentialsSet.DEFAULT_PASSWORD);
+      Credentials caCred = new Credentials(config.keyStoreFile, CredentialsSet.MASA_CA_ALIAS, CredentialsSet.DEFAULT_PASSWORD);
 
-      masa = new MASA(cred, credCa, config.serverPort);
+      masa = new MASA(cred, caCred, config.serverPort);
     } catch (Exception e) {
       logger.error(e.getMessage(), e);
       return 1;

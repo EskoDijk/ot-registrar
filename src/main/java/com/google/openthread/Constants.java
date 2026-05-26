@@ -46,6 +46,12 @@ public final class Constants {
   // --- Other items
   public static final String KEY_STORE_FORMAT = "PKCS12";
 
-  /** LDevID and operational-certificate validity period. */
+  /** Default password protecting the project's PKCS#12 keystores. */
+  public static final String KEY_STORE_PASSWORD = "OpenThread";
+
+  /** Directory holding the project's credentials and PKCS#12 keystores. */
+  public static final String CREDENTIALS_DIR = "./credentials";
+
+  /** LDevID and operational-certificate default validity period. */
   public static final Period CERT_VALIDITY = Period.ofYears(5);
 }

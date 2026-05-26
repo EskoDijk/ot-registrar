@@ -28,6 +28,9 @@
 
 package com.google.openthread.registrar;
 
+import com.google.openthread.Credentials;
+import com.google.openthread.CredentialsSet;
+import com.google.openthread.Role;
 import com.google.openthread.brski.ConstantsBrski;
 import com.google.openthread.brski.Voucher;
 import com.google.openthread.domainca.DomainCA;
@@ -35,6 +38,8 @@ import com.google.openthread.masa.MASA;
 import com.google.openthread.pledge.Pledge;
 import com.google.openthread.pledge.Pledge.CertState;
 import com.google.openthread.tools.CredentialGenerator;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
 import org.bouncycastle.util.encoders.Hex;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.junit.After;
@@ -53,9 +58,8 @@ public final class IETFConstrainedBrskiTest {
 
   private static final Logger logger = LoggerFactory.getLogger(IETFConstrainedBrskiTest.class);
 
-  public static final String REGISTRAR_URI = "coaps://[::1]:" + ConstantsBrski.DEFAULT_REGISTRAR_COAPS_PORT;
-  public static final String THREAD_DOMAIN_NAME = "Thread-Test";
-  public static final String CREDENTIALS_KEYSTORE_FILE = "credentials/ietf-draft-constrained-brski/credentials.p12";
+  private static final String REGISTRAR_URI = "coaps://[::1]:" + ConstantsBrski.DEFAULT_REGISTRAR_COAPS_PORT;
+  private static final String THREAD_DOMAIN_NAME = "Thread-Test";
 
   // the acting entities
   private DomainCA domainCA;
@@ -64,12 +68,13 @@ public final class IETFConstrainedBrskiTest {
   private MASA masa;
 
   // credentials used (loaded once in @BeforeClass)
-  private static CredentialGenerator cg;
+  private static CredentialsSet credsMasa, credsPledge, credsRegistrar;
 
   @BeforeClass
   public static void setup() throws Exception {
-    cg = new CredentialGenerator();
-    cg.load(CREDENTIALS_KEYSTORE_FILE);
+    credsMasa = new CredentialsSet("default", Role.Masa);
+    credsPledge = new CredentialsSet("default", Role.Pledge);
+    credsRegistrar = new CredentialsSet("default", Role.Registrar);
   }
 
   @Before
@@ -77,28 +82,31 @@ public final class IETFConstrainedBrskiTest {
     // disable debug logging.
     ch.qos.logback.classic.Logger rootLogger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
     rootLogger.setLevel(ch.qos.logback.classic.Level.INFO);
-    initEntities(cg);
+    initEntities(credsMasa, credsPledge, credsRegistrar);
   }
 
   // TODO: support pinning a single MASA CA here instead of trusting all. Replace
   //   setTrustAllMasas(true) with .addMasaCertificate(
-  //     cg.getCredentials(CredentialGenerator.MASACA_ALIAS).getCertificate())
+  //     cg.getCredentials(CredentialsSet.MASA_CA_ALIAS).getCertificate())
   //   once the test scenarios distinguish trust modes.
-  protected void initEntities(CredentialGenerator credGen) throws Exception {
+  protected void initEntities(CredentialsSet... credentialSets) throws Exception {
     masa =
         new MASA(
-            credGen.getCredentials(CredentialGenerator.MASA_ALIAS),
-            credGen.getCredentials(CredentialGenerator.MASACA_ALIAS),
+            findCredentials(CredentialsSet.MASA_ALIAS, credentialSets),
+            findCredentials(CredentialsSet.MASA_CA_ALIAS, credentialSets),
             ConstantsBrski.DEFAULT_MASA_HTTPS_PORT);
-    pledge = new Pledge(credGen.getCredentials(CredentialGenerator.PLEDGE_ALIAS), REGISTRAR_URI);
+    pledge =
+        new Pledge(findCredentials(CredentialsSet.PLEDGE_ALIAS, credentialSets), REGISTRAR_URI);
     pledge.setLightweightClientCertificates(true);
 
-    domainCA = new DomainCA(THREAD_DOMAIN_NAME, credGen.getCredentials(CredentialGenerator.DOMAINCA_ALIAS));
+    domainCA =
+        new DomainCA(
+            THREAD_DOMAIN_NAME, findCredentials(CredentialsSet.DOMAIN_CA_ALIAS, credentialSets));
 
     RegistrarBuilder registrarBuilder = new RegistrarBuilder();
     registrar =
         registrarBuilder
-            .setCredentials(credGen.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
+            .setCredentials(findCredentials(CredentialsSet.REGISTRAR_ALIAS, credentialSets))
             .setTrustAllMasas(true)
             .build();
     registrar.setDomainCA(domainCA);
@@ -106,6 +114,24 @@ public final class IETFConstrainedBrskiTest {
 
     masa.start();
     registrar.start();
+  }
+
+  /**
+   * Find the credentials stored under {@code alias} as a key entry, in the first of the given
+   * credential sets that provides it. Trusted-certificate-only entries (no private key) are
+   * skipped, so e.g. a Pledge keystore's trust-anchor MASA CA is not mistaken for the MASA's own
+   * key entry. This lets the entities be sourced either from one combined keystore or from several
+   * per-role keystores.
+   */
+  private static Credentials findCredentials(String alias, CredentialsSet... credentialSets)
+      throws IllegalStateException, GeneralSecurityException, IOException {
+    for (CredentialsSet creds : credentialSets) {
+      if (creds.getKeyStore().isKeyEntry(alias)) {
+        return creds.getCredentials(alias);
+      }
+    }
+    throw new IllegalStateException(
+        "no key entry for alias '" + alias + "' found in the given credential set(s)");
   }
 
   @After

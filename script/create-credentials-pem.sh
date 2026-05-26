@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#  Copyright (c) 2021, The OpenThread Registrar Authors.
+#  Copyright (c) 2026, The OpenThread Registrar Authors.
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -27,35 +27,34 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-# Create (or recreate) the cert for: OT Registrar (RA)
-# signed by root=domainCA
+# Build a new set of PEM certificates for a new vendor (MASA, Pledge) or a new
+# customer (Registrar, Domain CA).
 
-if [ -d "./credentials/local-masa" ]
-then
-  cd ./credentials/local-masa || exit 1
-else
-  echo "Please run script from base directory of this repo."
+set -e
+
+if [ $# -ne 1 ]; then
+  echo "Usage: $0 <vendor>"
+  echo "  Creates credentials/<vendor>/ and writes a set of PEM certificates/keys"
+  echo "  for each role (pledge, registrar, masa) - for testing only."
   exit 1
 fi
 
-# days certificate is valid
-VALIDITY=1825
+readonly VENDOR="$1"
+readonly CRED_DIR="./credentials/${VENDOR}"
+readonly OUT_DIR="${CRED_DIR}"
+readonly GEN="./script/lib/helper-cp-run.sh com.google.openthread.tools.CredentialGenerator"
 
-echo "--- Creating new Registrar RA certificate as './credentials/local-masa/registrar_cert2.pem'"
+if [ -d "${CRED_DIR}" ]; then
+  echo "error: vendor directory must be non-existent prior to creating: ${CRED_DIR}"
+  exit 1
+fi
 
-# create csr
-openssl req -new -key registrar_private.pem -out temp.csr -subj "/CN=registrar/OU=OpenThread/O=Google/L=SH/C=CN"
+echo "Building PEM certificates ..."
+${GEN} -d "${VENDOR}"
 
-# sign csr.
-# -CAcreateserial randomly initializes the .srl file when it does not exist;
-# we delete it before AND after to guarantee a fresh random 160-bit serial on
-# every run and to avoid leaving CA-state lying around.
-rm -f domainca_cert.srl
-openssl x509 -req -in temp.csr -extfile ./x509v3_registrar.ext -CA domainca_cert.pem -CAkey domainca_private.pem -CAcreateserial -out registrar_cert2.pem -days $VALIDITY -sha256
-rm -f domainca_cert.srl
+# TODO check for success here
 
-# cleanup temp file
-rm temp.csr
-
-# show it
-openssl x509 -text -noout -in registrar_cert2.pem
+echo ""
+echo "Done. Wrote PEM files to ${OUT_DIR}/."
+echo "To packages these certs/keys into PKCS#12 (.p12) credentials files, use:"
+echo "  ./script/create-credentials-p12.sh ${VENDOR}"

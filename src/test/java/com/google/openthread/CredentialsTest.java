@@ -109,8 +109,8 @@ public final class CredentialsTest {
 
   @Test
   public void testDomainCredentials() throws Exception {
-    Credentials domainCred = new Credentials(keyStoreFile, CredentialGenerator.DOMAINCA_ALIAS, CredentialGenerator.PASSWORD);
-    Credentials registrarCred = new Credentials(keyStoreFile, CredentialGenerator.REGISTRAR_ALIAS, CredentialGenerator.PASSWORD);
+    Credentials domainCred = new Credentials(keyStoreFile, CredentialsSet.DOMAIN_CA_ALIAS, CredentialsSet.DEFAULT_PASSWORD);
+    Credentials registrarCred = new Credentials(keyStoreFile, CredentialsSet.REGISTRAR_ALIAS, CredentialsSet.DEFAULT_PASSWORD);
 
     Assert.assertEquals(3, domainCred.getCertificate().getVersion());
     Assert.assertEquals(3, registrarCred.getCertificate().getVersion());
@@ -125,8 +125,8 @@ public final class CredentialsTest {
 
   @Test
   public void testMASACredentials() throws Exception {
-    Credentials masaCred = new Credentials(keyStoreFile, CredentialGenerator.MASACA_ALIAS, CredentialGenerator.PASSWORD);
-    Credentials pledgeCred = new Credentials(keyStoreFile, CredentialGenerator.PLEDGE_ALIAS, CredentialGenerator.PASSWORD);
+    Credentials masaCred = new Credentials(keyStoreFile, CredentialsSet.MASA_CA_ALIAS, CredentialsSet.DEFAULT_PASSWORD);
+    Credentials pledgeCred = new Credentials(keyStoreFile, CredentialsSet.PLEDGE_ALIAS, CredentialsSet.DEFAULT_PASSWORD);
 
     Assert.assertEquals(Constants.DEFAULT_MASA_URI, SecurityUtils.getMasaUri(pledgeCred.getCertificate()));
     Assert.assertEquals(2, pledgeCred.getCertificateChain().length);
@@ -175,7 +175,7 @@ public final class CredentialsTest {
 
   @Test(expected = CertPathValidatorException.class)
   public void testRegistrarCertChainValidationWithSelfFails() throws Exception {
-    Credentials registrarCred = new Credentials(keyStoreFile, CredentialGenerator.REGISTRAR_ALIAS, CredentialGenerator.PASSWORD);
+    Credentials registrarCred = new Credentials(keyStoreFile, CredentialsSet.REGISTRAR_ALIAS, CredentialsSet.DEFAULT_PASSWORD);
     X509Certificate cert = registrarCred.getCertificate();
 
     Set<TrustAnchor> trustAnchors = new HashSet<>();

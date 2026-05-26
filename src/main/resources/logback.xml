@@ -5,7 +5,12 @@
     </encoder>
   </appender>
 
-  <root level="debug">
+  <!--
+    Default root level is INFO. Command-line tools (e.g. CredentialGenerator)
+    inherit this. The role services (Registrar/MASA/Pledge) override per-package
+    levels at startup via LoggerInitializer based on their -v verbosity flags.
+  -->
+  <root level="info">
     <appender-ref ref="STDOUT"/>
   </root>
 </configuration>

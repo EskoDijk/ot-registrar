@@ -29,6 +29,7 @@
 package com.google.openthread.registrar;
 
 import com.google.openthread.Credentials;
+import com.google.openthread.CredentialsSet;
 import com.google.openthread.domainca.DomainCA;
 import com.google.openthread.main.OtRegistrarConfig;
 import com.google.openthread.tools.CredentialGenerator;
@@ -48,8 +49,8 @@ public final class RegistrarMain {
 
     try {
       RegistrarBuilder builder = new RegistrarBuilder();
-      Credentials cred = new Credentials(config.keyStoreFile, CredentialGenerator.REGISTRAR_ALIAS, CredentialGenerator.PASSWORD);
-      Credentials domainCred = new Credentials(config.keyStoreFile, CredentialGenerator.DOMAINCA_ALIAS, CredentialGenerator.PASSWORD);
+      Credentials cred = new Credentials(config.keyStoreFile, CredentialsSet.REGISTRAR_ALIAS, CredentialsSet.DEFAULT_PASSWORD);
+      Credentials domainCred = new Credentials(config.keyStoreFile, CredentialsSet.DOMAIN_CA_ALIAS, CredentialsSet.DEFAULT_PASSWORD);
 
       // re-use the same creds for Pledge-facing identity and MASA-facing identity of Registrar.
       builder.setCredentials(cred);

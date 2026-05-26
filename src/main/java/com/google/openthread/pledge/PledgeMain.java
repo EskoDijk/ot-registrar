@@ -29,6 +29,7 @@
 package com.google.openthread.pledge;
 
 import com.google.openthread.Credentials;
+import com.google.openthread.CredentialsSet;
 import com.google.openthread.main.OtRegistrarConfig;
 import com.google.openthread.tools.CredentialGenerator;
 import java.util.Objects;
@@ -46,8 +47,8 @@ public class PledgeMain {
   public static int startPledge(OtRegistrarConfig config) {
     Objects.requireNonNull(config, "config");
     try {
-      String password = CredentialGenerator.PASSWORD;
-      Credentials cred = new Credentials(config.keyStoreFile, CredentialGenerator.PLEDGE_ALIAS, password);
+      String password = CredentialsSet.DEFAULT_PASSWORD;
+      Credentials cred = new Credentials(config.keyStoreFile, CredentialsSet.PLEDGE_ALIAS, password);
 
       Pledge pledge = new Pledge(cred, config.registrarUri);
       runCli(pledge);

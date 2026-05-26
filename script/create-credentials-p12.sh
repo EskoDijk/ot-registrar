@@ -35,9 +35,9 @@
 # Expected files in credentials/<vendor>/ (standard naming; certificate is
 # <name>.pem, its private key is privkey_<name>.pem):
 #
-#   pledge    : pledge.pem  privkey_pledge.pem  masaca.pem
-#   registrar : registrar.pem privkey_registrar.pem  domainca.pem privkey_domainca.pem
-#   masa      : masa.pem    privkey_masa.pem    masaca.pem privkey_masaca.pem
+#   pledge    : pledge.pem  privkey_pledge.pem  masa_ca.pem
+#   registrar : registrar.pem privkey_registrar.pem  domain_ca.pem privkey_domain_ca.pem
+#   masa      : masa.pem    privkey_masa.pem    masa_ca.pem privkey_masa_ca.pem
 #
 # Output keystores use password 'OpenThread'. Copy the result onto the runtime
 # default for a role to use it, e.g.:
@@ -66,42 +66,42 @@ made=0
 
 # Pledge: pledge cert+key, and the MASA CA as trust anchor (no key needed).
 if [ -f "${CRED_DIR}/pledge.pem" ] && [ -f "${CRED_DIR}/privkey_pledge.pem" ] \
-    && [ -f "${CRED_DIR}/masaca.pem" ]; then
+    && [ -f "${CRED_DIR}/masa_ca.pem" ]; then
   echo "Building ${VENDOR}_pledge.p12 ..."
   ${GEN} -role pledge \
       -p "${CRED_DIR}/pledge.pem" "${CRED_DIR}/privkey_pledge.pem" \
-      -m "${CRED_DIR}/masaca.pem" \
+      -m "${CRED_DIR}/masa_ca.pem" \
       -o "${OUT_DIR}/${VENDOR}_pledge.p12"
   made=$((made + 1))
 fi
 
 # Registrar: registrar cert+key chained to the domain CA (which needs its key).
 if [ -f "${CRED_DIR}/registrar.pem" ] && [ -f "${CRED_DIR}/privkey_registrar.pem" ] \
-    && [ -f "${CRED_DIR}/domainca.pem" ] && [ -f "${CRED_DIR}/privkey_domainca.pem" ]; then
+    && [ -f "${CRED_DIR}/domain_ca.pem" ] && [ -f "${CRED_DIR}/privkey_domain_ca.pem" ]; then
   echo "Building ${VENDOR}_registrar.p12 ..."
   ${GEN} -role registrar \
       -r "${CRED_DIR}/registrar.pem" "${CRED_DIR}/privkey_registrar.pem" \
-      -c "${CRED_DIR}/domainca.pem" "${CRED_DIR}/privkey_domainca.pem" \
+      -c "${CRED_DIR}/domain_ca.pem" "${CRED_DIR}/privkey_domain_ca.pem" \
       -o "${OUT_DIR}/${VENDOR}_registrar.p12"
   made=$((made + 1))
 fi
 
 # MASA: masa server cert+key chained to the MASA CA (which needs its key).
 if [ -f "${CRED_DIR}/masa.pem" ] && [ -f "${CRED_DIR}/privkey_masa.pem" ] \
-    && [ -f "${CRED_DIR}/masaca.pem" ] && [ -f "${CRED_DIR}/privkey_masaca.pem" ]; then
+    && [ -f "${CRED_DIR}/masa_ca.pem" ] && [ -f "${CRED_DIR}/privkey_masa_ca.pem" ]; then
   echo "Building ${VENDOR}_masa.p12 ..."
   ${GEN} -role masa \
       -ms "${CRED_DIR}/masa.pem" "${CRED_DIR}/privkey_masa.pem" \
-      -m "${CRED_DIR}/masaca.pem" "${CRED_DIR}/privkey_masaca.pem" \
+      -m "${CRED_DIR}/masa_ca.pem" "${CRED_DIR}/privkey_masa_ca.pem" \
       -o "${OUT_DIR}/${VENDOR}_masa.p12"
   made=$((made + 1))
 fi
 
 if [ "${made}" -eq 0 ]; then
   echo "error: no complete role credential set found in ${CRED_DIR} using the standard naming."
-  echo "  pledge    needs: pledge.pem privkey_pledge.pem masaca.pem"
-  echo "  registrar needs: registrar.pem privkey_registrar.pem domainca.pem privkey_domainca.pem"
-  echo "  masa      needs: masa.pem privkey_masa.pem masaca.pem privkey_masaca.pem"
+  echo "  pledge    needs: pledge.pem privkey_pledge.pem masa_ca.pem"
+  echo "  registrar needs: registrar.pem privkey_registrar.pem domain_ca.pem privkey_domain_ca.pem"
+  echo "  masa      needs: masa.pem privkey_masa.pem masa_ca.pem privkey_masa_ca.pem"
   exit 1
 fi
 

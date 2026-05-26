@@ -32,6 +32,8 @@ import static org.junit.Assert.assertSame;
 
 import com.google.openthread.Constants;
 import com.google.openthread.Credentials;
+import com.google.openthread.CredentialsSet;
+import com.google.openthread.Role;
 import com.google.openthread.brski.ConstantsBrski;
 import com.google.openthread.brski.ExtendedMediaTypeRegistry;
 import com.google.openthread.brski.StatusTelemetry;
@@ -43,6 +45,7 @@ import com.google.openthread.pledge.Pledge.CertState;
 import com.google.openthread.pledge.PledgeException;
 import com.google.openthread.tools.CredentialGenerator;
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.security.cert.X509Certificate;
 import org.bouncycastle.util.encoders.Hex;
 import org.eclipse.californium.core.CoapResponse;
@@ -59,8 +62,9 @@ import org.slf4j.LoggerFactory;
 
 public final class FunctionalTest {
 
-  public static final String REGISTRAR_URI = "coaps://[::1]:" + ConstantsBrski.DEFAULT_REGISTRAR_COAPS_PORT;
-  public static final String DEFAULT_DOMAIN_NAME = "Thread-Test";
+  private static final String REGISTRAR_URI = "coaps://[::1]:" + ConstantsBrski.DEFAULT_REGISTRAR_COAPS_PORT;
+  private static final String DEFAULT_DOMAIN_NAME = "Thread-Test";
+  private static final String TEST_VENDOR_ID = "TestVendor";
 
   private static final Logger logger = LoggerFactory.getLogger(FunctionalTest.class);
 
@@ -70,12 +74,12 @@ public final class FunctionalTest {
   private Pledge pledge;
   private MASA masa;
 
-  // credentials used
+  // generated credentials used
   private static CredentialGenerator cg;
 
   @BeforeClass
   public static void setup() throws Exception {
-    // generated credentials set
+    // fully generated credentials set
     cg = new CredentialGenerator();
     cg.make(null, null, null, null, null);
   }
@@ -87,31 +91,50 @@ public final class FunctionalTest {
 
   // TODO: support pinning a single MASA CA here instead of trusting all. Replace
   //   setTrustAllMasas(true) with .addMasaCertificate(
-  //     cg.getCredentials(CredentialGenerator.MASACA_ALIAS).getCertificate())
+  //     cg.getCredentials(CredentialsSet.MASA_CA_ALIAS).getCertificate())
   //   once the test scenarios distinguish trust modes.
-  protected void initEntities(CredentialGenerator credGen) throws Exception {
+  protected void initEntities(CredentialsSet... credentialSets) throws Exception {
     masa =
         new MASA(
-            credGen.getCredentials(CredentialGenerator.MASA_ALIAS),
-            credGen.getCredentials(CredentialGenerator.MASACA_ALIAS),
+            findCredentials(CredentialsSet.MASA_ALIAS, credentialSets),
+            findCredentials(CredentialsSet.MASA_CA_ALIAS, credentialSets),
             ConstantsBrski.DEFAULT_MASA_HTTPS_PORT);
-    pledge = new Pledge(credGen.getCredentials(CredentialGenerator.PLEDGE_ALIAS), REGISTRAR_URI);
+    pledge =
+        new Pledge(findCredentials(CredentialsSet.PLEDGE_ALIAS, credentialSets), REGISTRAR_URI);
     pledge.setLightweightClientCertificates(true);
 
     domainCA =
         new DomainCA(
-            DEFAULT_DOMAIN_NAME, credGen.getCredentials(CredentialGenerator.DOMAINCA_ALIAS));
+            DEFAULT_DOMAIN_NAME, findCredentials(CredentialsSet.DOMAIN_CA_ALIAS, credentialSets));
 
     RegistrarBuilder registrarBuilder = new RegistrarBuilder();
     registrar =
         registrarBuilder
-            .setCredentials(credGen.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
+            .setCredentials(findCredentials(CredentialsSet.REGISTRAR_ALIAS, credentialSets))
             .setTrustAllMasas(true)
             .build();
     registrar.setDomainCA(domainCA);
 
     masa.start();
     registrar.start();
+  }
+
+  /**
+   * Find the credentials stored under {@code alias} as a key entry, in the first of the given
+   * credential sets that provides it. Trusted-certificate-only entries (no private key) are
+   * skipped, so e.g. a Pledge keystore's trust-anchor MASA CA is not mistaken for the MASA's own
+   * key entry. This lets the entities be sourced either from one combined keystore or from several
+   * per-role keystores.
+   */
+  private static Credentials findCredentials(String alias, CredentialsSet... credentialSets)
+      throws IllegalStateException, GeneralSecurityException, IOException {
+    for (CredentialsSet creds : credentialSets) {
+      if (creds.getKeyStore().isKeyEntry(alias)) {
+        return creds.getCredentials(alias);
+      }
+    }
+    throw new IllegalStateException(
+        "no key entry for alias '" + alias + "' found in the given credential set(s)");
   }
 
   @After
@@ -198,11 +221,13 @@ public final class FunctionalTest {
 
   @Test
   public void testEnrollWithLoadedCredentials() throws Exception {
-    // start a new set of entities, using loaded credentials.
-    CredentialGenerator cred = new CredentialGenerator();
-    cred.load(CredentialGenerator.CREDENTIALS_FILE_IOTCONSULTANCY);
+    // start a new set of entities, using per-role credentials loaded from file.
+    CredentialsSet credMasa = new CredentialsSet(TEST_VENDOR_ID, Role.Masa);
+    CredentialsSet credPledge = new CredentialsSet(TEST_VENDOR_ID, Role.Pledge);
+    CredentialsSet credRegistrar = new CredentialsSet(TEST_VENDOR_ID, Role.Registrar);
+
     this.shutdown();
-    this.initEntities(cred);
+    this.initEntities(credMasa, credPledge, credRegistrar);
     registrar.setForcedMasaUri(Constants.DEFAULT_MASA_URI); // force to local.
 
     Voucher voucher = pledge.requestVoucher();
@@ -337,7 +362,7 @@ public final class FunctionalTest {
 
     public PledgeThread() throws Exception {
       cg.makePledge(null); // create a new Pledge identity and serial number
-      pledge = new Pledge(cg.getCredentials(CredentialGenerator.PLEDGE_ALIAS), REGISTRAR_URI);
+      pledge = new Pledge(cg.getCredentials(CredentialsSet.PLEDGE_ALIAS), REGISTRAR_URI);
     }
 
     @Override
@@ -371,11 +396,11 @@ public final class FunctionalTest {
     cg.setRegistrarExtendedKeyUsage(false);
     X509Certificate cert = cg.genRegistrarCredentials();
     X509Certificate domainCaCert =
-        cg.getCredentials(CredentialGenerator.DOMAINCA_ALIAS).getCertificate();
+        cg.getCredentials(CredentialsSet.DOMAIN_CA_ALIAS).getCertificate();
 
     // Re-pack as fresh Credentials with the new chain, reusing the original
     // alias/password/private-key.
-    Credentials baseRegCred = cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS);
+    Credentials baseRegCred = cg.getCredentials(CredentialsSet.REGISTRAR_ALIAS);
     Credentials regCredWithNewChain =
         new Credentials(
             baseRegCred.getPrivateKey(),
@@ -426,7 +451,7 @@ public final class FunctionalTest {
 
     // create new Registrar that uses only CMS-signed JSON voucher requests towards MASA
     RegistrarBuilder registrarBuilder = new RegistrarBuilder();
-    registrar = registrarBuilder.setCredentials(cg.getCredentials(CredentialGenerator.REGISTRAR_ALIAS))
+    registrar = registrarBuilder.setCredentials(cg.getCredentials(CredentialsSet.REGISTRAR_ALIAS))
         .setTrustAllMasas(true)
         .build();
     registrar.setDomainCA(domainCA);

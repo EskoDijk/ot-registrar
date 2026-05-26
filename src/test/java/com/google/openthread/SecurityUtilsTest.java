@@ -151,7 +151,7 @@ public final class SecurityUtilsTest {
     CredentialGenerator cg = new CredentialGenerator();
     cg.make(null, null, null, null, null);
     X509Certificate pledgeCert =
-        cg.getCredentials(CredentialGenerator.PLEDGE_ALIAS).getCertificate();
+        cg.getCredentials(CredentialsSet.PLEDGE_ALIAS).getCertificate();
     byte[] akiOctetString = SecurityUtils.getAuthorityKeyIdentifier(pledgeCert);
     byte[] keyId = SecurityUtils.getAuthorityKeyIdentifierKeyId(pledgeCert);
     Assert.assertNotNull(keyId);
