@@ -29,13 +29,29 @@
 
 set -e
 
+# Usage:
+#   script/run [args...]                        -- run the JAR's Main-Class
+#   script/run --class <fq.MainClass> [args...] -- run an alternate main class on
+#                                                  the JAR's classpath
+
 # Pick the JAR built from the current pom.xml version (glob so the script
-# doesn't have to be updated when the version bumps).
+# doesn't have to be updated when the version bumps). Relies on 'mvn clean'
+# manual action to ensure older versions don't persist.
 JAR_FILE=$(find ./target -maxdepth 1 -name 'ot-registrar-*-jar-with-dependencies.jar' -print -quit 2>/dev/null)
 
 if [ -z "${JAR_FILE}" ] || [ ! -f "${JAR_FILE}" ]; then
-  echo "Please build using 'mvn -DskipTests package' before running."
+  echo "Please build using './script/build.sh' before running."
   exit 1
 fi
 
-java -jar "${JAR_FILE}" "$@"
+if [ "$1" = "--class" ]; then
+  if [ -z "$2" ]; then
+    echo "error: --class requires a fully-qualified main class name"
+    exit 1
+  fi
+  MAIN_CLASS="$2"
+  shift 2
+  exec java -cp "${JAR_FILE}" "${MAIN_CLASS}" "$@"
+fi
+
+exec java -jar "${JAR_FILE}" "$@"

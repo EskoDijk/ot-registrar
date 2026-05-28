@@ -29,4 +29,4 @@
 
 set -e
 
-./script/lib/helper-cp-run.sh com.google.openthread.tools.CoseValidator "$@"
+./script/run --class com.google.openthread.tools.CoseValidator "$@"

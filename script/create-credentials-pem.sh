@@ -42,7 +42,7 @@ fi
 readonly VENDOR="$1"
 readonly CRED_DIR="./credentials/${VENDOR}"
 readonly OUT_DIR="${CRED_DIR}"
-readonly GEN="./script/lib/helper-cp-run.sh com.google.openthread.tools.CredentialGenerator"
+readonly GEN="./script/run --class com.google.openthread.tools.CredentialGenerator"
 
 if [ -d "${CRED_DIR}" ]; then
   echo "error: vendor directory must be non-existent prior to creating: ${CRED_DIR}"
