@@ -25,19 +25,26 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
-# Combined into one RUN so we get a single image layer and so the apt-list
-# cleanup at the end actually shrinks the image.
+# The container only runs the pre-built fat JAR -- no Maven build, no
+# javac, no shell tooling needed. JRE-headless keeps the image small.
+# Combined into one RUN so the apt-list cleanup at the end actually shrinks
+# the layer.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        maven git sudo net-tools openjdk-11-jdk \
+        openjdk-17-jre-headless \
     && rm -rf /var/lib/apt/lists/* \
     && java -version
 
 WORKDIR /home/ot-registrar
 
-COPY . .
+# Copy only what the running container actually needs. The fat JAR carries all
+# Java deps; src/ and pom.xml are not used at runtime. Ordered most-stable
+# first so layer caching is friendly when --no-cache is dropped.
+COPY credentials/ ./credentials/
+COPY script/ ./script/
+COPY target/ot-registrar-*-jar-with-dependencies.jar ./target/
 
 # Use exec-form CMD with an explicit bash invocation so the JSONArgsRecommended
 # lint passes while we still get the '&&' chain and the interactive shell that

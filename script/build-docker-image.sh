@@ -39,7 +39,7 @@ if ! docker images -q "${IMAGE_NAME}:${VERSION}" | grep -q .; then
     mvn clean -Dmaven.test.skip=true package
 
     echo "building docker image..."
-    docker build --no-cache -f etc/docker/Dockerfile -t ${IMAGE_NAME}:${VERSION} .
+    docker build -f etc/docker/Dockerfile -t ${IMAGE_NAME}:${VERSION} .
 else
     echo "Docker image '${IMAGE_NAME}' is already present."
 fi

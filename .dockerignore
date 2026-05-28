@@ -1,0 +1,44 @@
+# Keep the Docker build context small and prevent local scratch / stale
+# runtime state from leaking into the image. The Dockerfile uses explicit
+# COPY lines, so this file is also defence-in-depth against future COPYs.
+
+# VCS / CI / agent / IDE / OS
+.git
+.gitignore
+.gitattributes
+.github
+.claude
+.idea
+.vscode
+.settings
+.DS_Store
+*.iml
+
+# Build by-products and crash dumps
+*.class
+hs_err_pid*
+
+# Runtime artefacts we never want baked into the image
+logs
+*.log
+Californium.properties
+Californium3.properties
+
+# Local scratch
+temp
+
+# target/ holds Maven build output; only the fat JAR is needed at runtime
+target
+!target/ot-registrar-*-jar-with-dependencies.jar
+
+# Docs and release notes — not used by the running container
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+GUIDE.md
+README.md
+AUTHORS
+releases
+
+# Don't ship the Dockerfile / dockerignore themselves
+etc/docker/Dockerfile
+.dockerignore
