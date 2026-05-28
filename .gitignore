@@ -37,6 +37,7 @@ target
 
 # auto-generated config files
 Californium.properties
+Californium3.properties
 
 # OpenSSL CA serial-number state files
 *.srl
