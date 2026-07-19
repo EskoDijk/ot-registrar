@@ -154,11 +154,7 @@ public class SecurityUtils {
 
   static {
     BouncyCastleInitializer.init();
-    // Register the Californium 3.x configuration modules so that
-    // Configuration.createStandardWithoutFile() knows the CoAP/DTLS/UDP definitions.
-    CoapConfig.register();
-    DtlsConfig.register();
-    UdpConfig.register();
+    registerConfigurationDefinitions();
     try {
       certFactory = CertificateFactory.getInstance("X.509");
     } catch (CertificateException ex) {
@@ -166,6 +162,24 @@ public class SecurityUtils {
       // Fail fast so callers don't NPE on a null certFactory later.
       throw new ExceptionInInitializerError(ex);
     }
+  }
+
+  /**
+   * Registers the Californium 3.x CoAP/DTLS/UDP configuration modules with the global {@link
+   * org.eclipse.californium.elements.config.Configuration} registry. Thismust run before any
+   * {@code CoapServer}, {@code CoapEndpoint} or DTLS connector is constructed.
+   * The underlying {@code register()} calls are idempotent, so this method is safe to
+   * invoke repeatedly.
+   *
+   * <p>Loading this class (e.g. calling any {@code SecurityUtils} method) already registers the
+   * modules via the static initializer above. Entry points that construct a Californium object
+   * before touching {@code SecurityUtils} must call this explicitly so registration does not
+   * depend on incidental class-loading order.
+   */
+  public static void registerConfigurationDefinitions() {
+    CoapConfig.register();
+    DtlsConfig.register();
+    UdpConfig.register();
   }
 
   /**

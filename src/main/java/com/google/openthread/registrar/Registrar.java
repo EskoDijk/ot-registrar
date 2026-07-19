@@ -101,6 +101,8 @@ public final class Registrar extends CoapServer {
 
   static {
     BouncyCastleInitializer.init();
+    // Guarantee class initialization - see method's API doc.
+    SecurityUtils.registerConfigurationDefinitions();
   }
 
   private final int listenPort;
