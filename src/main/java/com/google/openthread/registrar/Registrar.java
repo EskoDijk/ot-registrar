@@ -50,6 +50,7 @@ import java.io.OutputStream;
 import java.net.URL;
 import java.security.Principal;
 import java.security.PrivateKey;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -360,7 +361,8 @@ public final class Registrar extends CoapServer {
           exchange.respond(ResponseCode.UNAUTHORIZED, "Unsupported client identity type.");
           return;
         }
-        X509Certificate idevid = ((X509CertPath) clientId).getTarget();
+        X509CertPath pledgeCertPath = (X509CertPath) clientId;
+        X509Certificate idevid = pledgeCertPath.getTarget();
         voucherLog.put(clientId, Voucher.UNDEFINED); // log access by this client
         logger.debug(
             "Public key of current client: " + Hex.toHexString(idevid.getPublicKey().getEncoded()));
@@ -482,6 +484,16 @@ public final class Registrar extends CoapServer {
         // store last sent RVR.
         lastRvr = req;
 
+        // Assemble the certificates to place in the RVR's x5bag (cBRSKI section 9.2.1): the
+        // Registrar's own RVR-signing chain, followed by the full IDevID certificate chain that
+        // the Pledge presented in the DTLS handshake. The latter lets a MASA that does not store
+        // IDevIDs reconstruct and verify the Pledge's identity from its own manufacturer root CA.
+        List<X509Certificate> x5bagCerts = new ArrayList<>(Arrays.asList(certificateChain));
+        for (Certificate c : pledgeCertPath.getPath().getCertificates()) {
+          x5bagCerts.add((X509Certificate) c);
+        }
+        X509Certificate[] x5bag = x5bagCerts.toArray(new X509Certificate[0]);
+
         // use CMS or COSE signing of the voucher request.
         byte[] payload;
         boolean isCms =
@@ -502,7 +514,7 @@ public final class Registrar extends CoapServer {
                     privateKey,
                     getCertificate(),
                     SecurityUtils.SIGNATURE_ALGORITHM,
-                    certificateChain,
+                    x5bag,
                     content);
           } catch (Exception e) {
             logger.warn("CMS signing voucher request failed: " + e.getMessage(), e);
@@ -516,7 +528,7 @@ public final class Registrar extends CoapServer {
           try {
             payload =
                 SecurityUtils.genCoseSign1Message(
-                    privateKey, SecurityUtils.COSE_SIGNATURE_ALGORITHM, content, certificateChain);
+                    privateKey, SecurityUtils.COSE_SIGNATURE_ALGORITHM, content, x5bag);
           } catch (Exception e) {
             logger.warn("COSE signing voucher request failed: " + e.getMessage(), e);
             exchange.respond(ResponseCode.SERVICE_UNAVAILABLE);

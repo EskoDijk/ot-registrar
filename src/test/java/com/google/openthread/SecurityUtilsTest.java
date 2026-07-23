@@ -277,4 +277,93 @@ public final class SecurityUtilsTest {
         "an empty CA set never chains",
         SecurityUtils.chainsTo(pki.endEntity, Collections.emptyList()));
   }
+
+  /**
+   * The three-argument {@code chainsTo} separates trust anchors from intermediates: a path is
+   * accepted only when it actually reaches an anchor, with intermediates merely bridging the gap.
+   */
+  @Test
+  public void testChainsToWithSeparateAnchorsAndIntermediates() throws Exception {
+    TwoLevelPki pki = new TwoLevelPki();
+
+    Assert.assertTrue(
+        "reaches the root anchor via the sub-CA intermediate",
+        SecurityUtils.chainsTo(
+            pki.endEntity,
+            Collections.singletonList(pki.rootCa),
+            Collections.singletonList(pki.subCa)));
+
+    Assert.assertFalse(
+        "the sub-CA is only an intermediate here, not an anchor, so nothing to reach",
+        SecurityUtils.chainsTo(
+            pki.endEntity,
+            Collections.emptyList(),
+            Collections.singletonList(pki.subCa)));
+
+    Assert.assertFalse(
+        "without the sub-CA intermediate the root anchor is unreachable",
+        SecurityUtils.chainsTo(
+            pki.endEntity,
+            Collections.singletonList(pki.rootCa),
+            Collections.emptyList()));
+
+    Assert.assertTrue(
+        "the sub-CA on its own is a sufficient anchor",
+        SecurityUtils.chainsTo(
+            pki.endEntity,
+            Collections.singletonList(pki.subCa),
+            Collections.emptyList()));
+  }
+
+  @Test
+  public void testFindPledgeIdevid() throws Exception {
+    CredentialGenerator cg = new CredentialGenerator();
+    cg.make(null, null, null, null, null);
+    X509Certificate idevid = cg.getCredentials(CredentialsSet.PLEDGE_ALIAS).getCertificate();
+    X509Certificate registrar = cg.getCredentials(CredentialsSet.REGISTRAR_ALIAS).getCertificate();
+    X509Certificate domainCa = cg.getCredentials(CredentialsSet.DOMAIN_CA_ALIAS).getCertificate();
+
+    // The IDevID (end-entity carrying a MASA URI) is picked out from among the other certs.
+    Assert.assertEquals(
+        idevid, SecurityUtils.findPledgeIdevid(Arrays.asList(registrar, domainCa, idevid)));
+
+    // No IDevID present -> null: the Registrar end-entity has no MASA URI, the Domain CA is a CA.
+    Assert.assertNull(SecurityUtils.findPledgeIdevid(Arrays.asList(registrar, domainCa)));
+  }
+
+  @Test
+  public void testFindCmcRaCert() throws Exception {
+    CredentialGenerator cg = new CredentialGenerator();
+    cg.make(null, null, null, null, null);
+    X509Certificate idevid = cg.getCredentials(CredentialsSet.PLEDGE_ALIAS).getCertificate();
+    X509Certificate registrar = cg.getCredentials(CredentialsSet.REGISTRAR_ALIAS).getCertificate();
+    X509Certificate domainCa = cg.getCredentials(CredentialsSet.DOMAIN_CA_ALIAS).getCertificate();
+
+    // The Registrar cert (id-kp-cmcRA) is found; the IDevID and Domain CA do not carry that EKU.
+    Assert.assertEquals(
+        registrar, SecurityUtils.findCmcRaCert(Arrays.asList(idevid, domainCa, registrar)));
+    Assert.assertNull(SecurityUtils.findCmcRaCert(Arrays.asList(idevid, domainCa)));
+  }
+
+  @Test
+  public void testTopOfChain() throws Exception {
+    TwoLevelPki pki = new TwoLevelPki();
+
+    // The self-signed root is the top of its chain, regardless of list order.
+    Assert.assertEquals(
+        pki.rootCa,
+        SecurityUtils.topOfChain(Arrays.asList(pki.endEntity, pki.subCa, pki.rootCa)));
+    Assert.assertEquals(
+        pki.rootCa,
+        SecurityUtils.topOfChain(Arrays.asList(pki.rootCa, pki.endEntity, pki.subCa)));
+
+    // With the root absent, the highest available cert (the sub-CA) is returned.
+    Assert.assertEquals(
+        pki.subCa, SecurityUtils.topOfChain(Arrays.asList(pki.endEntity, pki.subCa)));
+
+    // A single certificate is its own top; an empty list has none.
+    Assert.assertEquals(
+        pki.endEntity, SecurityUtils.topOfChain(Collections.singletonList(pki.endEntity)));
+    Assert.assertNull(SecurityUtils.topOfChain(Collections.emptyList()));
+  }
 }

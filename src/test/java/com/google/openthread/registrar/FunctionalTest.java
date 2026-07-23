@@ -30,10 +30,15 @@ package com.google.openthread.registrar;
 
 import static org.junit.Assert.assertSame;
 
+import COSE.Message;
+import COSE.MessageTag;
+import COSE.OneKey;
+import COSE.Sign1Message;
 import com.google.openthread.Constants;
 import com.google.openthread.Credentials;
 import com.google.openthread.CredentialsSet;
 import com.google.openthread.Role;
+import com.google.openthread.SecurityUtils;
 import com.google.openthread.brski.ConstantsBrski;
 import com.google.openthread.brski.ExtendedMediaTypeRegistry;
 import com.google.openthread.brski.StatusTelemetry;
@@ -202,6 +207,58 @@ public final class FunctionalTest {
     verifyPledge(pledge);
     verifyEnroll(pledge);
     Assert.assertEquals(ResponseCode.CHANGED, pledge.sendEnrollStatusTelemetry(true, null));
+  }
+
+  /**
+   * The Registrar must place the Pledge's IDevID certificate chain from the DTLS handshake into the
+   * RVR's COSE x5bag, alongside its own signing chain (cBRSKI section 9.2.1).
+   */
+  @Test
+  public void testRvrX5bagIncludesPledgeIdevid() throws Exception {
+    pledge.requestVoucher();
+
+    byte[] signedRvr = registrar.getLastRvrCoseSigned();
+    Assert.assertNotNull(signedRvr);
+    Sign1Message sign1 = (Sign1Message) Message.DecodeFromBytes(signedRvr, MessageTag.Sign1);
+    List<X509Certificate> x5bag = SecurityUtils.getX5BagCertificates(sign1);
+    Assert.assertNotNull("RVR must carry an x5bag", x5bag);
+
+    // The Pledge's IDevID, the Registrar's own cert, and the Domain CA must all be present.
+    X509Certificate idevid = cg.getCredentials(CredentialsSet.PLEDGE_ALIAS).getCertificate();
+    X509Certificate registrarCert = cg.getCredentials(CredentialsSet.REGISTRAR_ALIAS).getCertificate();
+    X509Certificate domainCaCert = cg.getCredentials(CredentialsSet.DOMAIN_CA_ALIAS).getCertificate();
+    Assert.assertTrue("x5bag must include the Pledge IDevID", x5bag.contains(idevid));
+    Assert.assertTrue("x5bag must include the Registrar cert", x5bag.contains(registrarCert));
+    Assert.assertTrue("x5bag must include the Domain CA cert", x5bag.contains(domainCaCert));
+
+    // And the MASA must be able to recognise that IDevID as chaining to its MASA CA.
+    X509Certificate masaCaCert = cg.getCredentials(CredentialsSet.MASA_CA_ALIAS).getCertificate();
+    Assert.assertTrue(
+        "IDevID must chain to the MASA CA",
+        SecurityUtils.chainsTo(idevid, java.util.Collections.singletonList(masaCaCert), x5bag));
+  }
+
+  /**
+   * The MASA identifies the RVR's signing certificate as the CMC-RA (Registrar) certificate in the
+   * x5bag, not by position, and the COSE signature validates against it. This mirrors the check the
+   * MASA performs, and is robust to the (unordered) x5bag also carrying the Pledge's IDevID chain.
+   */
+  @Test
+  public void testRvrSignerIdentifiedByCmcRa() throws Exception {
+    pledge.requestVoucher();
+
+    byte[] signedRvr = registrar.getLastRvrCoseSigned();
+    Assert.assertNotNull(signedRvr);
+    Sign1Message sign1 = (Sign1Message) Message.DecodeFromBytes(signedRvr, MessageTag.Sign1);
+    List<X509Certificate> x5bag = SecurityUtils.getX5BagCertificates(sign1);
+
+    X509Certificate signer = SecurityUtils.findCmcRaCert(x5bag);
+    Assert.assertNotNull("RVR signer (CMC-RA cert) must be findable in the x5bag", signer);
+    Assert.assertEquals(
+        cg.getCredentials(CredentialsSet.REGISTRAR_ALIAS).getCertificate(), signer);
+    Assert.assertTrue(
+        "RVR COSE signature must validate against the CMC-RA cert",
+        sign1.validate(new OneKey(signer.getPublicKey(), null)));
   }
 
   /**

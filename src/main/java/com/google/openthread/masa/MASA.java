@@ -59,6 +59,7 @@ import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import javax.net.ssl.KeyManager;
@@ -194,14 +195,25 @@ public final class MASA {
           try {
             // Verify signature
             sign1Msg = (Sign1Message) Message.DecodeFromBytes(body, MessageTag.Sign1);
-            // look for set of x509 certificates in header parameters, per draft-ietf-cose-x509-08
+            // look for set of x509 certificates in x5bag header parameter, per cBRSKI
             reqCerts = SecurityUtils.getX5BagCertificates(sign1Msg);
             if (reqCerts == null || reqCerts.isEmpty()) {
               throw new CoseException("Registrar signing cert chain not found in X5Bag field of voucher request");
             }
-            if (sign1Msg == null
-                || !sign1Msg.validate(new OneKey(reqCerts.get(0).getPublicKey(), null))) {
-              throw new CoseException("COSE-sign1 voucher validation failed");
+            // The RVR is signed by the Registrar, whose signing certificate is the one carrying
+            // the CMC-RA EKU. Find it explicitly rather than assuming it is first in the x5bag:
+            // the x5bag (RFC 9360) is unordered, and also carries the Pledge's IDevID chain.
+            X509Certificate rvrSignerCert = SecurityUtils.findCmcRaCert(reqCerts);
+            if (rvrSignerCert == null) {
+              throw new CoseException(
+                  "Registrar (CMC-RA) signing certificate not found in x5bag of voucher request");
+            }
+            if (!sign1Msg.validate(new OneKey(rvrSignerCert.getPublicKey(), null))) {
+              logger.debug(
+                  "RVR signature validation failed against selected CMC-RA cert (subject={}):\n{}",
+                  rvrSignerCert.getSubjectX500Principal(),
+                  rvrSignerCert);
+              throw new CoseException("COSE-sign1 voucher validation against CMC-RA cert failed");
             }
 
           } catch (Exception e) {
@@ -298,31 +310,46 @@ public final class MASA {
     // Section 5.5.2 BRSKI: MASA verification of voucher-request signature
     // consistency
 
-    // TODO:
-    // Section 5.5.3 BRSKI: MASA authentication of registrar (certificate)
-    // do a first check on RA flag of Registrar cert. BHC-651
-    boolean isRA = false;
+    // The RVR x5bag (cBRSKI section 9.2.1) holds both the Registrar's own signing chain and the
+    // Pledge's IDevID chain, in no guaranteed order. Identify each participant's certificate by
+    // its properties rather than by position: the Pledge-side (IDevID) certificates are those that
+    // chain to this MASA's own CA, the Registrar-side certificates are the rest.
+    final X509Certificate masaCaCert;
     try {
-      // FIXME: COSE x5bag (RFC 9360) does not guarantee any particular cert order.
-      //   We currently treat reqCerts[0] as the Registrar (leaf) cert and reqCerts[last]
-      //   as the Domain CA below — that holds only if the sender happens to use
-      //   leaf→...→root ordering. A correct implementation would identify the leaf by
-      //   matching the COSE-sign1 signing key and walk the chain by issuer/subject DN.
-      X509Certificate registrarCert = reqCerts.get(0);
-      if (registrarCert.getExtendedKeyUsage() != null) {
-        for (String eku : registrarCert.getExtendedKeyUsage()) {
-          if (eku.equals(ConstantsBrski.CMC_RA_PKIX_KEY_PURPOSE_OID)) {
-            isRA = true;
-            break;
-          }
-        }
-      }
+      masaCaCert = credentialsCa.getCertificate();
     } catch (Exception ex) {
-      final String msg = "Couldn't parse extended key usage in Registrar certificate.";
-      logger.warn(msg, ex);
-      return new RestfulVoucherResponse(ResponseCode.BAD_REQUEST, msg);
+      logger.error("cannot access MASA CA certificate: {}", ex.getMessage(), ex);
+      return new RestfulVoucherResponse(
+          ResponseCode.INTERNAL_SERVER_ERROR, "MASA CA certificate unavailable");
     }
-    if (!isRA) {
+
+    List<X509Certificate> registrarChain = new ArrayList<>();
+    for (X509Certificate c : reqCerts) {
+      if (!SecurityUtils.chainsTo(c, Collections.singletonList(masaCaCert), reqCerts)) {
+        registrarChain.add(c);
+      }
+    }
+
+    // Section 5.5.2 / 9.2.1: the Registrar must have copied the Pledge's IDevID chain into the RVR
+    // x5bag. This MASA does not store the IDevIDs it issued, so it recognises the IDevID
+    // structurally — an end-entity (non-CA) certificate carrying a MASA URI (RFC 8995 2.3) — and
+    // requires it to chain to this MASA's own CA.
+    X509Certificate idevid = SecurityUtils.findPledgeIdevid(reqCerts);
+    if (idevid == null) {
+      final String msg =
+          "no Pledge IDevID (end-entity certificate with MASA URI) in voucher request x5bag";
+      logger.warn(msg);
+      return new RestfulVoucherResponse(ResponseCode.FORBIDDEN, msg);
+    }
+    if (!SecurityUtils.chainsTo(idevid, Collections.singletonList(masaCaCert), reqCerts)) {
+      final String msg = "Pledge IDevID certificate does not chain to the MASA CA";
+      logger.warn(msg);
+      return new RestfulVoucherResponse(ResponseCode.FORBIDDEN, msg);
+    }
+
+    // Section 5.5.3 / RFC 8995 5.6: the Registrar must present a certificate with the CMC-RA EKU.
+    X509Certificate registrarCert = SecurityUtils.findCmcRaCert(registrarChain);
+    if (registrarCert == null) {
       final String msg = "Registrar certificate did not have RA set in Extended Key Usage.";
       logger.warn(msg);
       return new RestfulVoucherResponse(ResponseCode.FORBIDDEN, msg); // per RFC 8995 5.6
@@ -390,19 +417,11 @@ public final class MASA {
     voucher.setDomainCertRevocationChecks(false);
 
     try {
-      // FIXME: as above, x5bag (RFC 9360) does not guarantee leaf→root ordering; the
-      //   last entry being the Domain CA holds only when the Registrar's COSE sender
-      //   ordered the bag that way. Resolve once the cert-chain walking is rewritten.
-      X509Certificate domainCert = reqCerts.get(reqCerts.size() - 1);
-      // SubjectPublicKeyInfo spki =
-      // SubjectPublicKeyInfo.getInstance(domainCert.getPublicKey().getEncoded());
-      // voucher.setPinnedDomainSPKI(spki.getEncoded());
-
+      // Pin the highest-level CA of the Registrar-signing-chain (its Domain CA).
+      X509Certificate domainCert = SecurityUtils.topOfChain(registrarChain);
       // According to BHC-405: use Domain CA Certificate in voucher response
       voucher.setPinnedDomainCert(domainCert.getEncoded());
     } catch (Exception e) {
-      // logger.error("get encoded subject-public-key-info failed: " +
-      // e.getMessage());
       logger.error("get encoded domain-ca-cert failed: " + e.getMessage(), e);
       return new RestfulVoucherResponse(ResponseCode.INTERNAL_SERVER_ERROR, "Get encoded domain-ca-cert failed.");
     }

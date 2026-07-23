@@ -54,12 +54,12 @@ import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
-import java.security.cert.CertPath;
 import java.security.cert.CertPathBuilder;
 import java.security.cert.CertStore;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
+import java.security.cert.CertificateParsingException;
 import java.security.cert.CollectionCertStoreParameters;
 import java.security.cert.PKIXBuilderParameters;
 import java.security.cert.TrustAnchor;
@@ -108,7 +108,6 @@ import org.bouncycastle.cms.CMSProcessableByteArray;
 import org.bouncycastle.cms.CMSSignedData;
 import org.bouncycastle.cms.CMSSignedDataGenerator;
 import org.bouncycastle.cms.CMSTypedData;
-import org.bouncycastle.cms.SignerId;
 import org.bouncycastle.cms.SignerInfoGenerator;
 import org.bouncycastle.cms.SignerInformation;
 import org.bouncycastle.cms.SignerInformationStore;
@@ -148,7 +147,7 @@ import org.slf4j.LoggerFactory;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
- * Provides common security-related definitions and functionalities.
+ * Provides common security-related (X.509, COSE, etc) definitions and functionalities.
  */
 public class SecurityUtils {
 
@@ -242,12 +241,31 @@ public class SecurityUtils {
    * @return true if a certification path exists
    */
   public static boolean chainsTo(X509Certificate cert, List<X509Certificate> caCerts) {
-    if (caCerts.isEmpty()) {
+    return chainsTo(cert, caCerts, caCerts);
+  }
+
+  /**
+   * Whether a certification path can be built from {@code cert} to one of {@code trustAnchors},
+   * using {@code intermediates} as the available intermediate CA certificates. Unlike {@link
+   * #chainsTo(X509Certificate, List)}, the trust anchors and the intermediates are given
+   * separately, so a chain is accepted only when it actually reaches one of the given anchors
+   * (an intermediate on its own is not a trust anchor). Revocation is not checked.
+   *
+   * @param cert          the certificate to build a path from
+   * @param trustAnchors  the trust anchors the path must reach; an empty set never chains
+   * @param intermediates additional intermediate CA certificates that may be used in the path
+   * @return true if a certification path to a trust anchor exists
+   */
+  public static boolean chainsTo(
+      X509Certificate cert,
+      List<X509Certificate> trustAnchors,
+      List<X509Certificate> intermediates) {
+    if (trustAnchors.isEmpty()) {
       return false;
     }
     try {
       Set<TrustAnchor> anchors = new HashSet<>();
-      for (X509Certificate ca : caCerts) {
+      for (X509Certificate ca : trustAnchors) {
         anchors.add(new TrustAnchor(ca, null));
       }
       X509CertSelector target = new X509CertSelector();
@@ -255,17 +273,87 @@ public class SecurityUtils {
 
       PKIXBuilderParameters params = new PKIXBuilderParameters(anchors, target);
       params.setRevocationEnabled(false);
-      List<X509Certificate> intermediates = new ArrayList<>(caCerts);
-      intermediates.add(cert);
+      List<X509Certificate> pool = new ArrayList<>(intermediates);
+      pool.add(cert);
       params.addCertStore(
-          CertStore.getInstance("Collection", new CollectionCertStoreParameters(intermediates)));
+          CertStore.getInstance("Collection", new CollectionCertStoreParameters(pool)));
 
       CertPathBuilder.getInstance("PKIX").build(params);
       return true;
     } catch (GeneralSecurityException e) {
-      logger.debug("could not build certification path to any CA certificate:", e);
+      logger.debug("could not build certification path to a trust anchor:", e);
       return false;
     }
+  }
+
+  /**
+   * Find a Pledge IDevID certificate in a set of certificates. Recognises it structurally, without
+   * needing to know the specific device: an end-entity (non-CA) certificate that carries a MASA URI
+   * (RFC 8995 section 2.3). Returns the first match, or null if none is present.
+   *
+   * @param certs the certificates to search
+   * @return the IDevID certificate, or null
+   */
+  public static X509Certificate findPledgeIdevid(List<X509Certificate> certs) {
+    for (X509Certificate c : certs) {
+      if (isCaCertificate(c)) {
+        continue;
+      }
+      try {
+        if (getMasaUri(c) != null) {
+          return c;
+        }
+      } catch (IOException e) {
+        logger.debug("could not read MASA URI from certificate:", e);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Find the certificate carrying the CMC-RA extended key usage ({@code id-kp-cmcRA}), i.e. the one
+   * acting as a Registration Authority. Returns the first match, or null
+   * if none is present.
+   *
+   * @param certs the certificates to search
+   * @return the first CMC-RA certificate, or null if none found
+   */
+  public static X509Certificate findCmcRaCert(List<X509Certificate> certs) {
+    for (X509Certificate c : certs) {
+      try {
+        List<String> ekus = c.getExtendedKeyUsage();
+        if (ekus != null && ekus.contains(ConstantsBrski.CMC_RA_PKIX_KEY_PURPOSE_OID)) {
+          return c;
+        }
+      } catch (CertificateParsingException e) {
+        logger.debug("could not read extended key usage from certificate:", e);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Return the highest-level certificate of a single CA chain: the one whose issuer is not the
+   * subject of any other certificate in the list (a self-signed root qualifies, as its only issuer
+   * is itself). Falls back to the last element; returns null for an empty list.
+   *
+   * @param chain the certificates forming a single chain
+   * @return the top (highest-level) certificate, or null if the list is empty
+   */
+  public static X509Certificate topOfChain(List<X509Certificate> chain) {
+    for (X509Certificate c : chain) {
+      boolean issuedByAnother = false;
+      for (X509Certificate other : chain) {
+        if (other != c && c.getIssuerX500Principal().equals(other.getSubjectX500Principal())) {
+          issuedByAnother = true;
+          break;
+        }
+      }
+      if (!issuedByAnother) {
+        return c;
+      }
+    }
+    return chain.isEmpty() ? null : chain.get(chain.size() - 1);
   }
 
   /**
