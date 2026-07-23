@@ -239,6 +239,29 @@ public final class FunctionalTest {
   }
 
   /**
+   * The voucher the Pledge receives must carry no unprotected COSE header attributes: the Registrar
+   * strips them (e.g. x5bag/x5chain) before forwarding the MASA voucher (cBRSKI section 6.8).
+   */
+  @Test
+  public void testForwardedVoucherHasNoUnprotectedHeaders() throws Exception {
+    pledge.requestVoucher();
+
+    byte[] voucher = pledge.getLastVoucherCoseSigned();
+    Assert.assertNotNull(voucher);
+    Sign1Message sign1 = (Sign1Message) Message.DecodeFromBytes(voucher, MessageTag.Sign1);
+
+    // No x5bag/x5chain must survive on the voucher forwarded to the Pledge.
+    Assert.assertNull(
+        "forwarded voucher must not carry an x5bag", SecurityUtils.getX5BagCertificates(sign1));
+    // Stripping the unprotected header must not break the signature: it still validates against the
+    // MASA CA the Pledge already trusts.
+    X509Certificate masaCaCert = cg.getCredentials(CredentialsSet.MASA_CA_ALIAS).getCertificate();
+    Assert.assertTrue(
+        "stripped voucher signature must still validate against the MASA CA",
+        sign1.validate(new OneKey(masaCaCert.getPublicKey(), null)));
+  }
+
+  /**
    * The MASA identifies the RVR's signing certificate as the CMC-RA (Registrar) certificate in the
    * x5bag, not by position, and the COSE signature validates against it. This mirrors the check the
    * MASA performs, and is robust to the (unordered) x5bag also carrying the Pledge's IDevID chain.

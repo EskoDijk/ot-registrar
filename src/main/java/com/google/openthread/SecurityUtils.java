@@ -574,6 +574,35 @@ public class SecurityUtils {
     return msg.EncodeToBytes();
   }
 
+  /** The CBOR tag for a COSE_Sign1 message (RFC 9052). */
+  private static final int COSE_SIGN1_TAG = 18;
+
+  /**
+   * Remove all unprotected COSE header attributes from a COSE_Sign1 message and return the
+   * re-encoded message. The COSE_Sign1 signature is computed over the protected header and payload
+   * only (RFC 9052 Sig_structure), so clearing the unprotected header does not invalidate the
+   * signature and no access to the signing key is needed.
+   *
+   * @param coseSign1 the encoded COSE_Sign1 message, tagged (18) or untagged
+   * @return the message re-encoded with an empty unprotected header, preserving the original tagging
+   * @throws IllegalArgumentException if the input is not a 4-element COSE_Sign1 structure
+   */
+  public static byte[] stripCoseSign1UnprotectedHeaders(byte[] coseSign1) {
+    CBORObject msg = CBORObject.DecodeFromBytes(coseSign1);
+    boolean tagged = msg.HasTag(COSE_SIGN1_TAG);
+    CBORObject arr = msg.Untag();
+    if (arr.getType() != CBORType.Array || arr.size() != 4) {
+      throw new IllegalArgumentException("not a COSE_Sign1 structure");
+    }
+    CBORObject stripped = CBORObject.NewArray();
+    stripped.Add(arr.get(0)); // protected header (bstr) — covered by the signature, keep verbatim
+    stripped.Add(CBORObject.NewMap()); // unprotected header — cleared
+    stripped.Add(arr.get(2)); // payload
+    stripped.Add(arr.get(3)); // signature
+    return (tagged ? CBORObject.FromObjectAndTag(stripped, COSE_SIGN1_TAG) : stripped)
+        .EncodeToBytes();
+  }
+
   public static byte[] genCMSSignedMessage(
       PrivateKey signingKey,
       X509Certificate signingCert,

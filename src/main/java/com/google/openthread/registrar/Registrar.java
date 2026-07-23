@@ -600,10 +600,23 @@ public final class Registrar extends CoapServer {
         // voucher is ok, log it
         voucherLog.put(clientId, v);
 
-        // Registrar forwards MASA's success response without modification
+        // Before forwarding the MASA voucher to the Pledge, strip its unprotected COSE header
+        // attributes (x5bag/x5chain and any others) per cBRSKI section 6.8: they are for the
+        // Registrar's own validation/logging use and only would add size on the constrained link.
+        byte[] voucherToForward;
+        try {
+          voucherToForward =
+              SecurityUtils.stripCoseSign1UnprotectedHeaders(response.getPayload());
+        } catch (RuntimeException e) {
+          // The payload already decoded as COSE_Sign1 above, so this is not expected; fall back to
+          // forwarding it unchanged rather than failing the onboarding.
+          logger.warn("could not strip unprotected COSE headers from voucher: {}", e.getMessage());
+          voucherToForward = response.getPayload();
+        }
+
         exchange.respond(
             response.getCoapCode(),
-            response.getPayload(),
+            voucherToForward,
             ExtendedMediaTypeRegistry.APPLICATION_VOUCHER_COSE_CBOR);
         return;
 

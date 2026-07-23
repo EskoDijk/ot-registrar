@@ -366,4 +366,37 @@ public final class SecurityUtilsTest {
         pki.endEntity, SecurityUtils.topOfChain(Collections.singletonList(pki.endEntity)));
     Assert.assertNull(SecurityUtils.topOfChain(Collections.emptyList()));
   }
+
+  @Test
+  public void testStripCoseSign1UnprotectedHeaders() throws Exception {
+    KeyPair kp = SecurityUtils.genKeyPair();
+    X509Certificate cert =
+        SecurityUtils.genCertificate(kp, "CN=Signer", kp, new X500Name("CN=Signer"), true, null);
+    byte[] content = new byte[]{10, 20, 30, 40};
+
+    // A COSE_Sign1 that carries an unprotected x5bag header.
+    byte[] withBag =
+        SecurityUtils.genCoseSign1Message(
+            kp.getPrivate(),
+            SecurityUtils.COSE_SIGNATURE_ALGORITHM,
+            content,
+            new X509Certificate[]{cert});
+    Sign1Message before = (Sign1Message) Sign1Message.DecodeFromBytes(withBag);
+    Assert.assertNotNull(
+        "precondition: the message carries an x5bag", SecurityUtils.getX5BagCertificates(before));
+
+    byte[] stripped = SecurityUtils.stripCoseSign1UnprotectedHeaders(withBag);
+    Sign1Message after = (Sign1Message) Sign1Message.DecodeFromBytes(stripped);
+
+    // The unprotected x5bag is gone, the payload is unchanged, and the signature still validates.
+    Assert.assertNull(SecurityUtils.getX5BagCertificates(after));
+    Assert.assertArrayEquals(content, after.GetContent());
+    Assert.assertTrue(after.validate(new OneKey(kp.getPublic(), null)));
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testStripCoseSign1UnprotectedHeadersRejectsNonSign1() throws Exception {
+    // A plain CBOR array that is not a 4-element COSE_Sign1 structure.
+    SecurityUtils.stripCoseSign1UnprotectedHeaders(CBORObject.NewArray().EncodeToBytes());
+  }
 }
