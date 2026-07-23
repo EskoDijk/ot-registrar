@@ -205,9 +205,8 @@ public final class FunctionalTest {
   }
 
   /**
-   * A CA certificates request (/crts) against the Registrar. Note the Registrar currently answers
-   * only in application/pkix-cert (287) format with the single domain CA certificate, regardless of
-   * the CoAP Accept Option sent; support for the multipart-core (62) format is still open (gap G8).
+   * A CA certificates request (/crts) against the Registrar, in the Pledge's default Content-Format
+   * (multipart-core, 62).
    */
   @Test
   public void testRequestCaCertificates() throws Exception {
@@ -219,6 +218,51 @@ public final class FunctionalTest {
     Assert.assertEquals(1, caCerts.size());
     Assert.assertEquals(
         cg.getCredentials(CredentialsSet.DOMAIN_CA_ALIAS).getCertificate(), caCerts.get(0));
+  }
+
+  /**
+   * The Registrar must answer a /crts request in the Content-Format asked for in the CoAP Accept
+   * Option. All three formats of cBRSKI Appendix E carry the same domain CA certificate here, since
+   * the test domain has a single, self-signed CA.
+   */
+  @Test
+  public void testRequestCaCertificatesContentFormats() throws Exception {
+    Voucher voucher = pledge.requestVoucher();
+    Assert.assertTrue(voucher.validate());
+    Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
+
+    X509Certificate domainCaCert =
+        cg.getCredentials(CredentialsSet.DOMAIN_CA_ALIAS).getCertificate();
+
+    int[] formats = {
+        ExtendedMediaTypeRegistry.APPLICATION_MULTIPART_CORE,
+        ExtendedMediaTypeRegistry.APPLICATION_PKIX_CERT,
+        ExtendedMediaTypeRegistry.APPLICATION_PKCS7_MIME_CERTS_ONLY,
+    };
+    for (int format : formats) {
+      pledge.setCaCertsAcceptContentFormat(format);
+      List<X509Certificate> caCerts = pledge.requestCACertificates();
+      Assert.assertEquals(
+          "unexpected number of CA certificates for format " + format, 1, caCerts.size());
+      Assert.assertEquals(
+          "unexpected CA certificate for format " + format, domainCaCert, caCerts.get(0));
+    }
+  }
+
+  /** A /crts request for a Content-Format the Registrar cannot produce must give a 4.06. */
+  @Test
+  public void testRequestCaCertificatesNotAcceptable() throws Exception {
+    Voucher voucher = pledge.requestVoucher();
+    Assert.assertTrue(voucher.validate());
+    Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
+
+    pledge.setCaCertsAcceptContentFormat(ExtendedMediaTypeRegistry.APPLICATION_JSON);
+    try {
+      pledge.requestCACertificates();
+      Assert.fail("/crts in an unsupported Content-Format should fail");
+    } catch (PledgeException ex) {
+      Assert.assertEquals(ResponseCode.NOT_ACCEPTABLE, ex.getCode());
+    }
   }
 
   /**
