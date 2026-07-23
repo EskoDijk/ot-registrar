@@ -45,6 +45,8 @@ import com.google.openthread.brski.Voucher;
 import com.google.openthread.brski.VoucherRequest;
 import com.google.openthread.brski.VoucherSerializationException;
 import com.google.openthread.thread.ConstantsThread;
+import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -62,21 +64,17 @@ import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import javax.security.auth.x500.X500Principal;
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
-import org.bouncycastle.asn1.ASN1Primitive;
-import org.bouncycastle.asn1.ASN1Sequence;
-import org.bouncycastle.asn1.ASN1TaggedObject;
 import org.bouncycastle.asn1.DERIA5String;
 import org.bouncycastle.asn1.DEROctetString;
-import org.bouncycastle.asn1.DERSequence;
-import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -134,7 +132,23 @@ public final class Pledge extends CoapClient {
   /** the Content Format to use for a CSR request */
   private int csrContentFormat = ExtendedMediaTypeRegistry.APPLICATION_PKCS10;
 
+  /**
+   * the Content Format to use for a CAcerts request */
+  private int caCertsAcceptContentFormat = ExtendedMediaTypeRegistry.APPLICATION_MULTIPART_CORE;
+
   private PublicKey domainPublicKey;
+
+  /**
+   * The pinned domain CA certificate from the voucher, if the voucher pinned a full certificate
+   * rather than only a public key (SPKI). Null in the latter case.
+   */
+  private X509Certificate pinnedDomainCert;
+
+  /**
+   * The Explicit TA database: domain CA certificates obtained from the Registrar via a CA
+   * certificates request.
+   */
+  private List<X509Certificate> caCertificates = new ArrayList<>();
 
   private KeyPair operationalKeyPair;
   private X509Certificate operationalCertificate;
@@ -338,10 +352,10 @@ public final class Pledge extends CoapClient {
         domainPublicKey =
             KeyFactory.getInstance(keyAlg.getAlgorithm().getId()).generatePublic(xspec);
       } else {
-        Certificate domainCert =
-            SecurityUtils.getCertFactory().generateCertificate(
+        pinnedDomainCert =
+            (X509Certificate) SecurityUtils.getCertFactory().generateCertificate(
                 new ByteArrayInputStream(voucher.getPinnedDomainCert()));
-        domainPublicKey = domainCert.getPublicKey();
+        domainPublicKey = pinnedDomainCert.getPublicKey();
       }
       if (!validateRegistrar(domainPublicKey)) {
         throw new PledgeException("validate registrar with pinned domain public key failed");
@@ -363,9 +377,116 @@ public final class Pledge extends CoapClient {
 
   // EST protocol
 
-  // /.well-known/est/cacerts
-  public void requestCACertificate() {
-    // TODO(wgtdkp):
+  /**
+   * Perform an EST-coaps "CA certificates request" (/crts) to the Registrar, to obtain the set of
+   * domain CA certificates (trust anchors). See cBRSKI section 6.7.5 and RFC 9148 section 5.2.
+   *
+   * <p>The request carries a CoAP Accept Option with {@link #getCaCertsAcceptContentFormat()}.
+   * For test purposes, the response is parsed according to the Content-Format the server
+   * actually used, so a server that
+   * answers in a different (supported) format than requested is still handled.
+   *
+   * @return the CA certificates returned by the Registrar, in the order sent, which per the spec is
+   *         the CA hierarchy order starting at the issuer of the client's LDevID. Never empty.
+   * @throws PledgeException if the request failed, or the response was empty or not parseable
+   */
+  public List<X509Certificate> requestCACertificates()
+      throws PledgeException, ConnectorException, IOException {
+    setURI(getESTPath() + "/" + ConstantsBrski.CA_CERTIFICATES);
+    logger.debug("CA certificates request: CoAP GET {}", getURI());
+
+    int cf = getCaCertsAcceptContentFormat();
+    CoapResponse response = get(cf);
+
+    if (response == null) {
+      throw new PledgeException("CA certificates request failed: null response");
+    }
+    if (response.getCode() != ResponseCode.CONTENT) {
+      throw new PledgeException("CA certificates request failed", response);
+    }
+
+    int contentFormat = response.getOptions().getContentFormat();
+    if (contentFormat != cf) {
+      logger.warn(
+          "CA certificates request: asked for format[{}] but got format[{}]",
+              cf,
+          contentFormat);
+    }
+
+    byte[] payload = response.getPayload();
+    if (payload == null || payload.length == 0) {
+      throw new PledgeException("CA certificates request: unexpected empty payload");
+    }
+
+    List<X509Certificate> certs = parseCACertificates(payload, contentFormat);
+    if (certs.isEmpty()) {
+      throw new PledgeException("CA certificates request: response contained no CA certificate");
+    }
+    logger.info("CA certificates request: received {} CA certificate(s)", certs.size());
+    return certs;
+  }
+
+  /**
+   * Parse the payload of a /crts response into the CA certificates it carries.
+   *
+   * @param payload       the response payload
+   * @param contentFormat the CoAP Content-Format of the response
+   * @return the CA certificates found, in payload order
+   * @throws PledgeException if the Content-Format is not supported, or the payload is malformed
+   */
+  protected static List<X509Certificate> parseCACertificates(byte[] payload, int contentFormat)
+      throws PledgeException {
+    List<X509Certificate> certs = new ArrayList<>();
+    try {
+      switch (contentFormat) {
+        case ExtendedMediaTypeRegistry.APPLICATION_MULTIPART_CORE:
+          // cBRSKI 6.7.5: a CBOR array alternating content-format and the representation's bytes,
+          // e.g. [ 287, h'3082...', 287, h'3082...' ].
+          CBORObject container = CBORObject.DecodeFromBytes(payload);
+          if (container.getType() != CBORType.Array || container.size() % 2 != 0) {
+            throw new PledgeException(
+                "multipart-core /crts response is not a CBOR array of (content-format, bytes) pairs");
+          }
+          for (int i = 0; i < container.size(); i += 2) {
+            int partFormat = container.get(i).AsInt32();
+            if (partFormat != ExtendedMediaTypeRegistry.APPLICATION_PKIX_CERT) {
+              // Future documents may define other certificate formats in this container.
+              logger.warn("ignoring /crts multipart element with unsupported format[{}]", partFormat);
+              continue;
+            }
+            certs.add(toCertificate(container.get(i + 1).GetByteString()));
+          }
+          break;
+
+        case ExtendedMediaTypeRegistry.APPLICATION_PKIX_CERT:
+          // A single DER-encoded certificate.
+          certs.add(toCertificate(payload));
+          break;
+
+        case ExtendedMediaTypeRegistry.APPLICATION_PKCS7_MIME_CERTS_ONLY:
+          // The RFC 9148 container format; a degenerate PKCS#7 SignedData holding only certs.
+          for (Certificate cert :
+              SecurityUtils.getCertFactory().generateCertificates(
+                  new ByteArrayInputStream(payload))) {
+            certs.add((X509Certificate) cert);
+          }
+          break;
+
+        default:
+          throw new PledgeException(
+              String.format("unsupported Content-Format[%d] in /crts response", contentFormat));
+      }
+    } catch (PledgeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new PledgeException("could not parse /crts response: " + e.getMessage(), e);
+    }
+    return certs;
+  }
+
+  private static X509Certificate toCertificate(byte[] der) throws CertificateException {
+    return (X509Certificate) SecurityUtils.getCertFactory()
+        .generateCertificate(new ByteArrayInputStream(der));
   }
 
   /**
@@ -445,7 +566,9 @@ public final class Pledge extends CoapClient {
       throw new PledgeException("CSR response includes no certificate");
     }
 
-    cert.verify(domainPublicKey);
+    // Decide whether this LDevID may be accepted, per cBRSKI 6.7.1 steps 3-5. This may involve a
+    // CA certificates request (/crts) to establish the domain's trust anchors.
+    acceptEnrolledCertificate(cert);
 
     subjectName = cert.getSubjectX500Principal().getName();
     logger.info("enrolled with operational certificate, subject: {}", subjectName);
@@ -454,6 +577,77 @@ public final class Pledge extends CoapClient {
 
     logger.info("operational certificate (PEM): \n{}", SecurityUtils.toPEMFormat(operationalCertificate));
     logger.info("operational private key (PEM): \n{}", SecurityUtils.toPEMFormat(operationalKeyPair));
+  }
+
+  /**
+   * Decide whether a freshly enrolled LDevID certificate may be accepted, following steps 3 to 5 of
+   * the optimized Pledge enrollment procedure of cBRSKI section 6.7.1.
+   *
+   * <p>Step 3 is the shortcut: if the pinned domain CA is both a root CA and the direct signer of
+   * the LDevID, it is accepted as the domain's trust anchor and no /crts request is needed. The
+   * shortcut is unavailable when the voucher pinned only a domain public key (SPKI) instead of a
+   * certificate, because whether that key belongs to a root CA cannot then be determined.
+   *
+   * <p>Otherwise (step 4) the full set of CA certificates is fetched with a /crts request and the
+   * LDevID must chain to one of them. If the set cannot be obtained, or no chain can be built, the
+   * enrollment is aborted and reported via enrollment status telemetry (step 5).
+   *
+   * @param ldevid the newly issued LDevID certificate
+   * @throws PledgeException if the certificate could not be accepted; enrollment status telemetry
+   *                         reporting the failure has then been attempted
+   */
+  private void acceptEnrolledCertificate(X509Certificate ldevid) throws PledgeException {
+    if (pinnedDomainCert != null
+        && SecurityUtils.isRootCaCertificate(pinnedDomainCert)
+        && SecurityUtils.isSignedBy(ldevid, pinnedDomainCert)) {
+      logger.info(
+          "pinned domain CA is a root CA and the signer of the LDevID: skipping /crts request");
+      caCertificates = Collections.singletonList(pinnedDomainCert);
+      return;
+    }
+
+    logger.info("optimized enrollment shortcut does not apply: performing /crts request");
+    List<X509Certificate> caCerts;
+    try {
+      caCerts = requestCACertificates();
+    } catch (PledgeException | ConnectorException | IOException e) {
+      throw abortEnrollment("could not obtain the domain CA certificates: " + e.getMessage(), e);
+    }
+
+    if (!SecurityUtils.chainsTo(ldevid, caCerts)) {
+      throw abortEnrollment(
+          "LDevID certificate does not chain to any of the "
+              + caCerts.size()
+              + " CA certificate(s) obtained from /crts",
+          null);
+    }
+
+    // Accept the retrieved CA certificates as the domain trust anchors (Explicit TA database).
+    caCertificates = caCerts;
+    for (X509Certificate ca : caCerts) {
+      certVerifier.addTrustAnchor(new TrustAnchor(ca, null));
+    }
+    logger.info("LDevID certificate chains to the CA certificate(s) obtained from /crts");
+  }
+
+  /**
+   * Abort the enrollment process and attempt to report the failure to the Registrar using
+   * enrollment status telemetry (/es), per cBRSKI section 6.7.1 step 5.
+   *
+   * @param reason the human-readable failure reason, reported to the Registrar
+   * @param cause  the underlying cause, may be null
+   * @return the exception to throw, so callers can write {@code throw abortEnrollment(...)}
+   */
+  private PledgeException abortEnrollment(String reason, Throwable cause) {
+    logger.error("aborting enrollment: {}", reason);
+    try {
+      sendEnrollStatusTelemetry(false, reason);
+    } catch (Exception e) {
+      // Reporting is a best effort: the enrollment failure itself is what must be propagated.
+      logger.warn("could not report enrollment failure to Registrar: {}", e.getMessage());
+      logger.debug("details:", e);
+    }
+    return new PledgeException("enrollment aborted: " + reason, cause);
   }
 
   /**
@@ -593,6 +787,8 @@ public final class Pledge extends CoapClient {
 
     registrarCertPath = null;
     domainPublicKey = null;
+    pinnedDomainCert = null;
+    caCertificates = new ArrayList<>();
     operationalKeyPair = null;
     operationalCertificate = null;
     certState = CertState.NO_CONTACT;
@@ -621,7 +817,7 @@ public final class Pledge extends CoapClient {
   private CoapResponse sendCSR(PKCS10CertificationRequest csr, String resource)
       throws IOException, ConnectorException {
     setURI(getESTPath() + "/" + resource);
-    return post(csr.getEncoded(), csrContentFormat);
+    return post(csr.getEncoded(), getCsrContentFormat());
   }
 
   private X509Certificate requestSigning(PKCS10CertificationRequest csr, String resource)
@@ -734,5 +930,23 @@ public final class Pledge extends CoapClient {
 
   public void setCsrContentFormat(int csrContentFormat) {
     this.csrContentFormat = csrContentFormat;
+  }
+
+  public int getCaCertsAcceptContentFormat() {
+    return caCertsAcceptContentFormat;
+  }
+
+  public void setCaCertsAcceptContentFormat(int caCertsAcceptContentFormat) {
+    this.caCertsAcceptContentFormat = caCertsAcceptContentFormat;
+  }
+
+  /**
+   * Get the domain CA certificates that this Pledge currently trusts (its Explicit TA database),
+   * as established during enrollment.
+   *
+   * @return the trusted domain CA certificates; empty if the Pledge has not enrolled yet
+   */
+  public List<X509Certificate> getCaCertificates() {
+    return Collections.unmodifiableList(caCertificates);
   }
 }

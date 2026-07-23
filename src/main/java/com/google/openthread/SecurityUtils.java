@@ -55,16 +55,24 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.cert.CertPath;
+import java.security.cert.CertPathBuilder;
+import java.security.cert.CertStore;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
+import java.security.cert.CollectionCertStoreParameters;
+import java.security.cert.PKIXBuilderParameters;
+import java.security.cert.TrustAnchor;
+import java.security.cert.X509CertSelector;
 import java.security.cert.X509Certificate;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.security.auth.x500.X500Principal;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
@@ -135,12 +143,16 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
  * Provides common security-related definitions and functionalities.
  */
 public class SecurityUtils {
+
+  private static final Logger logger = LoggerFactory.getLogger(SecurityUtils.class);
 
   public static final String KEY_ALGORITHM = "EC";
 
@@ -194,6 +206,66 @@ public class SecurityUtils {
 
   public static boolean isCaCertificate(X509Certificate cert) {
     return cert.getBasicConstraints() >= 0;
+  }
+
+  /** Whether 'cert' is a self-signed CA certificate, i.e. a root CA. */
+  public static boolean isRootCaCertificate(X509Certificate cert) {
+    if (!isCaCertificate(cert)
+        || !cert.getSubjectX500Principal().equals(cert.getIssuerX500Principal())) {
+      return false;
+    }
+    return isSignedBy(cert, cert);
+  }
+
+  /** Whether 'cert' was issued and signed by 'ca'. */
+  public static boolean isSignedBy(X509Certificate cert, X509Certificate ca) {
+    if (!cert.getIssuerX500Principal().equals(ca.getSubjectX500Principal())) {
+      return false;
+    }
+    try {
+      cert.verify(ca.getPublicKey());
+      return true;
+    } catch (GeneralSecurityException e) {
+      logger.debug("certificate signature check failed:", e);
+      return false;
+    }
+  }
+
+  /**
+   * Whether a certification path can be built from 'cert' to any of the given CA certificates. The
+   * CAs are treated both as candidate trust anchors and as possible intermediates, so a multi-level
+   * PKI (e.g. a sub-CA below a root CA) chains as well as a single-CA one. Revocation is not
+   * checked.
+   *
+   * @param cert    the certificate to build a path from
+   * @param caCerts the candidate CA certificates; an empty set never chains
+   * @return true if a certification path exists
+   */
+  public static boolean chainsTo(X509Certificate cert, List<X509Certificate> caCerts) {
+    if (caCerts.isEmpty()) {
+      return false;
+    }
+    try {
+      Set<TrustAnchor> anchors = new HashSet<>();
+      for (X509Certificate ca : caCerts) {
+        anchors.add(new TrustAnchor(ca, null));
+      }
+      X509CertSelector target = new X509CertSelector();
+      target.setCertificate(cert);
+
+      PKIXBuilderParameters params = new PKIXBuilderParameters(anchors, target);
+      params.setRevocationEnabled(false);
+      List<X509Certificate> intermediates = new ArrayList<>(caCerts);
+      intermediates.add(cert);
+      params.addCertStore(
+          CertStore.getInstance("Collection", new CollectionCertStoreParameters(intermediates)));
+
+      CertPathBuilder.getInstance("PKIX").build(params);
+      return true;
+    } catch (GeneralSecurityException e) {
+      logger.debug("could not build certification path to any CA certificate:", e);
+      return false;
+    }
   }
 
   /**

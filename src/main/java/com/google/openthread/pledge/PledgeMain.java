@@ -30,8 +30,12 @@ package com.google.openthread.pledge;
 
 import com.google.openthread.Credentials;
 import com.google.openthread.CredentialsSet;
+import com.google.openthread.SecurityUtils;
 import com.google.openthread.main.OtRegistrarConfig;
 import com.google.openthread.tools.CredentialGenerator;
+import java.io.IOException;
+import java.security.cert.X509Certificate;
+import java.util.List;
 import java.util.Objects;
 import java.util.Scanner;
 import org.slf4j.Logger;
@@ -63,8 +67,9 @@ public class PledgeMain {
   private static void runCli(Pledge pledge) {
     final String help =
         "rv       -  request voucher to Registrar (cBRSKI)\n"
-            + "enroll   -  simple enrollment with Registrar (EST)\n"
-            + "reenroll -  simple reenrollment with Registrar (EST)\n"
+            + "enroll   -  simple enrollment with Registrar (EST-coaps)\n"
+            + "reenroll -  simple reenrollment with Registrar (EST-coaps)\n"
+            + "cacerts  -  request CA certificates from Registrar (EST-coaps)\n"
             + "reset    -  reset Pledge to initial state\n"
             + "exit     -  exit pledge CLI\n"
             + "help     -  print this help message\n";
@@ -85,6 +90,9 @@ public class PledgeMain {
             case "reenroll":
               pledge.reenroll();
               break;
+            case "cacerts":
+              printCaCertificates(pledge.requestCACertificates());
+              break;
             case "reset":
               pledge.reset();
               break;
@@ -104,6 +112,25 @@ public class PledgeMain {
           logger.debug("details:", e);
         }
       }
+    }
+  }
+
+  /**
+   * Print the CA certificates from a /crts response, in the order received: per cBRSKI section
+   * 6.7.5 this is the CA hierarchy order, starting at the issuer of the client's LDevID.
+   */
+  private static void printCaCertificates(List<X509Certificate> caCerts) throws IOException {
+    System.out.println("Received " + caCerts.size() + " CA certificate(s):");
+    for (int i = 0; i < caCerts.size(); i++) {
+      X509Certificate cert = caCerts.get(i);
+      System.out.println(
+          "["
+              + (i + 1)
+              + "] subject: "
+              + cert.getSubjectX500Principal()
+              + "\n    issuer : "
+              + cert.getIssuerX500Principal());
+      System.out.println(SecurityUtils.toPEMFormat(cert));
     }
   }
 }
