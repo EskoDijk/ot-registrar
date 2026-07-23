@@ -43,12 +43,14 @@ import com.google.openthread.brski.Voucher;
 import com.google.openthread.brski.VoucherRequest;
 import com.google.openthread.domainca.DomainCA;
 import com.google.openthread.pledge.Pledge;
+import com.upokecenter.cbor.CBORObject;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.security.Principal;
 import java.security.PrivateKey;
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -763,6 +765,14 @@ public final class Registrar extends CoapServer {
 
   public final class CaCertsResource extends CoapResource {
 
+    /**
+     * The Content-Format returned when a request carries no CoAP Accept Option. A single
+     * pkix-cert keeps the response as small as possible, which suits the constrained Pledge that
+     * is the common client of this resource.
+     */
+    private static final int DEFAULT_CONTENT_FORMAT =
+        ExtendedMediaTypeRegistry.APPLICATION_PKIX_CERT;
+
     public CaCertsResource() {
       super(ConstantsBrski.CA_CERTIFICATES);
     }
@@ -772,14 +782,65 @@ public final class Registrar extends CoapServer {
       try {
         RequestDumper.dump(logger, getURI(), exchange.getRequestPayload());
 
-        exchange.respond(
-            ResponseCode.CONTENT,
-            domainCA.getCertificate().getEncoded(),
-            ExtendedMediaTypeRegistry.APPLICATION_PKIX_CERT);
+        int accept = exchange.getRequestOptions().getAccept();
+        if (accept == MediaTypeRegistry.UNDEFINED) {
+          accept = DEFAULT_CONTENT_FORMAT;
+        }
+
+        // The chain is in CA hierarchy order already: the CA that issues the Pledge's LDevID
+        // first, then any higher-level CAs, which is the order cBRSKI requires on the wire.
+        X509Certificate[] caCerts = domainCA.getCertificateChain();
+        byte[] payload;
+
+        switch (accept) {
+          case ExtendedMediaTypeRegistry.APPLICATION_PKIX_CERT:
+            // Only the single CA certificate that is the CA authority for the requesting Pledge.
+            payload = caCerts[0].getEncoded();
+            break;
+
+          case ExtendedMediaTypeRegistry.APPLICATION_MULTIPART_CORE:
+            payload = encodeMultipartCore(caCerts);
+            break;
+
+          case ExtendedMediaTypeRegistry.APPLICATION_PKCS7_MIME_CERTS_ONLY:
+            payload = SecurityUtils.genCMSCertOnlyMessage(caCerts).getEncoded();
+            break;
+
+          default:
+            logger.warn(
+                "CA Certificates request for unsupported Content-Format [{}]; returning 4.06",
+                accept);
+            exchange.respond(
+                ResponseCode.NOT_ACCEPTABLE,
+                "supported Content-Formats: "
+                    + ExtendedMediaTypeRegistry.APPLICATION_MULTIPART_CORE
+                    + ", "
+                    + ExtendedMediaTypeRegistry.APPLICATION_PKCS7_MIME_CERTS_ONLY
+                    + ", "
+                    + ExtendedMediaTypeRegistry.APPLICATION_PKIX_CERT);
+            return;
+        }
+
+        exchange.respond(ResponseCode.CONTENT, payload, accept);
       } catch (Exception e) {
         logger.warn("CA Certificates request failed: " + e.getMessage());
         exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
       }
+    }
+
+    /**
+     * Encode CA certificates as an application/multipart-core (RFC 8710) container: a CBOR array
+     * alternating the content-format of each part with its bytes, each certificate being an
+     * application/pkix-cert representation. See cBRSKI section 6.7.5.
+     */
+    private byte[] encodeMultipartCore(X509Certificate[] certs)
+        throws CertificateEncodingException {
+      CBORObject container = CBORObject.NewArray();
+      for (X509Certificate cert : certs) {
+        container.Add(ExtendedMediaTypeRegistry.APPLICATION_PKIX_CERT);
+        container.Add(cert.getEncoded());
+      }
+      return container.EncodeToBytes();
     }
   }
 

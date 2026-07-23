@@ -90,7 +90,7 @@ public final class DomainCA {
 
   private final String domainName;
   private final PrivateKey privateKey;
-  private final X509Certificate certificate;
+  private final X509Certificate[] certificateChain;
 
   public DomainCA(String domainName, Credentials creds) throws GeneralSecurityException {
     this.domainName = Objects.requireNonNull(domainName, "domainName");
@@ -101,15 +101,30 @@ public final class DomainCA {
     if (chain == null || chain.length == 0) {
       throw new GeneralSecurityException("credentials carry no certificate chain");
     }
-    this.certificate = chain[0];
+    this.certificateChain = chain;
   }
 
   public PublicKey getPublicKey() {
     return getCertificate().getPublicKey();
   }
 
+  /**
+   * Get the certificate of this Domain CA itself, i.e. the CA that directly issues LDevID
+   * certificates to Pledges of this domain.
+   */
   public X509Certificate getCertificate() {
-    return certificate;
+    return certificateChain[0];
+  }
+
+  /**
+   * Get this Domain CA's full certificate chain, in CA hierarchy order: this CA first, then any
+   * higher-level CAs up to the highest-level (typically root) domain CA. For a single, self-signed
+   * domain CA the chain holds just that one certificate.
+   *
+   * @return the chain; the caller must not modify it
+   */
+  public X509Certificate[] getCertificateChain() {
+    return certificateChain;
   }
 
   /**
@@ -170,7 +185,7 @@ public final class DomainCA {
           new JcaContentSignerBuilder(SecurityUtils.SIGNATURE_ALGORITHM).build(this.privateKey);
       X509CertificateHolder holder = builder.build(signer);
       X509Certificate cert = new JcaX509CertificateConverter().getCertificate(holder);
-      cert.verify(this.certificate.getPublicKey());
+      cert.verify(getCertificate().getPublicKey());
 
       // 3. Make sure the signed certificate is valid
       {
@@ -180,7 +195,7 @@ public final class DomainCA {
         CertPath path = cf.generateCertPath(certs);
 
         Set<TrustAnchor> trustAnchors = new HashSet<>();
-        trustAnchors.add(new TrustAnchor(this.certificate, null));
+        trustAnchors.add(new TrustAnchor(getCertificate(), null));
         PKIXParameters params = new PKIXParameters(trustAnchors);
         params.setRevocationEnabled(false);
 

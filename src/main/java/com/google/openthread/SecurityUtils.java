@@ -514,9 +514,21 @@ public class SecurityUtils {
   }
 
   public static CMSSignedData genCMSCertOnlyMessage(X509Certificate cert) throws Exception {
+    return genCMSCertOnlyMessage(new X509Certificate[]{cert});
+  }
+
+  /**
+   * Build a degenerate ("certs-only") CMS/PKCS#7 SignedData carrying the given certificates and no
+   * signers, as used for the EST {@code application/pkcs7-mime;smime-type=certs-only} media type.
+   *
+   * @param certs the certificates to include, in the order given
+   * @return the certs-only CMS SignedData
+   */
+  public static CMSSignedData genCMSCertOnlyMessage(X509Certificate[] certs) throws Exception {
     CMSSignedDataGenerator generator = new CMSSignedDataGenerator();
-    X509CertificateHolder holder = new JcaX509CertificateHolder(cert);
-    generator.addCertificate(holder);
+    for (X509Certificate cert : certs) {
+      generator.addCertificate(new JcaX509CertificateHolder(cert));
+    }
 
     // Empty data
     CMSTypedData data = new CMSProcessableByteArray(new byte[]{});
