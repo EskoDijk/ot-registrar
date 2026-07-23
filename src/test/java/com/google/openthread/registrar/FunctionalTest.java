@@ -47,6 +47,7 @@ import com.google.openthread.tools.CredentialGenerator;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.cert.X509Certificate;
+import java.util.List;
 import org.bouncycastle.util.encoders.Hex;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
@@ -201,6 +202,43 @@ public final class FunctionalTest {
     verifyPledge(pledge);
     verifyEnroll(pledge);
     Assert.assertEquals(ResponseCode.CHANGED, pledge.sendEnrollStatusTelemetry(true, null));
+  }
+
+  /**
+   * A CA certificates request (/crts) against the Registrar. Note the Registrar currently answers
+   * only in application/pkix-cert (287) format with the single domain CA certificate, regardless of
+   * the CoAP Accept Option sent; support for the multipart-core (62) format is still open (gap G8).
+   */
+  @Test
+  public void testRequestCaCertificates() throws Exception {
+    Voucher voucher = pledge.requestVoucher();
+    Assert.assertTrue(voucher.validate());
+    Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
+
+    List<X509Certificate> caCerts = pledge.requestCACertificates();
+    Assert.assertEquals(1, caCerts.size());
+    Assert.assertEquals(
+        cg.getCredentials(CredentialsSet.DOMAIN_CA_ALIAS).getCertificate(), caCerts.get(0));
+  }
+
+  /**
+   * After a normal enrollment the optimized shortcut of cBRSKI section 6.7.1 step 3 applies, since
+   * the test PKI's pinned domain CA is a root CA that directly signs the LDevID. The pinned domain
+   * CA is then the Pledge's sole trust anchor and no /crts request was needed.
+   */
+  @Test
+  public void testEnrollUsesOptimizedShortcut() throws Exception {
+    Voucher voucher = pledge.requestVoucher();
+    Assert.assertTrue(voucher.validate());
+    Assert.assertEquals(ResponseCode.CHANGED, pledge.sendVoucherStatusTelemetry(true, null));
+
+    pledge.enroll();
+    verifyEnroll(pledge);
+
+    List<X509Certificate> trustAnchors = pledge.getCaCertificates();
+    Assert.assertEquals(1, trustAnchors.size());
+    Assert.assertEquals(
+        cg.getCredentials(CredentialsSet.DOMAIN_CA_ALIAS).getCertificate(), trustAnchors.get(0));
   }
 
   @Test

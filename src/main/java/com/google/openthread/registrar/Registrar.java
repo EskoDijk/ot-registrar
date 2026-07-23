@@ -761,9 +761,9 @@ public final class Registrar extends CoapServer {
     }
   }
 
-  public final class CrtsResource extends CoapResource {
+  public final class CaCertsResource extends CoapResource {
 
-    public CrtsResource() {
+    public CaCertsResource() {
       super(ConstantsBrski.CA_CERTIFICATES);
     }
 
@@ -883,7 +883,7 @@ public final class Registrar extends CoapServer {
     VoucherRequestResource rv = new VoucherRequestResource();
     VoucherStatusResource vs = new VoucherStatusResource();
     EnrollStatusResource es = new EnrollStatusResource();
-    CrtsResource crts = new CrtsResource();
+    CaCertsResource crts = new CaCertsResource();
     EnrollResource enroll = new EnrollResource();
     ReenrollResource reenroll = new ReenrollResource();
     WellknownCoreResource core = new WellknownCoreResource();

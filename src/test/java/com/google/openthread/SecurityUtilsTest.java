@@ -34,13 +34,18 @@ import com.google.openthread.brski.ConstantsBrski;
 import com.google.openthread.brski.HardwareModuleName;
 import com.google.openthread.tools.CredentialGenerator;
 import com.upokecenter.cbor.CBORObject;
+import java.io.IOException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.KeyUsage;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.operator.jcajce.JcaContentVerifierProviderBuilder;
@@ -162,5 +167,114 @@ public final class SecurityUtilsTest {
     byte[] akiOctetStringLastPart = new byte[20];
     System.arraycopy(akiOctetString, 6, akiOctetStringLastPart, 0, 20);
     Assert.assertArrayEquals(keyId, akiOctetStringLastPart);
+  }
+
+  // --- Certificate hierarchy checks: isRootCaCertificate, isSignedBy and chainsTo.
+
+  /**
+   * A two-level PKI: root CA -> sub-CA -> end entity. This is the shape for which the optimized
+   * enrollment shortcut of cBRSKI 6.7.1 step 3 does not apply, so that a Pledge must obtain the
+   * trust anchors with a CA certificates request and chain to them (step 4).
+   */
+  private static final class TwoLevelPki {
+
+    final X509Certificate rootCa;
+    final X509Certificate subCa;
+    final X509Certificate endEntity;
+
+    TwoLevelPki() throws Exception {
+      KeyPair rootKey = SecurityUtils.genKeyPair();
+      KeyPair subKey = SecurityUtils.genKeyPair();
+      KeyPair eeKey = SecurityUtils.genKeyPair();
+
+      String rootName = "CN=test root CA";
+      String subName = "CN=test sub CA";
+      rootCa =
+          SecurityUtils.genCertificate(
+              rootKey, rootName, rootKey, new X500Name(rootName), true, caExtensions());
+      subCa =
+          SecurityUtils.genCertificate(
+              subKey, subName, rootKey, new X500Name(rootName), true, caExtensions());
+      endEntity =
+          SecurityUtils.genCertificate(
+              eeKey, "CN=test LDevID", subKey, new X500Name(subName), false, null);
+    }
+
+    /** The key usage a CA certificate needs to be usable as a certification path element. */
+    private static List<Extension> caExtensions() throws IOException {
+      return Collections.singletonList(
+          new Extension(
+              Extension.keyUsage,
+              true,
+              new KeyUsage(KeyUsage.digitalSignature | KeyUsage.keyCertSign | KeyUsage.cRLSign)
+                  .getEncoded()));
+    }
+  }
+
+  @Test
+  public void testIsRootCaCertificate() throws Exception {
+    TwoLevelPki pki = new TwoLevelPki();
+    CredentialGenerator cg = new CredentialGenerator();
+    cg.make(null, null, null, null, null);
+
+    Assert.assertTrue(
+        "self-signed domain CA is a root CA",
+        SecurityUtils.isRootCaCertificate(
+            cg.getCredentials(CredentialsSet.DOMAIN_CA_ALIAS).getCertificate()));
+    Assert.assertTrue(SecurityUtils.isRootCaCertificate(pki.rootCa));
+
+    Assert.assertFalse("a sub-CA is not a root CA", SecurityUtils.isRootCaCertificate(pki.subCa));
+    Assert.assertFalse(
+        "an end-entity certificate is not a root CA",
+        SecurityUtils.isRootCaCertificate(
+            cg.getCredentials(CredentialsSet.REGISTRAR_ALIAS).getCertificate()));
+  }
+
+  @Test
+  public void testIsSignedBy() throws Exception {
+    TwoLevelPki pki = new TwoLevelPki();
+
+    Assert.assertTrue(SecurityUtils.isSignedBy(pki.subCa, pki.rootCa));
+    Assert.assertTrue(SecurityUtils.isSignedBy(pki.endEntity, pki.subCa));
+    Assert.assertTrue("a root CA signs itself", SecurityUtils.isSignedBy(pki.rootCa, pki.rootCa));
+
+    // signed by the sub-CA, not directly by the root
+    Assert.assertFalse(SecurityUtils.isSignedBy(pki.endEntity, pki.rootCa));
+    Assert.assertFalse(SecurityUtils.isSignedBy(pki.rootCa, pki.subCa));
+  }
+
+  @Test
+  public void testChainsToThroughSubCa() throws Exception {
+    TwoLevelPki pki = new TwoLevelPki();
+
+    Assert.assertTrue(
+        "should chain end entity -> sub-CA -> root CA",
+        SecurityUtils.chainsTo(pki.endEntity, Arrays.asList(pki.subCa, pki.rootCa)));
+
+    Assert.assertTrue(
+        "the issuing sub-CA alone is enough of an anchor",
+        SecurityUtils.chainsTo(pki.endEntity, Collections.singletonList(pki.subCa)));
+  }
+
+  @Test
+  public void testChainsToFailsWithoutPath() throws Exception {
+    TwoLevelPki pki = new TwoLevelPki();
+    CredentialGenerator cg = new CredentialGenerator();
+    cg.make(null, null, null, null, null);
+
+    Assert.assertFalse(
+        "a certificate of a different PKI must not chain",
+        SecurityUtils.chainsTo(
+            pki.endEntity,
+            Collections.singletonList(
+                cg.getCredentials(CredentialsSet.DOMAIN_CA_ALIAS).getCertificate())));
+
+    Assert.assertFalse(
+        "missing the intermediate sub-CA, no path exists to the root",
+        SecurityUtils.chainsTo(pki.endEntity, Collections.singletonList(pki.rootCa)));
+
+    Assert.assertFalse(
+        "an empty CA set never chains",
+        SecurityUtils.chainsTo(pki.endEntity, Collections.emptyList()));
   }
 }

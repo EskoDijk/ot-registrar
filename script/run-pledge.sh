@@ -27,16 +27,9 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-# This runs a Pledge using IoTconsultancy IDevID, onboarding via cloud Registrar.
-# The script create-pledge-credentials-p12-iotconsultancy.sh can be used to create
-# or recreate the credentials file.
+# This runs a Pledge using default IDevID, onboarding via the localhost Registrar.
 
 set -e
 
-REGISTRAR="coaps://masa.iotconsultancy.nl/"
-if [ "$#" -eq 1 ]; then
-    REGISTRAR=$1
-fi
-
-echo "Pledge using IoTconsultancy credentials with Registrar: ${REGISTRAR}"
-./script/run -pledge -f ./credentials/iotconsultancy-masa/credentials.p12 -r "${REGISTRAR}"
+echo "Pledge using default credentials"
+./script/run -pledge -f ./credentials/default_pledge.p12
