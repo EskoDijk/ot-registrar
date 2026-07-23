@@ -67,6 +67,7 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -343,7 +344,19 @@ public final class Pledge extends CoapClient {
           && (voucher.getNonce() == null || !Arrays.equals(req.getNonce(), voucher.getNonce()))) {
         throw new PledgeException("nonce not matched");
       }
-      // TODO(wgtdkp): if nonce is not presented, make sure that the voucher is not expired
+
+      // For a nonceless voucher: Pledge MUST check that it has not expired, using the 'expires-on'
+      // attribute.
+      if (voucher.getNonce() == null) {
+        Date expiresOn = voucher.getExpiresOn();
+        if (expiresOn == null) {
+          throw new PledgeException(
+              "nonceless voucher without expires-on; cannot verify freshness");
+        }
+        if (!new Date().before(expiresOn)) {
+          throw new PledgeException("nonceless voucher has expired (expires-on: " + expiresOn + ")");
+        }
+      }
 
       if (voucher.getPinnedDomainSPKI() != null) {
         SubjectPublicKeyInfo spki = SubjectPublicKeyInfo.getInstance(voucher.getPinnedDomainSPKI());
